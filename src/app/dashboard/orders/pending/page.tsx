@@ -21,7 +21,8 @@ import {
   Clock,
   ShieldAlert,
   ArrowRight,
-  UserCheck
+  UserCheck,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -29,6 +30,7 @@ import {
   EditOrderModal,
   CancelOrderModal,
 } from '@/components/orders/lifecycle/OrderModals';
+import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 
 export default function PendingOrdersPage() {
   const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
@@ -42,6 +44,7 @@ export default function PendingOrdersPage() {
   const [cancellingOrder, setCancellingOrder] = useState<LifecycleOrder | null>(null);
   const [callingOrder, setCallingOrder] = useState<LifecycleOrder | null>(null);
   const [callOutcome, setCallOutcome] = useState('CONFIRMED');
+  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
 
   // Filter orders for Pending Confirmation
   const pendingOrders = useMemo(() => {
@@ -157,6 +160,17 @@ export default function PendingOrdersPage() {
               <option value="COD">الدفع عند الاستلام (COD)</option>
               <option value="PREPAID">الدفع الإلكتروني (Prepaid)</option>
             </select>
+
+            {/* Google Sheets Integration Modal Button */}
+            <button
+              onClick={() => setIsSheetModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-all shrink-0"
+              title="إعداد ومزامنة وصول الطلبات تلقائياً من Google Sheets"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>ربط Google Sheets</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
+            </button>
           </div>
         </div>
 
@@ -422,6 +436,12 @@ export default function PendingOrdersPage() {
         isOpen={!!cancellingOrder}
         onClose={() => setCancellingOrder(null)}
         onConfirmCancel={cancelOrder}
+      />
+
+      {/* Google Sheets Integration Modal */}
+      <GoogleSheetsIntegrationModal
+        isOpen={isSheetModalOpen}
+        onClose={() => setIsSheetModalOpen(false)}
       />
     </div>
   );

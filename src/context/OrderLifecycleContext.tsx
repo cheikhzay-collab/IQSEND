@@ -679,6 +679,8 @@ interface OrderLifecycleContextType {
   markDelivered: (orderId: string) => void;
   requestReview: (orderId: string) => void;
   processReturn: (orderId: string, reason: string) => void;
+  addOrder: (newOrder: LifecycleOrder) => void;
+  refreshInboundOrders: () => Promise<void>;
 }
 
 const OrderLifecycleContext = createContext<OrderLifecycleContextType | undefined>(undefined);
@@ -933,6 +935,54 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     showToast(`Procédure de retour/échange initiée: ticket #${orderId}-RET généré.`, 'info');
   };
 
+  // 10. Add New Inbound Order (From Google Sheets or Webhook)
+  const addOrder = (newOrder: LifecycleOrder) => {
+    setOrders((prev) => {
+      if (prev.some((o) => o.id === newOrder.id || o.orderNumber === newOrder.orderNumber)) {
+        return prev;
+      }
+      return [newOrder, ...prev];
+    });
+    showToast(`📦 طلب جديد سقط في مرحلة التأكيد: ${newOrder.orderNumber} (${newOrder.customer.name})`, 'success');
+  };
+
+  // 11. Refresh Inbound Orders from Webhook API
+  const refreshInboundOrders = async () => {
+    try {
+      const res = await fetch('/api/webhooks/google-sheets');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        setOrders((prev) => {
+          let updated = [...prev];
+          let addedCount = 0;
+          for (const item of data.orders) {
+            const exists = updated.some(
+              (o) => o.id === item.id || o.orderNumber === item.orderNumber
+            );
+            if (!exists) {
+              updated = [item as LifecycleOrder, ...updated];
+              addedCount++;
+            }
+          }
+          if (addedCount > 0) {
+            showToast(`📦 تم جلب ${addedCount} طلب جديد مباشرة من Google Sheets!`, 'success');
+          }
+          return updated;
+        });
+      }
+    } catch {
+      // Ignore background sync errors
+    }
+  };
+
+  // Periodic polling for incoming Google Sheet orders (every 6 seconds)
+  useEffect(() => {
+    refreshInboundOrders();
+    const interval = setInterval(refreshInboundOrders, 6000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <OrderLifecycleContext.Provider
       value={{
@@ -953,6 +1003,8 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         markDelivered,
         requestReview,
         processReturn,
+        addOrder,
+        refreshInboundOrders,
       }}
     >
       {children}
