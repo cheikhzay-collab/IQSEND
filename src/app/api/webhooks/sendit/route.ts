@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { senditService, SenditWebhookPayload } from '@/lib/sendit-service';
+import { getInboundOrders } from '@/lib/orders-store';
+import {
+  triggerNeedsAttentionRescue,
+  triggerOutForDeliveryNotice,
+  triggerMorningCodReminder,
+  triggerReviewInvitation,
+} from '@/lib/order-automations';
 
 /**
  * POST /api/webhooks/sendit
@@ -80,15 +87,42 @@ export async function POST(req: NextRequest) {
     //   include: { order: { include: { lead: true } } },
     // });
 
-    // ── 7. إرسال WhatsApp إذا لزم ────────────────────────────────────
-    if (shouldSendWhatsAppNotification && whatsAppNotificationPayload) {
-      console.log(
-        `[WhatsApp Hook] 📱 ${whatsAppNotificationPayload.type} pour colis ${payload.code}`
-      );
-      // whatsappService.sendMessage(customerPhone, whatsAppNotificationPayload.suggestedMessageText);
+    // ── 6. Traitement automatique des 4 piliers (Rescue & Notifications) ─
+    const orders = getInboundOrders();
+    const matchingOrder = orders.find(
+      (o) => o.tracking?.trackingNumber === payload.code || o.orderNumber === payload.code
+    );
+
+    if (mappedStatus === 'DELIVERY_FAILED') {
+      const reason = failureReason || payload.message || 'Client Injoignable';
+      if (matchingOrder) {
+        await triggerNeedsAttentionRescue(matchingOrder, reason);
+      }
+    } else if (mappedStatus === 'OUT_FOR_DELIVERY') {
+      if (matchingOrder) {
+        await triggerOutForDeliveryNotice(
+          matchingOrder.customer.phone,
+          matchingOrder.customer.name,
+          payload.code
+        );
+        await triggerMorningCodReminder(
+          matchingOrder.customer.phone,
+          matchingOrder.customer.name,
+          payload.code,
+          matchingOrder.payment.amount
+        );
+      }
+    } else if (mappedStatus === 'DELIVERED_PAID') {
+      if (matchingOrder) {
+        await triggerReviewInvitation(
+          matchingOrder.customer.phone,
+          matchingOrder.customer.name,
+          matchingOrder.orderNumber
+        );
+      }
     }
 
-    // ── 8. Répondre à Sendit (obligatoire: 200 OK) ───────────────────
+    // ── 7. Répondre à Sendit (obligatoire: 200 OK) ───────────────────
     return NextResponse.json({
       success: true,
       code: payload.code,

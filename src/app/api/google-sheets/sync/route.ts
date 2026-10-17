@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addInboundOrder, cleanMoroccanPhone, IngestedOrder } from '@/lib/orders-store';
+import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
 
 /**
  * 1-Click Google Sheets Direct Sync API
@@ -190,6 +191,12 @@ export async function POST(req: NextRequest) {
       };
 
       addInboundOrder(order);
+      // Trigger Pillar 1 instant interactive WhatsApp confirmation + upselling
+      try {
+        await triggerOrderConfirmationOutreach(order);
+      } catch (err: any) {
+        console.warn(`[Sync] WhatsApp confirmation outreach failed for ${order.orderNumber}:`, err.message);
+      }
       importedOrders.push(order);
     }
 

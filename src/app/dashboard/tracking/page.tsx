@@ -409,6 +409,92 @@ export default function TrackingPage() {
         {/* 2. Telemetry KPI Cards */}
         <KpiCards kpis={kpis} />
 
+        {/* 2.b Emergency Rescue Panel (Pilier 2: Needs Attention Engine) */}
+        {kpis.failedAtRiskCount > 0 && (
+          <div className="bg-gradient-to-r from-rose-50 via-amber-50/60 to-rose-50 border-2 border-rose-200/90 rounded-2xl p-4.5 shadow-sm space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold shadow-sm shadow-rose-600/30">
+                  <AlertCircle className="w-5 h-5 animate-bounce" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-slate-900">
+                      🚨 Cellule d'Urgence Sauvetage : {kpis.failedAtRiskCount} colis en risque de retour
+                    </h3>
+                    <span className="text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      Délai Sendit : &lt; 24h
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600">
+                    Ces colis sont signalés en échec (Injoignable, Reporté, ou Adresse imprécise). Déclenchez l'assistance WhatsApp en 1-clic pour éviter le retour au stock.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const atRisk = orders.filter((o) => o.shipmentStatus === 'DELIVERY_FAILED');
+                    atRisk.forEach((ord) => handleSendMessage(ord.id, `مرحباً ${ord.customerName}، لاحظنا أن الموزع واجه صعوبة في تسليم طلبك اليوم (${ord.failedReason || 'تعذر الوصول'}). كيفاش تفضل نكملوا التوصيل؟`));
+                    alert(`✅ Message de sauvetage WhatsApp envoyé avec succès aux ${atRisk.length} clients en échec !`);
+                  }}
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
+                >
+                  <Bot className="w-3.5 h-3.5" /> Relancer Tout par Bot WhatsApp
+                </button>
+              </div>
+            </div>
+
+            {/* List of at-risk shipments */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+              {orders
+                .filter((o) => o.shipmentStatus === 'DELIVERY_FAILED')
+                .map((atRiskOrder) => (
+                  <div
+                    key={atRiskOrder.id}
+                    className="bg-white border border-rose-200 rounded-xl p-3 shadow-2xs space-y-2 hover:border-rose-400 transition-colors"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-900">{atRiskOrder.orderNumber}</span>
+                      <span className="text-rose-700 font-bold bg-rose-50 px-2 py-0.5 rounded text-[10px]">
+                        {atRiskOrder.city} • {atRiskOrder.totalAmount} MAD
+                      </span>
+                    </div>
+
+                    <div className="text-xs text-slate-700">
+                      <strong>{atRiskOrder.customerName}</strong> ({atRiskOrder.phoneNumber})
+                      <div className="text-[11px] text-rose-600 font-medium mt-0.5 truncate">
+                        ⚠️ Motif : {atRiskOrder.failedReason || 'Client Injoignable'}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100">
+                      <button
+                        onClick={() => {
+                          handleSendMessage(
+                            atRiskOrder.id,
+                            `مرحباً ${atRiskOrder.customerName}، لاحظنا أن موزع Sendit حاول يتصل بك اليوم بخصوص طلبيتك. هل تفضل استلامها غداً، أو تحديد توقيت آخر يناسبك؟ 🚚`
+                          );
+                          alert(`✅ Message de sauvetage envoyé à ${atRiskOrder.customerName}`);
+                        }}
+                        className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold py-1.5 rounded-lg text-center transition-colors"
+                      >
+                        📱 Sauvetage WhatsApp
+                      </button>
+                      <button
+                        onClick={() => handleSelectOrder(atRiskOrder)}
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-[11px] font-bold rounded-lg transition-colors"
+                      >
+                        Détails
+                      </button>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
         {/* 3. Pipeline Header & Filter info */}
         <div className="flex items-center justify-between pt-1">
           <div className="flex items-center gap-2 text-xs text-slate-600">
