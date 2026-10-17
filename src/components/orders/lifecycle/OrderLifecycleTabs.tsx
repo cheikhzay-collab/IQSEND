@@ -24,7 +24,8 @@ export function OrderLifecycleTabs() {
     {
       id: 'pending',
       href: '/dashboard/orders/pending',
-      label: 'Pending Confirmation',
+      step: '1',
+      label: '1. Pending Confirmation',
       arabic: 'بانتظار التأكيد',
       icon: ClipboardCheck,
       badge: pendingCount,
@@ -34,7 +35,8 @@ export function OrderLifecycleTabs() {
     {
       id: 'processing',
       href: '/dashboard/orders/processing',
-      label: 'Processing',
+      step: '2',
+      label: '2. Processing',
       arabic: 'قيد التجهيز',
       icon: Package,
       badge: processingCount,
@@ -44,7 +46,8 @@ export function OrderLifecycleTabs() {
     {
       id: 'in-transit',
       href: '/dashboard/orders/in-transit',
-      label: 'In Transit',
+      step: '3',
+      label: '3. In Transit',
       arabic: 'قيد التوصيل',
       icon: Truck,
       badge: inTransitCount,
@@ -54,7 +57,8 @@ export function OrderLifecycleTabs() {
     {
       id: 'completed',
       href: '/dashboard/orders/completed',
-      label: 'Completed',
+      step: '4',
+      label: '4. Completed',
       arabic: 'المكتملة',
       icon: CheckCircle2,
       badge: completedCount,

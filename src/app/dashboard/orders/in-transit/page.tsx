@@ -12,10 +12,12 @@ import {
   MessageSquare,
   Copy,
   Clock,
-  ArrowUpRight,
+  ArrowRight,
   Filter,
   RefreshCw,
-  Navigation
+  Navigation,
+  Sparkles,
+  UserCheck
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -33,10 +35,11 @@ export default function InTransitOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [courierFilter, setCourierFilter] = useState('ALL');
 
-  // Modals
+  // Modals & States
   const [reschedulingOrder, setReschedulingOrder] = useState<LifecycleOrder | null>(null);
   const [trackingModalOrder, setTrackingModalOrder] = useState<LifecycleOrder | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [rescueToast, setRescueToast] = useState<string | null>(null);
 
   // Filter orders for In Transit
   const inTransitOrders = useMemo(() => {
@@ -67,6 +70,11 @@ export default function InTransitOrdersPage() {
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
+  const handleRescueWhatsApp = (order: LifecycleOrder) => {
+    setRescueToast(`تم إرسال رسالة إنقاذ ذكية بالدارجة للزبون ${order.customer.name} لتحديد موعد بديل!`);
+    setTimeout(() => setRescueToast(null), 4000);
+  };
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
       {/* Top Lifecycle Navigation Tabs */}
@@ -74,6 +82,39 @@ export default function InTransitOrdersPage() {
 
       {/* Main Content Area */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
+
+        {/* Visual Lifecycle Stepper Header */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
+          <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
+            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
+              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+              <span>المرحلة 1: تم التأكيد (Confirmed)</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
+              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
+              <span>المرحلة 2: تم التغليف والإرسال (Dispatched)</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+            <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-300 font-bold shrink-0">
+              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
+              <span>المرحلة 3: الشحن وتتبع التوصيل الميداني (In Transit)</span>
+            </div>
+            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
+            <div className="flex items-center gap-2 text-slate-400 px-3 py-1.5 rounded-xl font-medium shrink-0">
+              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</span>
+              <span>المرحلة 4: التسليم والتحصيل المالي (Completed)</span>
+            </div>
+          </div>
+        </div>
+
+        {rescueToast && (
+          <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
+            <Sparkles className="w-4 h-4 text-emerald-600" />
+            <span>{rescueToast}</span>
+          </div>
+        )}
+
         {/* Header with Title */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -89,11 +130,11 @@ export default function InTransitOrdersPage() {
                   (قيد التوصيل)
                 </span>
                 <span className="bg-indigo-100 text-indigo-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
-                  {inTransitCount} colis en route
+                  {inTransitCount} طرد في الطريق
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Suivi en direct des livreurs Sendit & Amana, relances automatiques et gestion des reprogrammations
+                تتبع حالة الموزع الميداني، أداة إنقاذ الطرود المتعثرة (Injoignable) عبر واتساب، وإعادة الجدولة حتى استلام الكاش
               </p>
             </div>
           </div>
@@ -104,7 +145,7 @@ export default function InTransitOrdersPage() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="Rechercher (AWB, Client, Tél)..."
+                placeholder="بحث (رقم AWB، الزبون، الهاتف)..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -116,10 +157,10 @@ export default function InTransitOrdersPage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="ALL">Tous les statuts</option>
-              <option value="OUT_FOR_DELIVERY">En cours (Out for Delivery)</option>
-              <option value="DISPATCHED">Expédié (Dispatched)</option>
-              <option value="FAILED_ATTEMPT">Tentative échouée (Injoignable)</option>
+              <option value="ALL">جميع حالات التوصيل</option>
+              <option value="OUT_FOR_DELIVERY">مع الموزع اليوم (Out for Delivery)</option>
+              <option value="DISPATCHED">في المستودع الإقليمي (Dispatched)</option>
+              <option value="FAILED_ATTEMPT">محاولة غير ناجحة (Injoignable)</option>
             </select>
 
             <select
@@ -127,7 +168,7 @@ export default function InTransitOrdersPage() {
               onChange={(e) => setCourierFilter(e.target.value)}
               className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <option value="ALL">Tous les transporteurs</option>
+              <option value="ALL">جميع شركات الشحن</option>
               <option value="Sendit.ma Express">Sendit.ma Express</option>
               <option value="Cathedis Maroc">Cathedis Maroc</option>
               <option value="Amana Express">Amana Express</option>
@@ -141,9 +182,9 @@ export default function InTransitOrdersPage() {
           {inTransitOrders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <Truck className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-              <p className="font-bold text-sm text-slate-700">Aucun colis en transit pour le moment</p>
+              <p className="font-bold text-sm text-slate-700">لا توجد طرود قيد التوصيل حالياً</p>
               <p className="text-xs text-slate-400 mt-1">
-                Les colis prêts seront pris en charge par le ramassage Sendit.ma.
+                الطرود المجهزة في المستودع ستظهر هنا فور تسليمها لسيارات التوزيع.
               </p>
             </div>
           ) : (
@@ -151,12 +192,12 @@ export default function InTransitOrdersPage() {
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <th className="py-3.5 px-4">Order & Destinataire</th>
-                    <th className="py-3.5 px-4">Courier & Tracking AWB</th>
-                    <th className="py-3.5 px-4">Live Status (État en Direct)</th>
-                    <th className="py-3.5 px-4">Driver & Dispatch</th>
-                    <th className="py-3.5 px-4">Dernière Mise à Jour</th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4">الطلب والزبون</th>
+                    <th className="py-3.5 px-4">شركة الشحن وبوليصة AWB</th>
+                    <th className="py-3.5 px-4">الحالة الميدانية ومبلغ الكود</th>
+                    <th className="py-3.5 px-4">بيانات الموزع (Livreur)</th>
+                    <th className="py-3.5 px-4">آخر تحديث والموعد</th>
+                    <th className="py-3.5 px-4 text-right">أدوات المتابعة والتسليم</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -186,19 +227,19 @@ export default function InTransitOrdersPage() {
                           <span className="font-bold text-slate-900 block">
                             {order.shipping?.courier || 'Sendit.ma'}
                           </span>
-                          <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-800 font-bold">
+                          <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-800 font-bold border border-slate-200">
                             <span>{order.shipping?.trackingNumber || 'SND-PENDING'}</span>
                             <button
                               onClick={() => copyToClipboard(order.shipping?.trackingNumber || '')}
                               className="text-slate-400 hover:text-slate-700"
-                              title="Copier le numéro AWB"
+                              title="نسخ رقم البوليصة"
                             >
                               <Copy className="w-2.5 h-2.5" />
                             </button>
                           </div>
                           {copiedCode === order.shipping?.trackingNumber && (
                             <span className="text-[9px] text-emerald-600 font-bold block">
-                              Copié !
+                              تم النسخ!
                             </span>
                           )}
                         </div>
@@ -210,29 +251,39 @@ export default function InTransitOrdersPage() {
                           {order.shipping?.liveStatus === 'OUT_FOR_DELIVERY' ? (
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
                               <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-                              <span>Out for Delivery (مع الموزع)</span>
+                              <span>مع الموزع اليوم (Out for Delivery)</span>
                             </div>
                           ) : order.shipping?.liveStatus === 'FAILED_ATTEMPT' ? (
-                            <div className="space-y-1">
+                            <div className="space-y-1.5">
                               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                                 <AlertTriangle className="w-3 h-3 text-rose-600" />
-                                <span>Failed Attempt (محاولة فاشلة)</span>
+                                <span>محاولة غير ناجحة (Injoignable)</span>
                               </div>
-                              {order.shipping?.failedReason && (
-                                <p className="text-[10px] text-rose-600 max-w-xs font-medium">
-                                  {order.shipping.failedReason}
-                                </p>
-                              )}
+                              {/* One-click WhatsApp Rescue Button */}
+                              <div>
+                                <a
+                                  href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                                    `أهلاً بك أخي/أختي ${order.customer.name}، الموزع حاول الاتصال بك قبل قليل لتسليم طلبك ${order.orderNumber} ولكن تعذر الوصول إليك. متى تفضل أن نرسل الموزع مجدداً اليوم؟`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={() => handleRescueWhatsApp(order)}
+                                  className="inline-flex items-center gap-1 text-[10px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-2 py-0.5 rounded-lg shadow-2xs"
+                                >
+                                  <MessageSquare className="w-2.5 h-2.5" />
+                                  <span>إنقاذ الطرد بالواتساب</span>
+                                </a>
+                              </div>
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
                               <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                              <span>Dispatched (En transit Hub)</span>
+                              <span>في المستودع الإقليمي (Dispatched)</span>
                             </div>
                           )}
 
-                          <div className="text-[10px] font-bold text-amber-800">
-                            Montant COD: {order.payment.amount} MAD
+                          <div className="text-[10px] font-bold text-amber-800 bg-amber-50/70 px-2 py-0.5 rounded border border-amber-200 inline-block">
+                            التحصيل: {order.payment.amount} درهم نقداً
                           </div>
                         </div>
                       </td>
@@ -243,13 +294,17 @@ export default function InTransitOrdersPage() {
                           <div className="space-y-0.5">
                             <p className="font-bold text-slate-900">{order.shipping.driverName}</p>
                             {order.shipping.driverPhone && (
-                              <p className="text-[10px] text-slate-500 font-mono">
-                                Tél: {order.shipping.driverPhone}
-                              </p>
+                              <a
+                                href={`tel:${order.shipping.driverPhone}`}
+                                className="text-[10px] text-blue-600 hover:underline font-mono flex items-center gap-1"
+                              >
+                                <Phone className="w-2.5 h-2.5" />
+                                {order.shipping.driverPhone}
+                              </a>
                             )}
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400">Hub logistique</span>
+                          <span className="text-[11px] text-slate-400">مركز التوزيع</span>
                         )}
                       </td>
 
@@ -257,46 +312,46 @@ export default function InTransitOrdersPage() {
                       <td className="py-4 px-4 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>{order.shipping?.lastUpdated || 'Récemment'}</span>
+                          <span>{order.shipping?.lastUpdated || 'مؤخراً'}</span>
                         </div>
                         {order.shipping?.rescheduledDate && (
-                          <span className="text-[10px] text-indigo-600 font-bold block mt-0.5">
-                            Reprogrammé: {order.shipping.rescheduledDate}
+                          <span className="text-[10px] text-indigo-700 font-bold block mt-0.5 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200">
+                            ميعاد مؤجل: {order.shipping.rescheduledDate}
                           </span>
                         )}
                       </td>
 
-                      {/* 6. Actions (Track Link, Reschedule, Mark Delivered) */}
+                      {/* 6. Actions (Track Link, Reschedule, Mark Delivered -> Moves to Completed) */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
-                          {/* Track Link */}
+                          {/* Live Track Modal */}
                           <button
                             onClick={() => setTrackingModalOrder(order)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors"
-                            title="Ouvrir la page de suivi Sendit"
+                            title="عرض تتبع المسار Sendit"
                           >
                             <ExternalLink className="w-3 h-3 text-slate-500" />
-                            <span>Track Link</span>
+                            <span>تتبع Sendit</span>
                           </button>
 
                           {/* Reschedule */}
                           <button
                             onClick={() => setReschedulingOrder(order)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs transition-colors"
-                            title="Reprogrammer la livraison"
+                            title="تأجيل أو تحديد موعد توصيل جديد"
                           >
                             <Calendar className="w-3 h-3 text-indigo-600" />
-                            <span>Reschedule</span>
+                            <span>إعادة الجدولة</span>
                           </button>
 
-                          {/* Mark Delivered */}
+                          {/* Mark Delivered (Primary Completion Action) */}
                           <button
                             onClick={() => markDelivered(order.id)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
-                            title="Valider la livraison et l'encaissement"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
+                            title="تأكيد التسليم واستلام الكاش ونقل الطلب لمرحلة الانتهاء والتسوية"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Mark Delivered</span>
+                            <span>تم التسليم والكاش ➔ اكتمال</span>
                           </button>
                         </div>
                       </td>
@@ -325,7 +380,7 @@ export default function InTransitOrdersPage() {
               <div className="flex items-center gap-2">
                 <Navigation className="w-4 h-4 text-indigo-600" />
                 <h3 className="font-bold text-sm text-slate-900">
-                  Suivi Sendit en Direct — {trackingModalOrder.orderNumber}
+                  تتبع مسار الشحن المباشر — {trackingModalOrder.orderNumber}
                 </h3>
               </div>
               <button
@@ -338,26 +393,26 @@ export default function InTransitOrdersPage() {
 
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500">N° d'expédition:</span>
+                <span className="text-slate-500">رقم البوليصة (AWB):</span>
                 <span className="font-mono font-bold text-slate-900">
                   {trackingModalOrder.shipping?.trackingNumber}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Transporteur:</span>
+                <span className="text-slate-500">شركة التوصيل:</span>
                 <span className="font-bold text-slate-900">
                   {trackingModalOrder.shipping?.courier}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Destinataire:</span>
+                <span className="text-slate-500">الزبون والوجهة:</span>
                 <span className="font-bold text-slate-900">
                   {trackingModalOrder.customer.name} ({trackingModalOrder.customer.city})
                 </span>
               </div>
               <div className="flex justify-between text-amber-800 font-bold">
-                <span>Montant COD:</span>
-                <span>{trackingModalOrder.payment.amount} MAD</span>
+                <span>المبلغ المطلوب تحصيله (COD):</span>
+                <span>{trackingModalOrder.payment.amount} درهم</span>
               </div>
             </div>
 
@@ -365,19 +420,19 @@ export default function InTransitOrdersPage() {
             <div className="space-y-4 relative pl-6 text-xs before:content-[''] before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
               <div className="relative">
                 <div className="w-3 h-3 rounded-full bg-emerald-500 absolute -left-5 top-0.5 ring-4 ring-white" />
-                <p className="font-bold text-slate-900">Commande Confirmée & Emballée</p>
-                <p className="text-[11px] text-slate-400">Hub Central Casablanca • 16 Oct</p>
+                <p className="font-bold text-slate-900">1. تم التأكيد وتجهيز الطرد</p>
+                <p className="text-[11px] text-slate-400">Hub Central Casablanca • تم إنشاء بوليصة AWB</p>
               </div>
               <div className="relative">
                 <div className="w-3 h-3 rounded-full bg-indigo-500 absolute -left-5 top-0.5 ring-4 ring-white" />
-                <p className="font-bold text-slate-900">Pris en charge par le transporteur</p>
-                <p className="text-[11px] text-slate-400">AWB généré • Départ pour livraison locale</p>
+                <p className="font-bold text-slate-900">2. تم الاستلام من المستودع والانطلاق</p>
+                <p className="text-[11px] text-slate-400">تحويل إلى مركز التوزيع بمدينة {trackingModalOrder.customer.city}</p>
               </div>
               <div className="relative">
                 <div className="w-3 h-3 rounded-full bg-blue-600 animate-pulse absolute -left-5 top-0.5 ring-4 ring-white" />
-                <p className="font-bold text-blue-700">En cours de livraison avec le coursier</p>
+                <p className="font-bold text-blue-700">3. في عهدة الموزع الميداني للتسليم اليوم</p>
                 <p className="text-[11px] text-slate-500">
-                  Livreur: {trackingModalOrder.shipping?.driverName || 'Sendit Agent'} • {trackingModalOrder.shipping?.lastUpdated}
+                  الموزع: {trackingModalOrder.shipping?.driverName || 'Sendit Delivery Agent'} • {trackingModalOrder.shipping?.lastUpdated}
                 </p>
               </div>
             </div>
@@ -387,7 +442,7 @@ export default function InTransitOrdersPage() {
                 onClick={() => setTrackingModalOrder(null)}
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
               >
-                Fermer
+                إغلاق
               </button>
             </div>
           </div>

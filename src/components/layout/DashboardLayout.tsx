@@ -218,7 +218,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">Pending Confirmation</span>
+                      <span className="truncate">1. Pending Confirmation</span>
                     </div>
                     {pendingCount > 0 && (
                       <span className="shrink-0 ml-1.5 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs animate-pulse">
@@ -244,7 +244,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">Processing</span>
+                      <span className="truncate">2. Processing</span>
                     </div>
                     {processingCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-slate-400 text-[10px] font-semibold">
@@ -270,7 +270,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">In Transit</span>
+                      <span className="truncate">3. In Transit</span>
                     </div>
                     {inTransitCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-blue-600 text-[10px] font-semibold bg-blue-50 px-1.5 py-0.5 rounded-full">
@@ -296,7 +296,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">Completed</span>
+                      <span className="truncate">4. Completed</span>
                     </div>
                     {completedCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-emerald-600 text-[10px] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">
