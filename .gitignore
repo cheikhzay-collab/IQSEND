@@ -32,3 +32,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# whatsapp baileys sessions
+whatsapp_sessions/
+.wa_auth/

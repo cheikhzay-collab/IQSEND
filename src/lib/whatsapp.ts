@@ -111,6 +111,21 @@ export async function sendWhatsAppMessage(to: string, message: string) {
 
   // 2. Evolution API / Baileys (Alternative QR-Code Session)
   if (provider === 'EVOLUTION_API_QR') {
+    // If local Baileys bridge on port 5050 is connected, send directly through live WhatsApp socket!
+    try {
+      const bridgeRes = await fetch('http://localhost:5050/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: formattedPhone, message }),
+      });
+      if (bridgeRes.ok) {
+        const data = await bridgeRes.json();
+        if (data.success) return data;
+      }
+    } catch (e) {
+      // continue to Evolution API fallback
+    }
+
     if (!evolution.apiKey || evolution.apiKey.includes('snd_evo_key')) {
       console.log(`[WhatsApp Evolution QR Simulated] 📱 To ${formattedPhone} via instance "${evolution.instanceName}": "${message}"`);
       return { success: true, simulated: true, provider: 'EVOLUTION_API_QR', recipient: formattedPhone };

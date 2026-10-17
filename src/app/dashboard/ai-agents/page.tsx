@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot,
   Sparkles,
@@ -22,7 +22,8 @@ import {
   Video,
   Plus,
   Trash2,
-  ExternalLink
+  ExternalLink,
+  RefreshCw
 } from 'lucide-react';
 
 interface ProductKbData {
@@ -134,6 +135,77 @@ export default function AiAgentsPage() {
   const [evoDailyCap, setEvoDailyCap] = useState(250);
   const [showQrModal, setShowQrModal] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  // Live Baileys WhatsApp Session State
+  const [qrStatus, setQrStatus] = useState<'INITIALIZING' | 'SCAN_QR' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR'>('DISCONNECTED');
+  const [liveQrDataUrl, setLiveQrDataUrl] = useState<string | null>(null);
+  const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
+  const [connectedName, setConnectedName] = useState<string | null>(null);
+  const [isRefreshingQr, setIsRefreshingQr] = useState(false);
+
+  // Poll live QR state when modal is open or when provider tab is active
+  useEffect(() => {
+    let interval: any;
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch('/api/whatsapp/qr');
+        const data = await res.json();
+        if (data.success) {
+          setQrStatus(data.status);
+          if (data.qrCodeDataUrl) setLiveQrDataUrl(data.qrCodeDataUrl);
+          if (data.connectedPhone) setConnectedPhone(data.connectedPhone);
+          if (data.connectedName) setConnectedName(data.connectedName);
+        }
+      } catch (e) {
+        // silent
+      }
+    };
+
+    if (showQrModal || (activeTab === 'whatsapp-provider' && selectedProvider === 'EVOLUTION_API_QR')) {
+      fetchStatus();
+      interval = setInterval(fetchStatus, 2500);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showQrModal, activeTab, selectedProvider]);
+
+  const handleRestartQr = async () => {
+    setIsRefreshingQr(true);
+    try {
+      const res = await fetch('/api/whatsapp/qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'restart' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setQrStatus(data.status);
+        if (data.qrCodeDataUrl) setLiveQrDataUrl(data.qrCodeDataUrl);
+      }
+    } catch (e) {
+      console.error('Error restarting QR:', e);
+    } finally {
+      setIsRefreshingQr(false);
+    }
+  };
+
+  const handleDisconnectQr = async () => {
+    try {
+      await fetch('/api/whatsapp/qr', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'disconnect' }),
+      });
+      setQrStatus('DISCONNECTED');
+      setLiveQrDataUrl(null);
+      setConnectedPhone(null);
+      setConnectedName(null);
+    } catch (e) {
+      console.error('Error disconnecting:', e);
+    }
+  };
 
   const handleSimulate = () => {
     const text = testMessage.toLowerCase();
@@ -890,13 +962,40 @@ export default function AiAgentsPage() {
             ) : (
               <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
                 <div className="flex items-center justify-between">
-                  <strong className="text-slate-900 font-bold">Session QR Code & Règles Anti-Bannissement</strong>
-                  <button
-                    onClick={() => setShowQrModal(true)}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm"
-                  >
-                    <span>📷 Scanner le QR Code</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <strong className="text-slate-900 font-bold">Session WhatsApp Réelle (Multi-Device QR)</strong>
+                    {qrStatus === 'CONNECTED' ? (
+                      <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        Connecté (+{connectedPhone || 'SIM Maroc'})
+                      </span>
+                    ) : (
+                      <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full text-[10px]">
+                        En attente de Scan QR
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {qrStatus === 'CONNECTED' ? (
+                      <button
+                        onClick={handleDisconnectQr}
+                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold text-xs border border-rose-200 transition-colors"
+                      >
+                        Déconnecter
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setShowQrModal(true);
+                          handleRestartQr();
+                        }}
+                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+                      >
+                        <span>📷 Scanner le QR Code Réel</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -930,47 +1029,106 @@ export default function AiAgentsPage() {
                 </div>
 
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
-                  💡 <strong>Conseil Anti-Ban pour carte SIM marocaine :</strong> Limitez l'envoi à {evoDailyCap} messages par jour durant la première semaine (Warm-up) et conservez un délai d'au moins 3 secondes entre chaque message pour simuler une frappe humaine naturelle.
+                  💡 <strong>Protection Anti-Ban pour carte SIM marocaine :</strong> Le moteur Baileys intègre automatiquement un délai de frappe humaine et la gestion des sessions multi-devices pour protéger votre numéro contre les blocages.
                 </div>
               </div>
             )}
           </div>
 
-          {/* QR Code Scan Modal */}
+          {/* REAL LIVE QR Code Scan Modal */}
           {showQrModal && (
-            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center font-black">
-                  📷
-                </div>
-                <h3 className="font-black text-sm text-slate-900">
-                  Scanner avec WhatsApp Mobile
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Ouvrez WhatsApp sur votre smartphone marocain {'>'} Appareils connectés {'>'} Connecter un appareil.
-                </p>
+                {qrStatus === 'CONNECTED' ? (
+                  <div className="space-y-4 py-3">
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center text-2xl font-black border border-emerald-200">
+                      ✅
+                    </div>
+                    <div>
+                      <h3 className="font-black text-base text-slate-900">
+                        WhatsApp Connecté avec Succès !
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Votre smartphone marocain est synchronisé avec l'agent IA Sendit.
+                      </p>
+                    </div>
 
-                {/* Simulated Realistic QR Code Pattern */}
-                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
-                  <div className="w-48 h-48 bg-white p-2 rounded-xl border border-slate-300 flex items-center justify-center">
-                    <img
-                      src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=SENDIT_COD_WHATSAPP_SESSION_MOROCCO_TOKEN"
-                      alt="WhatsApp QR Code"
-                      className="w-full h-full object-contain"
-                    />
+                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-mono font-bold">
+                      +{connectedPhone || '212XXXXXXXXX'}
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      L'agent IA Gemini et le moteur de confirmation COD peuvent désormais envoyer et recevoir les messages en Darija directement depuis votre numéro.
+                    </p>
+
+                    <button
+                      onClick={() => setShowQrModal(false)}
+                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
+                    >
+                      Terminer & Fermer
+                    </button>
                   </div>
-                </div>
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center font-black">
+                      📷
+                    </div>
+                    <div>
+                      <h3 className="font-black text-sm text-slate-900">
+                        Scanner avec WhatsApp Mobile
+                      </h3>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Ouvrez WhatsApp {'>'} Appareils connectés {'>'} Connecter un appareil
+                      </p>
+                    </div>
 
-                <div className="text-[11px] text-emerald-700 font-bold bg-emerald-50 py-1.5 px-3 rounded-lg border border-emerald-200">
-                  Prêt pour la synchronisation Sendit COD
-                </div>
+                    {/* Live QR Box */}
+                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
+                      <div className="w-56 h-56 bg-white p-2 rounded-xl border border-slate-300 flex items-center justify-center relative">
+                        {liveQrDataUrl ? (
+                          <img
+                            src={liveQrDataUrl}
+                            alt="Code QR WhatsApp Réel"
+                            className="w-full h-full object-contain"
+                          />
+                        ) : (
+                          <div className="space-y-3 p-4">
+                            <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
+                            <p className="text-[11px] text-slate-600 font-medium">
+                              Génération du code QR chiffré WhatsApp...
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                <button
-                  onClick={() => setShowQrModal(false)}
-                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
-                >
-                  Fermer
-                </button>
+                    <div className="flex items-center justify-between text-[11px] px-2 text-slate-500">
+                      <span className="flex items-center gap-1.5 font-medium">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                        Actualisation temps réel
+                      </span>
+                      <button
+                        onClick={handleRestartQr}
+                        disabled={isRefreshingQr}
+                        className="text-indigo-600 font-bold hover:underline flex items-center gap-1"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isRefreshingQr ? 'animate-spin' : ''}`} />
+                        Régénérer
+                      </button>
+                    </div>
+
+                    <div className="text-[11px] text-indigo-800 font-medium bg-indigo-50/80 py-2 px-3 rounded-xl border border-indigo-100 text-left leading-relaxed">
+                      📌 <strong>Conseil :</strong> Pointez l'appareil photo WhatsApp directement sur le QR code ci-dessus. La connexion s'établit automatiquement dès la lecture.
+                    </div>
+
+                    <button
+                      onClick={() => setShowQrModal(false)}
+                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                    >
+                      Fermer
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
