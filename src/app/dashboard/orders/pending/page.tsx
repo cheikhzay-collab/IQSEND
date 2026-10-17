@@ -4,7 +4,6 @@ import React, { useState, useMemo } from 'react';
 import {
   ClipboardCheck,
   Search,
-  Filter,
   Check,
   Edit2,
   Trash2,
@@ -12,17 +11,12 @@ import {
   MessageSquare,
   AlertCircle,
   MapPin,
-  Bot,
-  CreditCard,
   Banknote,
   Sparkles,
-  ChevronRight,
   PhoneCall,
   Clock,
   ShieldAlert,
-  ArrowRight,
-  UserCheck,
-  FileSpreadsheet
+  ArrowRight
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -30,23 +24,20 @@ import {
   EditOrderModal,
   CancelOrderModal,
 } from '@/components/orders/lifecycle/OrderModals';
-import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 
 export default function PendingOrdersPage() {
   const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
 
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
-  const [paymentFilter, setPaymentFilter] = useState('ALL');
 
   // Modals
   const [editingOrder, setEditingOrder] = useState<LifecycleOrder | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<LifecycleOrder | null>(null);
   const [callingOrder, setCallingOrder] = useState<LifecycleOrder | null>(null);
   const [callOutcome, setCallOutcome] = useState('CONFIRMED');
-  const [isSheetModalOpen, setIsSheetModalOpen] = useState(false);
 
-  // Filter orders for Pending Confirmation
+  // Filter orders for Pending Confirmation (Strictly COD)
   const pendingOrders = useMemo(() => {
     return orders
       .filter((o) => o.stage === 'PENDING_CONFIRMATION')
@@ -58,11 +49,10 @@ export default function PendingOrdersPage() {
           o.customer.city.toLowerCase().includes(search.toLowerCase());
 
         const matchesCity = selectedCity === 'ALL' || o.customer.city === selectedCity;
-        const matchesPayment = paymentFilter === 'ALL' || o.payment.method === paymentFilter;
 
-        return matchesSearch && matchesCity && matchesPayment;
+        return matchesSearch && matchesCity;
       });
-  }, [orders, search, selectedCity, paymentFilter]);
+  }, [orders, search, selectedCity]);
 
   const cities = useMemo(() => {
     const allPending = orders.filter((o) => o.stage === 'PENDING_CONFIRMATION');
@@ -75,12 +65,12 @@ export default function PendingOrdersPage() {
     if (callOutcome === 'CONFIRMED') {
       confirmOrder(callingOrder.id);
     } else if (callOutcome === 'CANCELED') {
-      cancelOrder(callingOrder.id, 'الملغي عبر مكالمة التأكيد');
+      cancelOrder(callingOrder.id, 'Annulé lors de l\'appel de confirmation');
     } else {
       editOrder(callingOrder.id, {
         customer: {
           ...callingOrder.customer,
-          notes: `نتيجة المكالمة: ${callOutcome} (${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`,
+          notes: `Appel: ${callOutcome} (${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`,
         },
       });
     }
@@ -95,7 +85,6 @@ export default function PendingOrdersPage() {
       {/* Main Content View */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         
-
         {/* Header with Title, Counter and Tools */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
@@ -106,17 +95,14 @@ export default function PendingOrdersPage() {
               <div>
                 <div className="flex items-center gap-2.5">
                   <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                    Pending Confirmation
+                    1. En attente de confirmation
                   </h1>
-                  <span className="text-sm font-bold text-slate-400 font-arabic">
-                    (بانتظار التأكيد)
-                  </span>
                   <span className="bg-amber-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs animate-pulse">
-                    {pendingCount} بانتظار المراجعة
+                    {pendingCount} à vérifier
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  التحقق من صحة الرقم والعنوان، مكالمات كول سنتر السريعة، وأتمتة تأكيد الواتساب قبل إرسال الطلب للمستودع
+                  Vérification des numéros et adresses, appels rapides du centre d'appels et confirmation WhatsApp automatique avant expédition.
                 </p>
               </div>
             </div>
@@ -125,11 +111,11 @@ export default function PendingOrdersPage() {
           {/* Quick Filters */}
           <div className="flex flex-wrap items-center gap-2.5">
             {/* Search Input */}
-            <div className="relative min-w-[220px]">
+            <div className="relative min-w-[240px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="بحث (الاسم، الهاتف، المدينة)..."
+                placeholder="Rechercher (Nom, tél, ville)..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-500"
@@ -142,35 +128,13 @@ export default function PendingOrdersPage() {
               onChange={(e) => setSelectedCity(e.target.value)}
               className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
-              <option value="ALL">جميع المدن</option>
+              <option value="ALL">Toutes les villes</option>
               {cities.map((city) => (
                 <option key={city} value={city}>
                   {city}
                 </option>
               ))}
             </select>
-
-            {/* Payment Filter */}
-            <select
-              value={paymentFilter}
-              onChange={(e) => setPaymentFilter(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="ALL">جميع طرق الدفع</option>
-              <option value="COD">الدفع عند الاستلام (COD)</option>
-              <option value="PREPAID">الدفع الإلكتروني (Prepaid)</option>
-            </select>
-
-            {/* Google Sheets Integration Modal Button */}
-            <button
-              onClick={() => setIsSheetModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-all shrink-0"
-              title="إعداد ومزامنة وصول الطلبات تلقائياً من Google Sheets"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5" />
-              <span>ربط Google Sheets</span>
-              <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse" />
-            </button>
           </div>
         </div>
 
@@ -179,20 +143,21 @@ export default function PendingOrdersPage() {
           {pendingOrders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <ClipboardCheck className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-              <p className="font-bold text-sm text-slate-700">لا توجد طلبات بانتظار التأكيد حالياً</p>
-              <p className="text-xs text-slate-400 mt-1">تم تأكيد وتمرير جميع الطلبات بنجاح إلى مرحلة التجهيز في المستودع.</p>
+              <p className="font-bold text-sm text-slate-700">Aucune commande en attente de confirmation</p>
+              <p className="text-xs text-slate-400 mt-1">
+                Toutes les commandes ont été confirmées et transmises au centre d'emballage et d'expédition.
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <th className="py-3.5 px-4">رقم الطلب (Order ID)</th>
-                    <th className="py-3.5 px-4">بيانات الزبون (Customer Info)</th>
-                    <th className="py-3.5 px-4">المنتجات والمبلغ (Items / Total)</th>
-                    <th className="py-3.5 px-4">نوع الدفع (Payment)</th>
-                    <th className="py-3.5 px-4">فحص الذكاء الاصطناعي (AI Risk)</th>
-                    <th className="py-3.5 px-4 text-right">أدوات التأكيد والتحويل (Actions)</th>
+                    <th className="py-3.5 px-4">N° Commande</th>
+                    <th className="py-3.5 px-4">Client & Coordonnées</th>
+                    <th className="py-3.5 px-4">Articles & Total (COD)</th>
+                    <th className="py-3.5 px-4">Vérification Risque IA</th>
+                    <th className="py-3.5 px-4 text-right">Actions & Transfert</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -230,24 +195,24 @@ export default function PendingOrdersPage() {
                             {/* Direct WhatsApp Darija Confirmation Link */}
                             <a
                               href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
-                                `السلام عليكم أخي/أختي ${order.customer.name}، شكراً لطلبك من متجرنا. بغينا نأكدو معاك طلبك لـ ${order.items[0]?.name} بمبلغ ${order.payment.amount} درهم والتوصيل إلى ${order.customer.city}. واش العنوان والطلب صحيح؟`
+                                `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
                               )}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors"
                             >
                               <MessageSquare className="w-2.5 h-2.5" />
-                              واتساب دارجة
+                              WhatsApp Darija
                             </a>
 
                             {/* Call Logger Trigger */}
                             <button
                               onClick={() => setCallingOrder(order)}
                               className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 text-[10px] bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
-                              title="تسجيل نتيجة المكالمة"
+                              title="Enregistrer le résultat de l'appel"
                             >
                               <PhoneCall className="w-2.5 h-2.5" />
-                              تسجيل مكالمة
+                              Appel
                             </button>
                           </div>
 
@@ -256,13 +221,13 @@ export default function PendingOrdersPage() {
                           </p>
                           {order.customer.notes && (
                             <p className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 max-w-xs">
-                              ملاحظة: {order.customer.notes}
+                              Note : {order.customer.notes}
                             </p>
                           )}
                         </div>
                       </td>
 
-                      {/* 3. Items / Total */}
+                      {/* 3. Items / Total (Strictly COD) */}
                       <td className="py-4 px-4">
                         <div className="flex items-center gap-2.5">
                           <img
@@ -275,31 +240,20 @@ export default function PendingOrdersPage() {
                               {order.items[0]?.name}
                             </p>
                             <p className="text-[11px] text-slate-500">
-                              الكمية: <strong className="text-slate-800">{order.items[0]?.quantity}</strong> • الإجمالي:{' '}
+                              Qté : <strong className="text-slate-800">{order.items[0]?.quantity}</strong> • Total :{' '}
                               <span className="font-black text-slate-900">
-                                {order.payment.amount} {order.payment.currency}
+                                {order.payment.amount} MAD
                               </span>
                             </p>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60 mt-0.5">
+                              <Banknote className="w-2.5 h-2.5" />
+                              Paiement à la livraison (COD)
+                            </span>
                           </div>
                         </div>
                       </td>
 
-                      {/* 4. Payment Type (COD / Prepaid) */}
-                      <td className="py-4 px-4 whitespace-nowrap">
-                        {order.payment.method === 'COD' ? (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
-                            <Banknote className="w-3.5 h-3.5 text-amber-600" />
-                            <span>COD ({order.payment.amount} درهم)</span>
-                          </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <CreditCard className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>دفع مسبق (Paid)</span>
-                          </div>
-                        )}
-                      </td>
-
-                      {/* 5. AI / Risk Verification */}
+                      {/* 4. AI / Risk Verification */}
                       <td className="py-4 px-4">
                         {order.aiVerification ? (
                           <div className="space-y-1">
@@ -307,21 +261,21 @@ export default function PendingOrdersPage() {
                               {order.aiVerification.status === 'CONFIRMED_BY_AI' ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                                   <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                                  مؤكد بالذكاء الاصطناعي
+                                  Confirmé par IA
                                 </span>
                               ) : order.aiVerification.status === 'VERIFIED' ? (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
                                   <Check className="w-2.5 h-2.5 text-blue-600" />
-                                  مدفوع إلكترونياً
+                                  Coordonnées Validées
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
                                   <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
-                                  يتطلب مكالمة هاتفية
+                                  Appel Recommandé
                                 </span>
                               )}
                               <span className="text-[10px] font-semibold text-slate-400">
-                                خطورة {order.aiVerification.riskScore}%
+                                Risque {order.aiVerification.riskScore}%
                               </span>
                             </div>
                             <p className="text-[10px] text-slate-500 line-clamp-1 max-w-xs">
@@ -329,28 +283,28 @@ export default function PendingOrdersPage() {
                             </p>
                           </div>
                         ) : (
-                          <span className="text-[11px] text-slate-400">يدوي</span>
+                          <span className="text-[11px] text-slate-400">Manuel</span>
                         )}
                       </td>
 
-                      {/* 6. Actions (Confirm Order -> Moves to Processing, Edit, Cancel) */}
+                      {/* 5. Actions (Confirm Order -> Moves to Processing, Edit, Cancel) */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* Confirm Order (Primary Workflow Trigger) */}
                           <button
                             onClick={() => confirmOrder(order.id)}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
-                            title="تأكيد الطلب وتمريره إلى المستودع للتجهيز"
+                            title="Confirmer la commande et la transmettre en préparation"
                           >
                             <Check className="w-3.5 h-3.5" />
-                            <span>تأكيد ➔ للتجهيز</span>
+                            <span>Confirmer ➔ Préparation</span>
                           </button>
 
                           {/* Edit Details */}
                           <button
                             onClick={() => setEditingOrder(order)}
                             className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                            title="تعديل العنوان أو الهاتف"
+                            title="Modifier les coordonnées du client"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
@@ -359,7 +313,7 @@ export default function PendingOrdersPage() {
                           <button
                             onClick={() => setCancellingOrder(order)}
                             className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="إلغاء الطلب"
+                            title="Annuler la commande"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -381,26 +335,26 @@ export default function PendingOrdersPage() {
             <div className="flex items-center gap-2 text-blue-600">
               <PhoneCall className="w-5 h-5" />
               <h3 className="font-bold text-sm text-slate-900">
-                تسجيل مكالمة للطلب {callingOrder.orderNumber}
+                Enregistrer l'appel — {callingOrder.orderNumber}
               </h3>
             </div>
             <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 space-y-1">
-              <p>الزبون: <strong>{callingOrder.customer.name}</strong></p>
-              <p>الهاتف: <strong className="font-mono">{callingOrder.customer.phone}</strong></p>
+              <p>Client : <strong>{callingOrder.customer.name}</strong></p>
+              <p>Téléphone : <strong className="font-mono">{callingOrder.customer.phone}</strong></p>
             </div>
 
             <div>
-              <label className="block font-bold text-slate-700 mb-1">نتيجة المكالمة:</label>
+              <label className="block font-bold text-slate-700 mb-1">Résultat de la communication :</label>
               <select
                 value={callOutcome}
                 onChange={(e) => setCallOutcome(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
               >
-                <option value="CONFIRMED">تم الرد وتأكيد الطلب (ينتقل للتجهيز فوراً)</option>
-                <option value="لا يجيب (محاولة 1)">لا يجيب (محاولة 1)</option>
-                <option value="لا يجيب (محاولة 2)">لا يجيب (محاولة 2)</option>
-                <option value="طلب الاتصال لاحقاً بعد العصر">طلب الاتصال لاحقاً بعد العصر</option>
-                <option value="CANCELED">الزبون ألغى الطلب أثناء المكالمة</option>
+                <option value="CONFIRMED">Commande Confirmée (Transférer immédiatement en préparation)</option>
+                <option value="Injoignable (Tentative 1)">Injoignable (Tentative 1)</option>
+                <option value="Injoignable (Tentative 2)">Injoignable (Tentative 2)</option>
+                <option value="Demande de rappel plus tard">Demande de rappel plus tard</option>
+                <option value="CANCELED">Le client a annulé lors de l'appel</option>
               </select>
             </div>
 
@@ -409,13 +363,13 @@ export default function PendingOrdersPage() {
                 onClick={() => setCallingOrder(null)}
                 className="px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50"
               >
-                إلغاء
+                Fermer
               </button>
               <button
                 onClick={handleLogCall}
                 className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold"
               >
-                حفظ النتيجة
+                Valider
               </button>
             </div>
           </div>
@@ -436,12 +390,6 @@ export default function PendingOrdersPage() {
         isOpen={!!cancellingOrder}
         onClose={() => setCancellingOrder(null)}
         onConfirmCancel={cancelOrder}
-      />
-
-      {/* Google Sheets Integration Modal */}
-      <GoogleSheetsIntegrationModal
-        isOpen={isSheetModalOpen}
-        onClose={() => setIsSheetModalOpen(false)}
       />
     </div>
   );

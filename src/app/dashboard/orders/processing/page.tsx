@@ -11,9 +11,6 @@ import {
   Warehouse,
   Barcode,
   ArrowRight,
-  ExternalLink,
-  ChevronDown,
-  Layers,
   Send,
   Check,
   ScanLine
@@ -36,7 +33,6 @@ export default function ProcessingOrdersPage() {
   const {
     orders,
     assignCourier,
-    markReadyForPickup,
     shipOrder,
     processingCount,
   } = useOrderLifecycle();
@@ -83,7 +79,6 @@ export default function ProcessingOrdersPage() {
       {/* Main Content Area */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
-
         {/* Header with Title and Tools */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -93,28 +88,25 @@ export default function ProcessingOrdersPage() {
             <div>
               <div className="flex items-center gap-2.5">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Processing & Warehouse Fulfillment
+                  2. En préparation & Emballage
                 </h1>
-                <span className="text-sm font-bold text-slate-400 font-arabic">
-                  (قيد التجهيز)
-                </span>
                 <span className="bg-blue-100 text-blue-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-blue-200">
-                  {processingCount} للتغليف
+                  {processingCount} à emballer
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                سحب السلع من الرفوف (Picking)، مسح الباركود للتحقق، طباعة بوالص شحن Sendit الرسمية، وتسليم الطرود لشركات الشحن
+                Prélèvement des articles (Picking), scan code-barres de conformité, impression des bordereaux d'expédition Sendit et remise aux transporteurs.
               </p>
             </div>
           </div>
 
           {/* Quick Filters */}
           <div className="flex items-center gap-2.5">
-            <div className="relative min-w-[220px]">
+            <div className="relative min-w-[240px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="بحث (الطلب، الرف، المنتج)..."
+                placeholder="Rechercher (Commande, article, ville)..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-white border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -126,7 +118,7 @@ export default function ProcessingOrdersPage() {
               onChange={(e) => setSelectedWarehouse(e.target.value)}
               className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="ALL">جميع المستودعات</option>
+              <option value="ALL">Tous les entrepôts</option>
               <option value="Hub Central Casablanca">Hub Central Casablanca</option>
               <option value="Hub Fès-Meknès">Hub Fès-Meknès</option>
             </select>
@@ -138,9 +130,9 @@ export default function ProcessingOrdersPage() {
           {processingOrders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <Package className="w-12 h-12 mx-auto text-slate-300 mb-3" />
-              <p className="font-bold text-sm text-slate-700">لا توجد طلبات قيد التجهيز في المستودع</p>
+              <p className="font-bold text-sm text-slate-700">Aucune commande en préparation</p>
               <p className="text-xs text-slate-400 mt-1">
-                تم تجهيز وتغليف كافة الطلبات وتسليمها لشركات الشحن.
+                Toutes les commandes ont été emballées et remises aux sociétés de livraison.
               </p>
             </div>
           ) : (
@@ -148,12 +140,12 @@ export default function ProcessingOrdersPage() {
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
-                    <th className="py-3.5 px-4">رقم الطلب والرف (Bin Location)</th>
-                    <th className="py-3.5 px-4">المنتجات المطلوب تغليفها (Items)</th>
-                    <th className="py-3.5 px-4">فحص الباركود (Barcode Check)</th>
-                    <th className="py-3.5 px-4">بوليصة Sendit والفاتورة</th>
-                    <th className="py-3.5 px-4">شركة الشحن المعينة</th>
-                    <th className="py-3.5 px-4 text-right">أدوات الإرسال للشحن</th>
+                    <th className="py-3.5 px-4">N° Commande & Emplacement</th>
+                    <th className="py-3.5 px-4">Articles à emballer</th>
+                    <th className="py-3.5 px-4">Contrôle Code-barres</th>
+                    <th className="py-3.5 px-4">Bordereau & Facture</th>
+                    <th className="py-3.5 px-4">Transporteur</th>
+                    <th className="py-3.5 px-4 text-right">Actions d'expédition</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -172,11 +164,11 @@ export default function ProcessingOrdersPage() {
                               {order.orderNumber}
                             </span>
                             <span className="text-[10px] text-slate-500 block">
-                              الوجهة: <strong className="text-slate-800">{order.customer.city}</strong>
+                              Destination : <strong className="text-slate-800">{order.customer.city}</strong>
                             </span>
                             <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-800 font-bold border border-slate-200">
                               <Warehouse className="w-2.5 h-2.5 text-slate-500" />
-                              الرف: {order.items[0]?.binLocation || 'Bay A-01'}
+                              Rayon : {order.items[0]?.binLocation || 'Bay A-01'}
                             </div>
                           </div>
                         </td>
@@ -196,10 +188,10 @@ export default function ProcessingOrdersPage() {
                                     {item.name}
                                   </p>
                                   <div className="flex items-center gap-2 text-[10px] text-slate-500 font-medium">
-                                    <span>SKU: <strong className="text-slate-700">{item.sku}</strong></span>
-                                    {item.size && <span>المقاس: <strong>{item.size}</strong></span>}
+                                    <span>SKU : <strong className="text-slate-700">{item.sku}</strong></span>
+                                    {item.size && <span>Taille : <strong>{item.size}</strong></span>}
                                     <span className="bg-blue-50 text-blue-700 font-bold px-1.5 py-0.2 rounded border border-blue-200">
-                                      الكمية: {item.quantity}
+                                      Qté : {item.quantity}
                                     </span>
                                   </div>
                                 </div>
@@ -217,10 +209,10 @@ export default function ProcessingOrdersPage() {
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
                                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
-                            title="محاكاة مسح الباركود للتأكد من مطابقة المنتج"
+                            title="Scanner pour valider la conformité du produit"
                           >
                             <ScanLine className="w-3 h-3" />
-                            <span>{isScanned ? 'تم فحص الباركود ✓' : 'مسح باركود المنتج'}</span>
+                            <span>{isScanned ? 'Code-barres validé ✓' : 'Scanner le produit'}</span>
                           </button>
                           <span className="text-[10px] text-slate-400 font-mono block mt-1">
                             {order.items[0]?.barcode || '611124901842'}
@@ -235,10 +227,10 @@ export default function ProcessingOrdersPage() {
                               className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100/80 px-2.5 py-1 rounded-lg border border-teal-200/80 transition-colors"
                             >
                               <FileText className="w-3 h-3 text-teal-600" />
-                              <span>فاتورة {order.fulfillment?.invoiceNumber || '#INV'}</span>
+                              <span>Facture {order.fulfillment?.invoiceNumber || '#INV'}</span>
                             </button>
                             <span className="text-[10px] text-slate-400">
-                              وصل التغليف والطلب جاهز
+                              Montant COD : {order.payment.amount} MAD
                             </span>
                           </div>
                         </td>
@@ -258,32 +250,32 @@ export default function ProcessingOrdersPage() {
                               ))}
                             </select>
                             <span className="text-[10px] text-slate-400 font-mono block">
-                              AWB: {order.shipping?.trackingNumber || 'جاهز للتوليد'}
+                              AWB : {order.shipping?.trackingNumber || 'SND-GÉNÉRÉ'}
                             </span>
                           </div>
                         </td>
 
-                        {/* 6. Actions (Print Label + Mark Ready / Shipped -> Moves to In Transit) */}
+                        {/* 6. Actions (Print Label + Ship -> Moves to In Transit) */}
                         <td className="py-4 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-2">
                             {/* Print Shipping Label */}
                             <button
                               onClick={() => setLabelOrder(order)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-2xs transition-colors"
-                              title="طباعة بوليصة شحن Sendit الرسمية"
+                              title="Imprimer le bordereau d'expédition Sendit"
                             >
                               <Printer className="w-3.5 h-3.5 text-slate-600" />
-                              <span>طباعة البوليصة AWB</span>
+                              <span>Imprimer Bordereau</span>
                             </button>
 
-                            {/* Mark Ready for Pickup / Shipped (Primary Transition) */}
+                            {/* Mark Shipped (Primary Transition) */}
                             <button
                               onClick={() => shipOrder(order.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
-                              title="تسليم لشركة الشحن والانتقال لمرحلة التوصيل"
+                              title="Confier au livreur et transférer en livraison"
                             >
                               <Send className="w-3.5 h-3.5" />
-                              <span>تسليم للشحن ➔ التوصيل</span>
+                              <span>Expédier ➔ En livraison</span>
                             </button>
                           </div>
                         </td>

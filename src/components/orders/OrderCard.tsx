@@ -115,12 +115,16 @@ export function OrderCard({
           <span
             className={`text-[9.5px] font-bold px-1.5 py-0.5 rounded tracking-wide uppercase ${getBadgeStyle()}`}
           >
-            {order.badgeLabel || order.badgeType}
+            {order.badgeLabel?.includes('Callback')
+              ? 'Rappel 16h'
+              : order.badgeType === 'PAID'
+              ? 'Encaissé'
+              : 'COD'}
           </span>
         </div>
 
         <span className="text-xs font-black text-slate-900 tracking-tight shrink-0">
-          {order.badgeType === 'PAID' ? `+${order.amount}` : order.amount} {order.currency}
+          {order.amount} {order.currency}
         </span>
       </div>
 

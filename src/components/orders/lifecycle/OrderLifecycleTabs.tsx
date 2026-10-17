@@ -25,45 +25,41 @@ export function OrderLifecycleTabs() {
       id: 'pending',
       href: '/dashboard/orders/pending',
       step: '1',
-      label: '1. Pending Confirmation',
-      arabic: 'بانتظار التأكيد',
+      label: 'En attente de confirmation',
       icon: ClipboardCheck,
       badge: pendingCount,
       badgeColor: 'bg-amber-500 text-white animate-pulse',
-      activeColor: 'bg-amber-100/80 text-amber-900 border-amber-300 font-bold',
+      activeColor: 'bg-amber-50 text-amber-900 border-amber-300 font-bold',
     },
     {
       id: 'processing',
       href: '/dashboard/orders/processing',
       step: '2',
-      label: '2. Processing',
-      arabic: 'قيد التجهيز',
+      label: 'En préparation',
       icon: Package,
       badge: processingCount,
-      badgeColor: 'bg-blue-100 text-blue-700',
-      activeColor: 'bg-blue-100/80 text-blue-900 border-blue-300 font-bold',
+      badgeColor: 'bg-blue-100 text-blue-700 font-bold',
+      activeColor: 'bg-blue-50 text-blue-900 border-blue-300 font-bold',
     },
     {
       id: 'in-transit',
       href: '/dashboard/orders/in-transit',
       step: '3',
-      label: '3. In Transit',
-      arabic: 'قيد التوصيل',
+      label: 'En cours de livraison',
       icon: Truck,
       badge: inTransitCount,
-      badgeColor: 'bg-indigo-100 text-indigo-700',
-      activeColor: 'bg-indigo-100/80 text-indigo-900 border-indigo-300 font-bold',
+      badgeColor: 'bg-indigo-100 text-indigo-700 font-bold',
+      activeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300 font-bold',
     },
     {
       id: 'completed',
       href: '/dashboard/orders/completed',
       step: '4',
-      label: '4. Completed',
-      arabic: 'المكتملة',
+      label: 'Livrées & Encaissées',
       icon: CheckCircle2,
       badge: completedCount,
-      badgeColor: 'bg-emerald-100 text-emerald-700',
-      activeColor: 'bg-emerald-100/80 text-emerald-900 border-emerald-300 font-bold',
+      badgeColor: 'bg-emerald-100 text-emerald-700 font-bold',
+      activeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
     },
   ];
 
@@ -71,13 +67,13 @@ export function OrderLifecycleTabs() {
     {
       id: 'drafts',
       href: '/dashboard/orders/drafts',
-      label: 'Drafts',
+      label: 'Brouillons',
       icon: FileText,
     },
     {
       id: 'abandoned',
       href: '/dashboard/orders/abandoned',
-      label: 'Abandoned Carts',
+      label: 'Paniers abandonnés',
       icon: ShoppingCart,
       badge: 3,
       badgeColor: 'bg-rose-100 text-rose-700',
@@ -85,7 +81,7 @@ export function OrderLifecycleTabs() {
     {
       id: 'reviews',
       href: '/dashboard/orders/reviews',
-      label: 'Reviews',
+      label: 'Avis clients',
       icon: Star,
       badgeText: '★ 4.9',
     },
@@ -105,7 +101,7 @@ export function OrderLifecycleTabs() {
           }`}
         >
           <Kanban className="w-3.5 h-3.5" />
-          <span>Pipeline Kanban</span>
+          <span>Vue Kanban</span>
         </Link>
 
         <div className="w-px h-5 bg-slate-200 mx-1" />
@@ -136,10 +132,7 @@ export function OrderLifecycleTabs() {
                     {tab.step}
                   </div>
                   <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-current' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                  <span className="font-bold tracking-tight">{tab.label.replace(/^\d+\.\s*/, '')}</span>
-                  <span className="text-[10px] text-slate-400 font-normal hidden lg:inline font-arabic">
-                    ({tab.arabic})
-                  </span>
+                  <span className="font-bold tracking-tight">{tab.label}</span>
                   {typeof tab.badge === 'number' && (
                     <span
                       className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tab.badgeColor}`}

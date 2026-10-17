@@ -192,7 +192,7 @@ const COLUMNS_CONFIG: {
 }[] = [
   {
     id: 'NEW_ORDERS',
-    title: 'NEW ORDERS',
+    title: 'NOUVELLES COMMANDES',
     pillBg: 'bg-[#e8f3fc]',
     pillBorder: 'border-[#bfdbfe]',
     textColor: 'text-[#1e40af]',
@@ -202,7 +202,7 @@ const COLUMNS_CONFIG: {
   },
   {
     id: 'CONFIRMED',
-    title: 'CONFIRMED',
+    title: 'CONFIRMÉES',
     pillBg: 'bg-[#eaf7f2]',
     pillBorder: 'border-[#99f6e4]',
     textColor: 'text-[#0f766e]',
@@ -212,7 +212,7 @@ const COLUMNS_CONFIG: {
   },
   {
     id: 'PACKING',
-    title: 'PACKING',
+    title: 'EN PRÉPARATION',
     pillBg: 'bg-[#fef7e7]',
     pillBorder: 'border-[#fde68a]',
     textColor: 'text-[#b45309]',
@@ -222,7 +222,7 @@ const COLUMNS_CONFIG: {
   },
   {
     id: 'SHIPPED',
-    title: 'SHIPPED',
+    title: 'EXPÉDIÉES',
     pillBg: 'bg-[#f1edfc]',
     pillBorder: 'border-[#ddd6fe]',
     textColor: 'text-[#6d28d9]',
@@ -232,7 +232,7 @@ const COLUMNS_CONFIG: {
   },
   {
     id: 'DELIVERED',
-    title: 'DELIVERED',
+    title: 'LIVRÉES & ENCAISSÉES',
     pillBg: 'bg-[#edf9f0]',
     pillBorder: 'border-[#bbf7d0]',
     textColor: 'text-[#15803d]',
@@ -357,11 +357,11 @@ export function OrdersBoard() {
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Orders</h1>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">Commandes</h1>
 
           <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-[#0d9488] bg-[#f0fdfa] border border-[#ccfbf1] hover:bg-[#ccfbf1]/60 transition-colors">
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>setup guide</span>
+            <span>Guide de configuration</span>
           </button>
         </div>
 
@@ -372,7 +372,7 @@ export function OrdersBoard() {
             <span className="w-4 h-4 rounded border border-amber-500 bg-amber-50 text-amber-600 flex items-center justify-center text-[10px]">
               ⊞
             </span>
-            <span>Duplicated orders</span>
+            <span>Commandes en double</span>
           </button>
 
           {/* View Mode Switcher */}
@@ -435,7 +435,7 @@ export function OrdersBoard() {
 
           {/* More actions dropdown */}
           <button className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
-            <span>More actions</span>
+            <span>Actions groupées</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
           </button>
 
@@ -445,7 +445,7 @@ export function OrdersBoard() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#135d54] hover:bg-[#0f4a42] shadow-xs hover:shadow transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Create Order</span>
+            <span>Nouvelle Commande</span>
           </button>
         </div>
 

@@ -134,18 +134,18 @@ export function ShippingLabelModal({
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-300 flex items-center justify-between font-sans">
               <div>
                 <span className="text-[10px] uppercase font-bold text-amber-800 block">
-                  Mode de Paiement / Mode de Règlement
+                  Mode de Paiement
                 </span>
                 <span className="text-base font-black text-amber-950">
-                  {order.payment.method === 'COD' ? 'CASH ON DELIVERY (نقداً عند الاستلام)' : 'PRÉPAYÉ (PAID)'}
+                  CASH ON DELIVERY (COD)
                 </span>
               </div>
               <div className="text-right">
                 <span className="text-[10px] uppercase font-bold text-amber-800 block">
-                  Montant à Encaisser
+                  Montant Cash à Encaisser
                 </span>
                 <span className="text-xl font-black text-amber-950">
-                  {order.payment.method === 'COD' ? `${order.payment.amount} MAD` : '0.00 MAD'}
+                  {order.payment.amount} MAD
                 </span>
               </div>
             </div>
@@ -395,28 +395,18 @@ export function EditOrderModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Mode de règlement</label>
-              <select
-                value={paymentMethod}
-                onChange={(e) => setPaymentMethod(e.target.value as 'COD' | 'PREPAID')}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white"
-              >
-                <option value="COD">Cash on Delivery (COD)</option>
-                <option value="PREPAID">Prépayé (Carte CMI)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block font-bold text-slate-700 mb-1">Montant Total (MAD)</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
-                required
-              />
-            </div>
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">Montant à Encaisser (MAD - COD)</label>
+            <input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(Number(e.target.value))}
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              required
+            />
+            <span className="text-[10px] text-amber-700 mt-1 block font-medium">
+              Mode exclusif : Cash On Delivery (Paiement à la livraison)
+            </span>
           </div>
 
           <div className="pt-2 flex justify-end gap-2">

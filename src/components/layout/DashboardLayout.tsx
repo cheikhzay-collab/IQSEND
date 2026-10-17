@@ -84,7 +84,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Search className="w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Rechercher..."
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               className="bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none flex-1 font-medium"
@@ -122,16 +122,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           {/* Balance Pill */}
           <div className="px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50/60 text-amber-700 text-xs font-bold">
-            $24.00
+            240.00 MAD
           </div>
 
           {/* AI Sparkles */}
-          <button className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="AI Assistant">
+          <button className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="Assistant IA">
             <Sparkles className="w-4 h-4 text-slate-500 hover:text-teal-600" />
           </button>
 
           {/* Messages with notification dot */}
-          <button className="p-1.5 text-slate-500 hover:text-slate-800 relative transition-colors" title="Discussions">
+          <button className="p-1.5 text-slate-500 hover:text-slate-800 relative transition-colors" title="Messagerie">
             <MessageSquare className="w-4 h-4" />
             <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-1 right-1" />
           </button>
@@ -174,7 +174,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               }`}
             >
               <Home className="w-4 h-4 text-slate-500" />
-              <span>Home</span>
+              <span>Tableau de bord</span>
             </Link>
 
             {/* Orders (Active Parent) */}
@@ -189,7 +189,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               >
                 <div className="flex items-center gap-3">
                   <ShoppingBag className="w-4 h-4 text-slate-700" />
-                  <span>Orders</span>
+                  <span>Commandes</span>
                 </div>
                 {pendingCount > 0 && (
                   <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
@@ -201,7 +201,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {/* Submenu for Orders */}
               {isOrdersActive && (
                 <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
-                  {/* 1. Pending Confirmation (بانتظار التأكيد) */}
+                  {/* 1. Pending Confirmation */}
                   <Link
                     href="/dashboard/orders/pending"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -218,7 +218,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">1. Pending Confirmation</span>
+                      <span className="truncate">1. En attente</span>
                     </div>
                     {pendingCount > 0 && (
                       <span className="shrink-0 ml-1.5 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs animate-pulse">
@@ -244,7 +244,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">2. Processing</span>
+                      <span className="truncate">2. En préparation</span>
                     </div>
                     {processingCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-slate-400 text-[10px] font-semibold">
@@ -253,7 +253,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     )}
                   </Link>
 
-                  {/* 3. In Transit (قيد التوصيل) */}
+                  {/* 3. In Transit */}
                   <Link
                     href="/dashboard/orders/in-transit"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -270,7 +270,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">3. In Transit</span>
+                      <span className="truncate">3. En livraison</span>
                     </div>
                     {inTransitCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-blue-600 text-[10px] font-semibold bg-blue-50 px-1.5 py-0.5 rounded-full">
@@ -279,7 +279,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     )}
                   </Link>
 
-                  {/* 4. Completed (المكتملة) */}
+                  {/* 4. Completed */}
                   <Link
                     href="/dashboard/orders/completed"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -296,7 +296,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             : 'text-slate-400'
                         }`}
                       />
-                      <span className="truncate">4. Completed</span>
+                      <span className="truncate">4. Livrées & Encaissées</span>
                     </div>
                     {completedCount > 0 && (
                       <span className="shrink-0 ml-1.5 text-emerald-600 text-[10px] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">
@@ -318,7 +318,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Drafts</span>
+                    <span>Brouillons</span>
                   </Link>
 
                   {/* 6. Abandoned Carts */}
@@ -332,7 +332,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   >
                     <div className="flex items-center gap-2 truncate">
                       <ShoppingCart className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Abandoned Carts</span>
+                      <span className="truncate">Paniers abandonnés</span>
                     </div>
                     <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
                       3
@@ -350,7 +350,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   >
                     <div className="flex items-center gap-2 truncate">
                       <Star className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Reviews</span>
+                      <span className="truncate">Avis clients</span>
                     </div>
                     <span className="text-[10px] font-bold text-amber-600 shrink-0">
                       ★ 4.9
@@ -366,7 +366,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Headphones className="w-4 h-4 text-slate-500" />
-              <span>Centers</span>
+              <span>Centres d'appels</span>
             </Link>
 
             {/* Products */}
@@ -375,7 +375,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Package className="w-4 h-4 text-slate-500" />
-              <span>Products</span>
+              <span>Produits & Stock</span>
             </Link>
 
             {/* Customers */}
@@ -384,7 +384,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Users className="w-4 h-4 text-slate-500" />
-              <span>Customers</span>
+              <span>Clients</span>
             </Link>
 
             {/* Inbox with 4 badge and floating WhatsApp button */}
@@ -395,7 +395,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               >
                 <div className="flex items-center gap-3">
                   <Inbox className="w-4 h-4 text-slate-500" />
-                  <span>Inbox</span>
+                  <span>Messagerie</span>
                 </div>
                 <span className="text-[10px] font-bold text-slate-400">4</span>
               </Link>
@@ -414,7 +414,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Bot className="w-4 h-4 text-slate-500" />
-              <span>AI Agents</span>
+              <span>Agents IA</span>
             </Link>
 
             {/* Automations */}
@@ -423,7 +423,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Zap className="w-4 h-4 text-slate-500" />
-              <span>Automations</span>
+              <span>Automatisations</span>
             </Link>
 
             {/* Integrations */}
@@ -432,7 +432,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Puzzle className="w-4 h-4 text-slate-500" />
-              <span>Integrations</span>
+              <span>Intégrations</span>
             </Link>
 
             {/* Content */}
@@ -441,7 +441,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Folder className="w-4 h-4 text-slate-500" />
-              <span>Content</span>
+              <span>Contenu</span>
             </Link>
 
             {/* Marketing (Collapsible) */}
@@ -464,16 +464,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               {marketingOpen && (
                 <div className="ml-8 mt-1 space-y-1 text-xs">
                   <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900">
-                    Campaigns
+                    Campagnes
                   </Link>
                   <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900">
-                    Templates
+                    Modèles
                   </Link>
                   <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900">
                     Promotions
                   </Link>
                   <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900">
-                    Expenses
+                    Dépenses
                   </Link>
                 </div>
               )}
@@ -485,9 +485,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="p-3 space-y-2 border-t border-slate-100">
             {/* Book a Setup Call Card (Teal Banner) */}
             <div className="bg-[#135d54] text-white p-3.5 rounded-2xl shadow-sm">
-              <h4 className="font-bold text-xs">Book a Setup Call</h4>
+              <h4 className="font-bold text-xs">Assistance & Support Dédié</h4>
               <p className="text-[10px] text-teal-100 mt-1 leading-tight">
-                Get expert help to set up your account
+                Accompagnement expert pour votre logistique COD
               </p>
             </div>
 
@@ -497,7 +497,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
             >
               <Settings className="w-4 h-4 text-slate-500" />
-              <span>Settings</span>
+              <span>Paramètres</span>
             </Link>
           </div>
 
