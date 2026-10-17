@@ -668,6 +668,7 @@ interface OrderLifecycleContextType {
   completedCount: number;
   toast: { message: string; type: 'success' | 'info' | 'error' } | null;
   clearToast: () => void;
+  showToast: (message: string, type?: 'success' | 'info' | 'error') => void;
   // Workflow Actions
   confirmOrder: (orderId: string) => void;
   cancelOrder: (orderId: string, reason?: string) => void;
@@ -1005,6 +1006,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         processReturn,
         addOrder,
         refreshInboundOrders,
+        showToast,
       }}
     >
       {children}

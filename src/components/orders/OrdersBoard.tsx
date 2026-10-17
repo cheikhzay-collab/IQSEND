@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   ArrowLeft,
   GraduationCap,
@@ -440,13 +441,13 @@ export function OrdersBoard() {
           </button>
 
           {/* + Create Order Primary Button */}
-          <button
-            onClick={() => setIsCreateModalOpen(true)}
+          <Link
+            href="/dashboard/orders/new"
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#135d54] hover:bg-[#0f4a42] shadow-xs hover:shadow transition-all"
           >
             <Plus className="w-4 h-4" />
             <span>Nouvelle Commande</span>
-          </button>
+          </Link>
         </div>
 
       </div>

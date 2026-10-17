@@ -191,7 +191,7 @@ export function OrderLifecycleTabs() {
 
       {/* Right: Quick CTA */}
       <Link
-        href="/dashboard/orders"
+        href="/dashboard/orders/new"
         className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0 shadow-xs transition-colors"
       >
         <Plus className="w-3.5 h-3.5" />
