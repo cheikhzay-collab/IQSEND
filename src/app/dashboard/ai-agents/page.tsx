@@ -92,7 +92,9 @@ const DEFAULT_PRODUCTS_KB: ProductKbData[] = [
 ];
 
 export default function AiAgentsPage() {
-  const [activeTab, setActiveTab] = useState<'simulator' | 'prompt' | 'knowledge' | 'product-kb'>('simulator');
+  const [activeTab, setActiveTab] = useState<
+    'simulator' | 'product-kb' | 'prompt' | 'knowledge' | 'permissions' | 'whatsapp-provider'
+  >('simulator');
   const [temperature, setTemperature] = useState(0.3);
   const [selectedProduct, setSelectedProduct] = useState<ProductKbData>(DEFAULT_PRODUCTS_KB[0]);
   const [newSellingPoint, setNewSellingPoint] = useState('');
@@ -101,6 +103,37 @@ export default function AiAgentsPage() {
     'وعليكم السلام أخي! نعم أكيد، التوصيل مع Sendit كيعطيك الحق تفحص الكولية وتشوف المقاس ديالك عاد تخلص الموزع نقداً بكل أمان. واش تأكد لينا العنوان ديالك؟'
   );
   const [detectedTool, setDetectedTool] = useState<string | null>(null);
+
+  // 🛡️ Permissions & Guardrails State
+  const [canConfirmOrders, setCanConfirmOrders] = useState(true);
+  const [canOfferUpsell, setCanOfferUpsell] = useState(true);
+  const [maxUpsellDiscount, setMaxUpsellDiscount] = useState(30);
+  const [canUpdateAddressAndGPS, setCanUpdateAddressAndGPS] = useState(true);
+  const [canRescheduleDelivery, setCanRescheduleDelivery] = useState(true);
+  const [priceLockdown, setPriceLockdown] = useState(true);
+  const [minOrderPrice, setMinOrderPrice] = useState(149);
+  const [escalationKeywords, setEscalationKeywords] = useState([
+    'مسؤول',
+    'عيطو ليا',
+    'شكاية',
+    'نصب',
+    'reclamation',
+    'humain',
+    'directeur',
+    'بغيت نهضر مع شي واحد',
+  ]);
+  const [newKeyword, setNewKeyword] = useState('');
+
+  // 📱 WhatsApp Multi-Provider State
+  const [selectedProvider, setSelectedProvider] = useState<'META_CLOUD_API' | 'EVOLUTION_API_QR'>('META_CLOUD_API');
+  const [metaPhoneId, setMetaPhoneId] = useState('104829104829104');
+  const [metaToken, setMetaToken] = useState('EAABwzL1...live_token');
+  const [evoInstance, setEvoInstance] = useState('sendit_morocco_sim1');
+  const [evoApiKey, setEvoApiKey] = useState('snd_evo_key_948293');
+  const [evoAntiBanDelay, setEvoAntiBanDelay] = useState(3);
+  const [evoDailyCap, setEvoDailyCap] = useState(250);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSimulate = () => {
     const text = testMessage.toLowerCase();
@@ -159,8 +192,15 @@ export default function AiAgentsPage() {
           </div>
         </div>
 
-        <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm">
-          <Save className="w-3.5 h-3.5" /> Sauvegarder la Configuration
+        <button
+          onClick={() => {
+            setSavedSuccess(true);
+            setTimeout(() => setSavedSuccess(false), 2500);
+          }}
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
+        >
+          <Save className="w-3.5 h-3.5" />
+          {savedSuccess ? 'Configuration Enregistrée !' : 'Sauvegarder la Configuration'}
         </button>
       </div>
 
@@ -185,6 +225,26 @@ export default function AiAgentsPage() {
           }`}
         >
           <Package className="w-3.5 h-3.5" /> 🏷️ Fiche Produit AI & Upselling (Pilier 3)
+        </button>
+        <button
+          onClick={() => setActiveTab('permissions')}
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+            activeTab === 'permissions'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <ShieldCheck className="w-3.5 h-3.5" /> 🛡️ Gouvernance & Droits de l'Agent
+        </button>
+        <button
+          onClick={() => setActiveTab('whatsapp-provider')}
+          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+            activeTab === 'whatsapp-provider'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Send className="w-3.5 h-3.5" /> 📱 Connecteur WhatsApp (Meta vs Scan QR)
         </button>
         <button
           onClick={() => setActiveTab('prompt')}
@@ -532,27 +592,388 @@ export default function AiAgentsPage() {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* TAB 4: FAQS COD GENERALES                                     */}
+      {/* TAB 5: GOUVERNANCE & DROITS DE L'AGENT IA (GUARDRAILS)       */}
       {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'knowledge' && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs">
-          <h3 className="font-bold text-xs text-slate-800">
-            Base de Connaissances Générale Logistique & COD
-          </h3>
-          <div className="space-y-3 text-xs">
-            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
-              <span className="font-bold text-slate-800 block">Q: واش التوصيل فابور؟</span>
-              <span className="text-slate-600">R: نعم، التوصيل بالمجان لجميع المدن المغربية عبر شركة Sendit.</span>
+      {activeTab === 'permissions' && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                Matrice des Droits & Limites d'Exécution Autonome
+              </div>
+              <h3 className="font-black text-sm text-slate-900">
+                Périmètre d'Action Autonome de l'Agent IA
+              </h3>
+              <p className="text-xs text-slate-500">
+                Définissez précisément ce que l'agent a le droit de modifier dans le cycle de commande sans intervention humaine.
+              </p>
             </div>
-            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
-              <span className="font-bold text-slate-800 block">Q: شحال كياخد الوقت باش يوصلني الطلب؟</span>
-              <span className="text-slate-600">R: كيوصلك خلال 24 إلى 48 ساعة كحد أقصى، كيتصل بيك الموزع قبل ما يجي.</span>
-            </div>
-            <div className="border border-slate-200 rounded-xl p-3.5 bg-slate-50/50">
-              <span className="font-bold text-slate-800 block">Q: واش نقدر نحل الكولية ونشوفها؟</span>
-              <span className="text-slate-600">R: نعم، عندك الحق الكامل تفتح الكولية وتفحصها عاد تخلص الموزع.</span>
+
+            {/* Grid of Permissions Toggles */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              {/* Permission 1: Confirmation */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">Confirmation Autonome de Commande</h4>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    Autorise l'IA à passer la commande au statut "En préparation" dès accord explicite du client.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCanConfirmOrders(!canConfirmOrders)}
+                  className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
+                    canConfirmOrders ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                </button>
+              </div>
+
+              {/* Permission 2: Upsell */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900">Offres de Vente Additionnelle (Upsell)</h4>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Proposer automatiquement une 2ème pièce avec rabais calculé par l'IA.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setCanOfferUpsell(!canOfferUpsell)}
+                    className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
+                      canOfferUpsell ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                  </button>
+                </div>
+                {canOfferUpsell && (
+                  <div className="pt-2 border-t border-slate-200/60">
+                    <div className="flex justify-between text-[11px] text-slate-600 mb-1">
+                      <span>Remise Maximale Autorisée :</span>
+                      <strong className="text-teal-700 font-bold">{maxUpsellDiscount}%</strong>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="50"
+                      step="5"
+                      value={maxUpsellDiscount}
+                      onChange={(e) => setMaxUpsellDiscount(parseInt(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg accent-teal-600 cursor-pointer"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Permission 3: Address & GPS */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="font-bold text-xs text-slate-900">Mise à Jour Adresse & Position GPS</h4>
+                  <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    Extrait les coordonnées Google Maps partagées sur WhatsApp et les intègre à la feuille de route Sendit.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setCanUpdateAddressAndGPS(!canUpdateAddressAndGPS)}
+                  className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
+                    canUpdateAddressAndGPS ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                  }`}
+                >
+                  <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                </button>
+              </div>
+
+              {/* Permission 4: Price Lockdown */}
+              <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h4 className="font-bold text-xs text-slate-900">Verrouillage Strict des Prix (Price Lockdown)</h4>
+                    <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                      Interdit formellement à l'IA d'accorder des remises libres sous le coût de rentabilité.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setPriceLockdown(!priceLockdown)}
+                    className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
+                      priceLockdown ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
+                  </button>
+                </div>
+                {priceLockdown && (
+                  <div className="text-[11px] text-slate-600 bg-white p-2 rounded-lg border border-slate-200 flex items-center justify-between">
+                    <span>Prix plancher minimum garanti :</span>
+                    <strong className="text-slate-900 font-bold">{minOrderPrice} MAD</strong>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
+
+          {/* Escalation Keywords Box */}
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full mb-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+                Garde-fous & Transfert Humain Immédiat (Human Escalation)
+              </div>
+              <h3 className="font-black text-sm text-slate-900">
+                Mots-Clés Déclenchant l'Intervention Humaine
+              </h3>
+              <p className="text-xs text-slate-500">
+                Dès la détection de l'un de ces termes par le client, l'agent IA suspend ses réponses automatiques et bascule la conversation au superviseur.
+              </p>
+            </div>
+
+            {/* Keywords Pills */}
+            <div className="flex flex-wrap gap-2 pt-2">
+              {escalationKeywords.map((kw, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200"
+                >
+                  {kw}
+                  <button
+                    onClick={() => setEscalationKeywords(escalationKeywords.filter((_, i) => i !== idx))}
+                    className="hover:text-rose-950 font-black"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+
+            {/* Add new keyword */}
+            <div className="flex items-center gap-2 max-w-md pt-1">
+              <input
+                type="text"
+                placeholder="Ajouter un mot-clé (ex: نصب, شكاية, directeur)..."
+                value={newKeyword}
+                onChange={(e) => setNewKeyword(e.target.value)}
+                className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-teal-600"
+              />
+              <button
+                onClick={() => {
+                  if (newKeyword.trim() && !escalationKeywords.includes(newKeyword.trim())) {
+                    setEscalationKeywords([...escalationKeywords, newKeyword.trim()]);
+                    setNewKeyword('');
+                  }
+                }}
+                className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors"
+              >
+                Ajouter
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 6: CONNECTEUR WHATSAPP (META VS SCAN QR)                  */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'whatsapp-provider' && (
+        <div className="space-y-6">
+          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
+            <div>
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-1.5">
+                <Send className="w-3.5 h-3.5 text-teal-600" />
+                Passerelle de Communication WhatsApp
+              </div>
+              <h3 className="font-black text-sm text-slate-900">
+                Choix du Fournisseur : Meta Cloud API vs Scan QR (Maroc)
+              </h3>
+              <p className="text-xs text-slate-500">
+                Basculez facilement entre l'API officielle d'entreprise de Meta et la passerelle autonome par scan QR pour carte SIM marocaine.
+              </p>
+            </div>
+
+            {/* Provider Cards Selector */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+              
+              {/* Option 1: Meta Cloud API */}
+              <div
+                onClick={() => setSelectedProvider('META_CLOUD_API')}
+                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                  selectedProvider === 'META_CLOUD_API'
+                    ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+                    Officiel Entreprise
+                  </span>
+                  {selectedProvider === 'META_CLOUD_API' && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse" />
+                  )}
+                </div>
+                <h4 className="font-black text-sm text-slate-900 mt-2">
+                  Meta WhatsApp Cloud API
+                </h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Connecté directement aux serveurs Meta. Zéro risque de bannissement, boutons interactifs natifs et 1000 conversations offertes/mois.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-emerald-700 font-bold">✅ Boutons cliquables</span>
+                  <span className="text-slate-400">100% Stable</span>
+                </div>
+              </div>
+
+              {/* Option 2: Evolution API / Scan QR */}
+              <div
+                onClick={() => setSelectedProvider('EVOLUTION_API_QR')}
+                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
+                  selectedProvider === 'EVOLUTION_API_QR'
+                    ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+                    Session SIM Marocaine
+                  </span>
+                  {selectedProvider === 'EVOLUTION_API_QR' && (
+                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
+                  )}
+                </div>
+                <h4 className="font-black text-sm text-slate-900 mt-2">
+                  Session QR Code (Evolution / Baileys)
+                </h4>
+                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                  Connexion instantanée par QR code avec n'importe quelle puce Maroc Telecom, Inwi ou Orange. Sans validation de registre commercial.
+                </p>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <span className="text-indigo-700 font-bold">⚡ Sans frais Meta</span>
+                  <span className="text-amber-600 font-bold">Protection Anti-Ban requise</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Provider Configuration Form */}
+            {selectedProvider === 'META_CLOUD_API' ? (
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <strong className="text-slate-900 font-bold">Paramètres Meta Cloud API</strong>
+                  <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px]">
+                    Statut: Connecté & Opérationnel
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                      Phone Number ID
+                    </label>
+                    <input
+                      type="text"
+                      value={metaPhoneId}
+                      onChange={(e) => setMetaPhoneId(e.target.value)}
+                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                      Access Token Permanent
+                    </label>
+                    <input
+                      type="password"
+                      value={metaToken}
+                      onChange={(e) => setMetaToken(e.target.value)}
+                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
+                <div className="flex items-center justify-between">
+                  <strong className="text-slate-900 font-bold">Session QR Code & Règles Anti-Bannissement</strong>
+                  <button
+                    onClick={() => setShowQrModal(true)}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm"
+                  >
+                    <span>📷 Scanner le QR Code</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                      Nom de l'Instance SIM
+                    </label>
+                    <input
+                      type="text"
+                      value={evoInstance}
+                      onChange={(e) => setEvoInstance(e.target.value)}
+                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
+                      Délai de simulation humaine (Anti-Ban)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="range"
+                        min="1"
+                        max="8"
+                        value={evoAntiBanDelay}
+                        onChange={(e) => setEvoAntiBanDelay(parseInt(e.target.value))}
+                        className="flex-1 h-1.5 bg-slate-200 rounded-lg accent-indigo-600 cursor-pointer"
+                      />
+                      <span className="font-bold text-slate-800 w-16 text-right">{evoAntiBanDelay} sec</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
+                  💡 <strong>Conseil Anti-Ban pour carte SIM marocaine :</strong> Limitez l'envoi à {evoDailyCap} messages par jour durant la première semaine (Warm-up) et conservez un délai d'au moins 3 secondes entre chaque message pour simuler une frappe humaine naturelle.
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* QR Code Scan Modal */}
+          {showQrModal && (
+            <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+                <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center font-black">
+                  📷
+                </div>
+                <h3 className="font-black text-sm text-slate-900">
+                  Scanner avec WhatsApp Mobile
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Ouvrez WhatsApp sur votre smartphone marocain {'>'} Appareils connectés {'>'} Connecter un appareil.
+                </p>
+
+                {/* Simulated Realistic QR Code Pattern */}
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
+                  <div className="w-48 h-48 bg-white p-2 rounded-xl border border-slate-300 flex items-center justify-center">
+                    <img
+                      src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=SENDIT_COD_WHATSAPP_SESSION_MOROCCO_TOKEN"
+                      alt="WhatsApp QR Code"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[11px] text-emerald-700 font-bold bg-emerald-50 py-1.5 px-3 rounded-lg border border-emerald-200">
+                  Prêt pour la synchronisation Sendit COD
+                </div>
+
+                <button
+                  onClick={() => setShowQrModal(false)}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

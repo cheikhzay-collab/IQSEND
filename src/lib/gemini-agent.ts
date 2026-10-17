@@ -29,6 +29,42 @@ export interface OrderContext {
   }>;
 }
 
+export interface AgentPermissionsConfig {
+  canConfirmOrders: boolean;
+  canOfferUpsell: boolean;
+  maxUpsellDiscountPercent: number;
+  canUpdateAddressAndGPS: boolean;
+  canRescheduleDelivery: boolean;
+  priceLockdownEnabled: boolean;
+  minimumOrderPriceMad: number;
+  humanEscalationKeywords: string[];
+}
+
+export const DEFAULT_AGENT_PERMISSIONS: AgentPermissionsConfig = {
+  canConfirmOrders: true,
+  canOfferUpsell: true,
+  maxUpsellDiscountPercent: 35,
+  canUpdateAddressAndGPS: true,
+  canRescheduleDelivery: true,
+  priceLockdownEnabled: true,
+  minimumOrderPriceMad: 149,
+  humanEscalationKeywords: [
+    'مسؤول',
+    'عيطو ليا',
+    'عيط لي',
+    'نصب',
+    'شكاية',
+    'reclamation',
+    'humain',
+    'directeur',
+    'بغيت نهضر مع شي واحد',
+    'مكلف',
+    'agent',
+    'تصل بي',
+    'appelez moi',
+  ],
+};
+
 /**
  * 1. Tool / Function Calling Declarations for Gemini
  */
@@ -165,8 +201,27 @@ export async function processCustomerWhatsAppMessage(
     onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
     onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
     onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
-  }
+  },
+  permissions: AgentPermissionsConfig = DEFAULT_AGENT_PERMISSIONS
 ): Promise<{ replyText: string; toolCalled?: string; requiresHumanHandover: boolean }> {
+  // ─────────────────────────────────────────────────────────────
+  // 1. Guardrail Check: Direct Escalation Keywords
+  // ─────────────────────────────────────────────────────────────
+  const lowerMsg = incomingMessage.toLowerCase();
+  const matchedKeyword = permissions.humanEscalationKeywords.find((kw) => lowerMsg.includes(kw.toLowerCase()));
+
+  if (matchedKeyword) {
+    console.log(`[AI Guardrail] 🚨 Human escalation triggered by keyword: "${matchedKeyword}"`);
+    await databaseHandler.onHandover({
+      orderId: context.orderId,
+      reason: `Déclenché par mot-clé sensible: "${matchedKeyword}"`,
+    });
+    return {
+      replyText: `مرحبا بك أخي/أختي الكريمة. حنا هنا باش نساعدوك، تم تحويل المحادثة لمسؤول خدمة العملاء ديالنا وغادي يتواصل معاك مباشرة دابا للإجابة على كامل تساؤلاتك 📞✨`,
+      toolCalled: 'request_human_handover',
+      requiresHumanHandover: true,
+    };
+  }
   const systemInstruction = buildMoroccanSystemPrompt(context);
 
   const model = genAI.getGenerativeModel({
