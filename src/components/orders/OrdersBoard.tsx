@@ -145,9 +145,9 @@ const INITIAL_ORDERS: OrderItem[] = [
     city: 'Casablanca',
     countryCode: 'MA',
     phone: '0661123456',
-    timeAgo: 'DHL 4829 3170',
+    timeAgo: 'SENDIT 4829 3170',
     address: '24 Rue Abou Al Alaa, Maarif',
-    metaBadge: { type: 'tracking', text: 'DHL 4829 3170' },
+    metaBadge: { type: 'tracking', text: 'SENDIT 4829 3170' },
     assignedAgent: {
       type: 'avatar',
       value: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
