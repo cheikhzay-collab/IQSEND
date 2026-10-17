@@ -83,30 +83,6 @@ export default function InTransitOrdersPage() {
       {/* Main Content Area */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
-        {/* Visual Lifecycle Stepper Header */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
-            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
-              <span>المرحلة 1: تم التأكيد (Confirmed)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
-              <span>المرحلة 2: تم التغليف والإرسال (Dispatched)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-300 font-bold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-indigo-600 text-white flex items-center justify-center text-[10px]">3</span>
-              <span>المرحلة 3: الشحن وتتبع التوصيل الميداني (In Transit)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-slate-400 px-3 py-1.5 rounded-xl font-medium shrink-0">
-              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</span>
-              <span>المرحلة 4: التسليم والتحصيل المالي (Completed)</span>
-            </div>
-          </div>
-        </div>
 
         {rescueToast && (
           <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">

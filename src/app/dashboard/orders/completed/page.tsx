@@ -76,30 +76,6 @@ export default function CompletedOrdersPage() {
       {/* Main Content Area */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
 
-        {/* Visual Lifecycle Stepper Header */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
-            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
-              <span>المرحلة 1: تم التأكيد (Confirmed)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
-              <span>المرحلة 2: تم التغليف والإرسال (Dispatched)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-300 font-semibold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">✓</span>
-              <span>المرحلة 3: تم التوصيل مع الموزع (Delivered)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-emerald-800 bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-400 font-black shrink-0">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px]">4</span>
-              <span>المرحلة 4: اكتمال الطلب والتسوية المالية (Completed & Settled)</span>
-            </div>
-          </div>
-        </div>
 
         {/* Header with Title and Financial Clearance Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

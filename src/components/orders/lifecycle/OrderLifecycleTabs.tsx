@@ -110,38 +110,57 @@ export function OrderLifecycleTabs() {
 
         <div className="w-px h-5 bg-slate-200 mx-1" />
 
-        {/* Fulfillment Stages */}
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = pathname === tab.href;
+        {/* Fulfillment Lifecycle Stepper */}
+        <div className="flex items-center gap-1 shrink-0">
+          {tabs.map((tab, idx) => {
+            const Icon = tab.icon;
+            const isActive = pathname === tab.href;
 
-          return (
-            <Link
-              key={tab.id}
-              href={tab.href}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs transition-all border ${
-                isActive
-                  ? tab.activeColor + ' shadow-xs'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <Icon className="w-3.5 h-3.5 shrink-0" />
-              <span className="font-semibold">{tab.label}</span>
-              <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">
-                ({tab.arabic})
-              </span>
-              {typeof tab.badge === 'number' && (
-                <span
-                  className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tab.badgeColor}`}
+            return (
+              <React.Fragment key={tab.id}>
+                <Link
+                  href={tab.href}
+                  className={`group flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs transition-all border ${
+                    isActive
+                      ? tab.activeColor + ' shadow-xs ring-1 ring-slate-900/5'
+                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 hover:border-slate-300'
+                  }`}
                 >
-                  {tab.badge}
-                </span>
-              )}
-            </Link>
-          );
-        })}
+                  <div
+                    className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 transition-colors ${
+                      isActive
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
+                    }`}
+                  >
+                    {tab.step}
+                  </div>
+                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-current' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                  <span className="font-bold tracking-tight">{tab.label.replace(/^\d+\.\s*/, '')}</span>
+                  <span className="text-[10px] text-slate-400 font-normal hidden lg:inline font-arabic">
+                    ({tab.arabic})
+                  </span>
+                  {typeof tab.badge === 'number' && (
+                    <span
+                      className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tab.badgeColor}`}
+                    >
+                      {tab.badge}
+                    </span>
+                  )}
+                </Link>
 
-        <div className="w-px h-5 bg-slate-200 mx-1" />
+                {/* Arrow connector between stages */}
+                {idx < tabs.length - 1 && (
+                  <div className="text-slate-300 mx-0.5 shrink-0 select-none">
+                    <span className="text-xs font-bold text-slate-300">→</span>
+                  </div>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+
+        <div className="w-px h-5 bg-slate-200 mx-1.5 shrink-0" />
 
         {/* Secondary Pages */}
         {secondaryTabs.map((tab) => {
@@ -152,7 +171,7 @@ export function OrderLifecycleTabs() {
             <Link
               key={tab.id}
               href={tab.href}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs transition-all border ${
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs transition-all border shrink-0 ${
                 isActive
                   ? 'bg-slate-200 text-slate-900 font-bold border-slate-300 shadow-xs'
                   : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'

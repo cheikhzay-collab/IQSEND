@@ -92,30 +92,6 @@ export default function PendingOrdersPage() {
       {/* Main Content View */}
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         
-        {/* Visual Lifecycle Stepper Header */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 overflow-x-auto text-xs pb-1">
-            <div className="flex items-center gap-2 text-amber-700 bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-300 font-bold shrink-0">
-              <span className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]">1</span>
-              <span>المرحلة 1: السقوط والتأكيد (Confirmation)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-slate-400 px-3 py-1.5 rounded-xl font-medium shrink-0">
-              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">2</span>
-              <span>المرحلة 2: التجهيز والتغليف (Processing)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-slate-400 px-3 py-1.5 rounded-xl font-medium shrink-0">
-              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">3</span>
-              <span>المرحلة 3: الشحن والتوصيل (In Transit)</span>
-            </div>
-            <ArrowRight className="w-4 h-4 text-slate-300 shrink-0" />
-            <div className="flex items-center gap-2 text-slate-400 px-3 py-1.5 rounded-xl font-medium shrink-0">
-              <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-600 flex items-center justify-center text-[10px]">4</span>
-              <span>المرحلة 4: التسليم والتحصيل (Completed)</span>
-            </div>
-          </div>
-        </div>
 
         {/* Header with Title, Counter and Tools */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
