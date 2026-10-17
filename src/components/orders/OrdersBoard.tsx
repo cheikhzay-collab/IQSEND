@@ -346,7 +346,7 @@ export function OrdersBoard() {
       )}
 
       {/* TOP ACTION TOOLBAR (Identical to screenshot) */}
-      <div className="h-16 px-6 bg-white border-b border-slate-200/80 flex items-center justify-between sticky top-0 z-30 shadow-2xs">
+      <div className="h-16 px-6 bg-white border-b border-slate-200/80 flex items-center justify-between relative z-10 shadow-2xs">
         
         {/* Left: Back Arrow + Page Title + Setup Guide */}
         <div className="flex items-center gap-3">

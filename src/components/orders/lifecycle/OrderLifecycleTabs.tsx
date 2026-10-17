@@ -88,7 +88,7 @@ export function OrderLifecycleTabs() {
   ];
 
   return (
-    <div className="bg-white border-b border-slate-200/80 px-6 py-2.5 flex items-center justify-between gap-4 overflow-x-auto shadow-2xs sticky top-14 z-20">
+    <div className="bg-white border-b border-slate-200/80 px-6 py-2.5 flex items-center justify-between gap-4 overflow-x-auto shadow-2xs sticky top-0 z-30">
       {/* Left: Tab pills */}
       <div className="flex items-center gap-1.5 shrink-0">
         {/* Kanban Board overview */}
