@@ -1,0 +1,233 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// -------------------------------------------------------------
+// ENUMS
+// -------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  CONFIRMATION_AGENT
+  PACKER
+  TRACKING_AGENT
+}
+
+enum LeadStatus {
+  NEW
+  AI_CHATTING
+  CONFIRMED
+  PACKING
+  CANCELED
+  DUPLICATE
+}
+
+enum ShipmentStatus {
+  READY_FOR_PICKUP     // Prêt pour ramassage
+  IN_TRANSIT           // Ramassé / En cours de transfert
+  OUT_FOR_DELIVERY     // En cours de livraison (avec le livreur)
+  DELIVERY_FAILED      // Échec de livraison (Injoignable, reporté, refusé)
+  DELIVERED_PAID       // Livré et argent COD encaissé
+  RETURNED             // Retourné au stock
+}
+
+enum CallResult {
+  NO_ANSWER_1
+  NO_ANSWER_2
+  OUT_OF_COVERAGE
+  CALLBACK_REQUESTED
+  BUSY
+  CONFIRMED_MANUALLY
+  CANCELED_BY_CLIENT
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  BLACK_LISTED
+}
+
+enum SenderType {
+  CUSTOMER
+  AI_BOT
+  AGENT
+}
+
+enum ChannelType {
+  WHATSAPP
+  CALL
+  STOREFRONT_WEBHOOK
+  MANUAL
+}
+
+// -------------------------------------------------------------
+// MODELS
+// -------------------------------------------------------------
+
+model User {
+  id            String       @id @default(uuid())
+  name          String
+  email         String       @unique
+  passwordHash  String
+  role          Role         @default(CONFIRMATION_AGENT)
+  isActive      Boolean      @default(true)
+  assignedLeads OrderLead[]  @relation("AssignedLeads")
+  callLogs      CallLog[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@map("users")
+}
+
+model Product {
+  id             String       @id @default(uuid())
+  name           String
+  sku            String       @unique
+  basePrice      Float        // Selling price in MAD
+  costPrice      Float        // Cost of Goods Sold in MAD
+  stockQuantity  Int          @default(0)
+  attributes     Json         // e.g. { "colors": ["Noir", "Blanc"], "sizes": ["M", "L", "XL"] }
+  knowledgeBase  String       @db.Text // Darija/FR FAQs, selling points, objection handling for AI
+  orderItems     OrderItem[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@map("products")
+}
+
+model OrderLead {
+  id                   String            @id @default(uuid())
+  orderNumber          String            @unique // e.g. "MA-10492"
+  customerName         String
+  phoneNumber          String            // Moroccan formatted phone (e.g. "0661234567" or "+212661234567")
+  altPhoneNumber       String?
+  city                 String
+  address              String
+  gpsLocationUrl       String?           // Google Maps pin from WhatsApp Location message
+  totalAmount          Float             // Total COD to collect in MAD
+  discountAmount       Float             @default(0.0)
+  status               LeadStatus        @default(NEW)
+  riskScore            Int               @default(0) // 0-100 risk scoring
+  riskLevel            RiskLevel         @default(LOW)
+  duplicateOfId        String?
+  duplicateOf          OrderLead?        @relation("Duplicates", fields: [duplicateOfId], references: [id])
+  duplicateLeads       OrderLead[]       @relation("Duplicates")
+  
+  // AI Automation & Handover flags
+  aiConversationEnabled Boolean          @default(true)
+  aiHandoverRequired    Boolean          @default(false)
+  aiHandoverReason      String?
+  assignedToAgentId     String?
+  assignedUser          User?            @relation("AssignedLeads", fields: [assignedToAgentId], references: [id])
+
+  // Relations
+  items                OrderItem[]
+  shipmentDetail       ShipmentDetail?
+  whatsAppMessages     WhatsAppMessage[]
+  callLogs             CallLog[]
+  timelineEvents       OrderTimeline[]
+
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+
+  @@index([phoneNumber])
+  @@index([status])
+  @@index([city])
+  @@map("order_leads")
+}
+
+model OrderItem {
+  id                 String     @id @default(uuid())
+  orderId            String
+  order              OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId          String
+  product            Product    @relation(fields: [productId], references: [id])
+  quantity           Int        @default(1)
+  price              Float      // Unit price at sale time
+  selectedAttributes Json?      // e.g. { "size": "XL", "color": "Noir" }
+
+  createdAt          DateTime   @default(now())
+
+  @@map("order_items")
+}
+
+model ShipmentDetail {
+  id                    String          @id @default(uuid())
+  orderId               String          @unique
+  order                 OrderLead       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  carrier               String          @default("Sendit.ma")
+  senditTrackingNumber  String?         @unique // Sendit Barcode / Parcel ID
+  senditPickupId        String?         // Sendit Ramassage batch ID
+  status                ShipmentStatus  @default(READY_FOR_PICKUP)
+  waybillUrl            String?         // Printable PDF AWB link from Sendit
+  
+  shippingFee           Float           @default(35.0) // Agreed carrier fee in MAD
+  codAmountCollected    Float           @default(0.0)  // Amount actually collected by driver
+  isCodReconciled       Boolean         @default(false)// Matched against Sendit payout statement
+  codPayoutReference    String?         // Sendit payment batch / transfer ref
+  
+  failedReason          String?         // e.g. "Client Injoignable", "Refusé", "Numéro erroné"
+  deliveryAttemptsCount Int             @default(0)
+  lastStatusUpdateAt    DateTime        @default(now())
+  
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  @@index([senditTrackingNumber])
+  @@index([status])
+  @@map("shipment_details")
+}
+
+model WhatsAppMessage {
+  id                   String       @id @default(uuid())
+  orderId              String
+  order                OrderLead    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sender               SenderType
+  body                 String       @db.Text
+  audioTranscribedText String?      @db.Text
+  audioUrl             String?
+  messageType          String       @default("text") // "text", "audio", "location", "template"
+  externalMessageId    String?      // WhatsApp message id from Evolution / Meta Cloud API
+  timestamp            DateTime     @default(now())
+
+  @@index([orderId])
+  @@map("whatsapp_messages")
+}
+
+model CallLog {
+  id        String     @id @default(uuid())
+  orderId   String
+  order     OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  result    CallResult
+  notes     String?    @db.Text
+  createdAt DateTime   @default(now())
+
+  @@index([orderId])
+  @@map("call_logs")
+}
+
+model OrderTimeline {
+  id        String     @id @default(uuid())
+  orderId   String
+  order     OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  action    String     // e.g. "ORDER_CREATED", "AI_CONFIRMED", "SENDIT_DISPATCHED", "DELIVERY_ATTEMPT_FAILED"
+  title     String
+  details   String?    @db.Text
+  actor     String     // "SYSTEM", "AI_AGENT", "SENDIT_WEBHOOK", "USER:john"
+  createdAt DateTime   @default(now())
+
+  @@index([orderId])
+  @@map("order_timelines")
+}
