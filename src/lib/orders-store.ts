@@ -33,6 +33,35 @@ export interface IngestedOrder {
     riskScore: number;
     notes: string;
   };
+  gpsLocationUrl?: string;
+  preferredDeliveryTime?: string;
+  upsellOffer?: {
+    offered: boolean;
+    accepted: boolean;
+    newQuantity?: number;
+    extraPriceMad?: number;
+    discountPercent?: number;
+    bundleTitle?: string;
+  };
+  rescue?: {
+    status: 'NONE' | 'NEEDS_ATTENTION' | 'OUTREACH_SENT' | 'RESCHEDULED' | 'ADDRESS_UPDATED' | 'ESCALATED' | 'RETURNED';
+    failureReason?: string;
+    outreachCount: number;
+    lastOutreachAt?: string;
+    notes?: string;
+  };
+  tracking?: {
+    carrier: string;
+    trackingNumber?: string;
+    dispatchNoticeSent?: boolean;
+    morningReminderSent?: boolean;
+    deliveredAt?: string;
+  };
+  review?: {
+    rating?: number;
+    comment?: string;
+    submittedAt?: string;
+  };
 }
 
 // Global reference across serverless warm invokes

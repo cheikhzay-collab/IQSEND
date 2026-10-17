@@ -39,6 +39,26 @@ enum ShipmentStatus {
   RETURNED             // Retourné au stock
 }
 
+enum RescueStatus {
+  NONE
+  NEEDS_ATTENTION      // Détecté en échec de livraison (Injoignable / Reporté / Adresse)
+  OUTREACH_SENT        // Message WhatsApp d'assistance envoyé
+  RESCHEDULED          // Nouvelle date / créneau convenu avec le client
+  ADDRESS_UPDATED      // Adresse ou position GPS actualisée
+  ESCALATED            // Transféré manuellement à un agent
+  RETURN_CONFIRMED     // Confirmation de retour définitif
+}
+
+enum InteractiveMessageType {
+  TEXT
+  CONFIRMATION_BUTTONS
+  LOCATION_REQUEST
+  UPSELL_CARD
+  MEDIA_SHOWCASE
+  RESCUE_PROMPT
+  REVIEW_INVITE
+}
+
 enum CallResult {
   NO_ANSWER_1
   NO_ANSWER_2
@@ -97,6 +117,13 @@ model Product {
   stockQuantity  Int          @default(0)
   attributes     Json         // e.g. { "colors": ["Noir", "Blanc"], "sizes": ["M", "L", "XL"] }
   knowledgeBase  String       @db.Text // Darija/FR FAQs, selling points, objection handling for AI
+  
+  // Pillar 3: Product AI Knowledge Base & Upselling
+  sellingPoints  String[]     @default([]) // Points forts et arguments clés
+  objectionFaqs  Json?        // Objections courantes (prix, qualité, garantie) et réponses
+  upsellBundles  Json?        // Offres groupées (ex: 2ème pièce -30%, pack duo)
+  mediaGallery   Json?        // Galerie média { type: 'image'|'video', url: string, caption: string }[]
+  
   orderItems     OrderItem[]
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -113,6 +140,7 @@ model OrderLead {
   city                 String
   address              String
   gpsLocationUrl       String?           // Google Maps pin from WhatsApp Location message
+  preferredDeliveryTime String?          // Créneau horaire souhaité (Matinée / Après-midi)
   totalAmount          Float             // Total COD to collect in MAD
   discountAmount       Float             @default(0.0)
   status               LeadStatus        @default(NEW)
@@ -121,6 +149,22 @@ model OrderLead {
   duplicateOfId        String?
   duplicateOf          OrderLead?        @relation("Duplicates", fields: [duplicateOfId], references: [id])
   duplicateLeads       OrderLead[]       @relation("Duplicates")
+  
+  // Pillar 1: AI Confirmation & Upselling
+  aiConfirmationStatus String            @default("PENDING") // PENDING, CONFIRMED, MODIFIED, CANCELLED, ESCALATED
+  upsellOffered        Boolean           @default(false)
+  upsellAccepted       Boolean           @default(false)
+  upsellDetails        Json?             // { originalQty, newQty, extraPrice, discountPercent }
+
+  // Pillar 2: Needs Attention & Rescue Engine
+  rescueStatus         RescueStatus      @default(NONE)
+  rescueNotes          String?           @db.Text
+
+  // Pillar 4: Reviews & Customer Feedback
+  reviewRating         Int?              // 1 à 5 étoiles
+  reviewComment        String?           @db.Text
+  reviewTags           String[]          @default([])
+  reviewSubmittedAt    DateTime?
   
   // AI Automation & Handover flags
   aiConversationEnabled Boolean          @default(true)
@@ -142,6 +186,7 @@ model OrderLead {
   @@index([phoneNumber])
   @@index([status])
   @@index([city])
+  @@index([rescueStatus])
   @@map("order_leads")
 }
 
@@ -176,9 +221,22 @@ model ShipmentDetail {
   isCodReconciled       Boolean         @default(false)// Matched against Sendit payout statement
   codPayoutReference    String?         // Sendit payment batch / transfer ref
   
+  // Pillar 2: Delivery Failure & Rescue Tracking
   failedReason          String?         // e.g. "Client Injoignable", "Refusé", "Numéro erroné"
+  failureCategory       String?         // "UNREACHABLE", "POSTPONED", "WRONG_ADDRESS", "REFUSED"
   deliveryAttemptsCount Int             @default(0)
+  rescueAttemptCount    Int             @default(0)
+  lastRescueOutreachAt  DateTime?
   lastStatusUpdateAt    DateTime        @default(now())
+  
+  // Pillar 4: Interactive Tracking & Notifications
+  dispatchNoticeSent    Boolean         @default(false) // WhatsApp départ en livraison avec lien de tracking
+  dispatchNoticeSentAt  DateTime?
+  morningReminderSent   Boolean         @default(false) // WhatsApp rappel matin avec montant exact COD
+  morningReminderSentAt DateTime?
+  reviewPromptSent      Boolean         @default(false) // WhatsApp remerciement & lien avis
+  reviewPromptSentAt    DateTime?
+  deliveryProofUrl      String?         // Preuve de livraison (photo / signature)
   
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
@@ -189,16 +247,21 @@ model ShipmentDetail {
 }
 
 model WhatsAppMessage {
-  id                   String       @id @default(uuid())
+  id                   String                 @id @default(uuid())
   orderId              String
-  order                OrderLead    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order                OrderLead              @relation(fields: [orderId], references: [id], onDelete: Cascade)
   sender               SenderType
-  body                 String       @db.Text
-  audioTranscribedText String?      @db.Text
+  body                 String                 @db.Text
+  audioTranscribedText String?                @db.Text
   audioUrl             String?
-  messageType          String       @default("text") // "text", "audio", "location", "template"
-  externalMessageId    String?      // WhatsApp message id from Evolution / Meta Cloud API
-  timestamp            DateTime     @default(now())
+  messageType          String                 @default("text") // "text", "audio", "location", "interactive", "media"
+  interactiveType      InteractiveMessageType @default(TEXT)
+  buttonPayload        String?                // e.g. "CONFIRM_ORDER", "MODIFY_ORDER", "ADD_UPSELL_1", "RETRY_TOMORROW"
+  quickReplyOptions    Json?                  // Boutons interactifs ou options rapides
+  mediaUrl             String?                // Photo / Vidéo du produit
+  externalMessageId    String?                // WhatsApp message id from Evolution / Meta Cloud API
+  deliveryStatus       String?                // "sent", "delivered", "read", "failed"
+  timestamp            DateTime               @default(now())
 
   @@index([orderId])
   @@map("whatsapp_messages")
@@ -222,7 +285,7 @@ model OrderTimeline {
   id        String     @id @default(uuid())
   orderId   String
   order     OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  action    String     // e.g. "ORDER_CREATED", "AI_CONFIRMED", "SENDIT_DISPATCHED", "DELIVERY_ATTEMPT_FAILED"
+  action    String     // e.g. "ORDER_CREATED", "AI_CONFIRMED", "SENDIT_DISPATCHED", "DELIVERY_ATTEMPT_FAILED", "RESCUE_OUTREACH"
   title     String
   details   String?    @db.Text
   actor     String     // "SYSTEM", "AI_AGENT", "SENDIT_WEBHOOK", "USER:john"
