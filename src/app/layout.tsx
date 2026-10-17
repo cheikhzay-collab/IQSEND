@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { AppProviders } from '@/components/providers/AppProviders';
 
 export const metadata: Metadata = {
   title: 'Sendit COD Platform | Suivi Logistique & Confirmation IA',
@@ -14,7 +15,7 @@ export default function RootLayout({
   return (
     <html lang="fr">
       <body className="min-h-screen bg-[#F8FAFC] antialiased">
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

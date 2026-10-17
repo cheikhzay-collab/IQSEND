@@ -25,13 +25,30 @@ import {
   Sparkles,
   MessageSquare,
   Bell,
-  Scan
+  Scan,
+  ClipboardCheck,
+  Truck,
+  CheckCircle2,
+  FileText,
+  ShoppingCart,
+  Star,
+  Check,
+  X
 } from 'lucide-react';
+import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [marketingOpen, setMarketingOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const {
+    pendingCount,
+    processingCount,
+    inTransitCount,
+    completedCount,
+    toast,
+    clearToast
+  } = useOrderLifecycle();
 
   const isOrdersActive =
     pathname === '/dashboard/orders' ||
@@ -164,36 +181,180 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <div>
               <Link
                 href="/dashboard/orders"
-                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   isOrdersActive
-                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    ? 'bg-[#edf2f7] text-slate-900 font-bold'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <ShoppingBag className="w-4 h-4 text-slate-700" />
-                <span>Orders</span>
+                <div className="flex items-center gap-3">
+                  <ShoppingBag className="w-4 h-4 text-slate-700" />
+                  <span>Orders</span>
+                </div>
+                {pendingCount > 0 && (
+                  <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
+                    {pendingCount}
+                  </span>
+                )}
               </Link>
 
               {/* Submenu for Orders */}
               {isOrdersActive && (
-                <div className="ml-8 mt-1 space-y-1 text-xs">
+                <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
+                  {/* 1. Pending Confirmation (بانتظار التأكيد) */}
                   <Link
-                    href="/dashboard/orders"
-                    className="block py-1 text-slate-500 hover:text-slate-900 font-medium"
+                    href="/dashboard/orders/pending"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/pending'
+                        ? 'bg-amber-50 text-amber-900 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
                   >
-                    Drafts
+                    <div className="flex items-center gap-2 truncate">
+                      <ClipboardCheck
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          pathname === '/dashboard/orders/pending'
+                            ? 'text-amber-600'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">Pending Confirmation</span>
+                    </div>
+                    {pendingCount > 0 && (
+                      <span className="shrink-0 ml-1.5 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs animate-pulse">
+                        {pendingCount}
+                      </span>
+                    )}
                   </Link>
+
+                  {/* 2. Processing (قيد التجهيز) */}
                   <Link
-                    href="/dashboard/orders"
-                    className="block py-1 text-slate-500 hover:text-slate-900 font-medium"
+                    href="/dashboard/orders/processing"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/processing'
+                        ? 'bg-blue-50 text-blue-900 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
                   >
-                    Abandoned Carts
+                    <div className="flex items-center gap-2 truncate">
+                      <Package
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          pathname === '/dashboard/orders/processing'
+                            ? 'text-blue-600'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">Processing</span>
+                    </div>
+                    {processingCount > 0 && (
+                      <span className="shrink-0 ml-1.5 text-slate-400 text-[10px] font-semibold">
+                        {processingCount}
+                      </span>
+                    )}
                   </Link>
+
+                  {/* 3. In Transit (قيد التوصيل) */}
                   <Link
-                    href="/dashboard/orders"
-                    className="block py-1 text-slate-500 hover:text-slate-900 font-medium"
+                    href="/dashboard/orders/in-transit"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/in-transit'
+                        ? 'bg-indigo-50 text-indigo-900 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
                   >
-                    Reviews
+                    <div className="flex items-center gap-2 truncate">
+                      <Truck
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          pathname === '/dashboard/orders/in-transit'
+                            ? 'text-indigo-600'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">In Transit</span>
+                    </div>
+                    {inTransitCount > 0 && (
+                      <span className="shrink-0 ml-1.5 text-blue-600 text-[10px] font-semibold bg-blue-50 px-1.5 py-0.5 rounded-full">
+                        {inTransitCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* 4. Completed (المكتملة) */}
+                  <Link
+                    href="/dashboard/orders/completed"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/completed'
+                        ? 'bg-emerald-50 text-emerald-900 font-bold'
+                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <CheckCircle2
+                        className={`w-3.5 h-3.5 shrink-0 ${
+                          pathname === '/dashboard/orders/completed'
+                            ? 'text-emerald-600'
+                            : 'text-slate-400'
+                        }`}
+                      />
+                      <span className="truncate">Completed</span>
+                    </div>
+                    {completedCount > 0 && (
+                      <span className="shrink-0 ml-1.5 text-emerald-600 text-[10px] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">
+                        {completedCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* Divider separating lifecycle from secondary pages */}
+                  <div className="my-1.5 border-t border-slate-200/70" />
+
+                  {/* 5. Drafts */}
+                  <Link
+                    href="/dashboard/orders/drafts"
+                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/drafts'
+                        ? 'bg-slate-100 text-slate-900 font-bold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Drafts</span>
+                  </Link>
+
+                  {/* 6. Abandoned Carts */}
+                  <Link
+                    href="/dashboard/orders/abandoned"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/abandoned'
+                        ? 'bg-slate-100 text-slate-900 font-bold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <ShoppingCart className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">Abandoned Carts</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
+                      3
+                    </span>
+                  </Link>
+
+                  {/* 7. Reviews */}
+                  <Link
+                    href="/dashboard/orders/reviews"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/reviews'
+                        ? 'bg-slate-100 text-slate-900 font-bold'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <Star className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">Reviews</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-600 shrink-0">
+                      ★ 4.9
+                    </span>
                   </Link>
                 </div>
               )}
@@ -348,6 +509,20 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </main>
 
       </div>
+
+      {/* Floating Action Toast */}
+      {toast && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-xl text-xs font-medium border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+          <span>{toast.message}</span>
+          <button
+            onClick={clearToast}
+            className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors ml-2"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
     </div>
   );

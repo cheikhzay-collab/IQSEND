@@ -1,5 +1,6 @@
 import React from 'react';
 import { OrdersBoard } from '@/components/orders/OrdersBoard';
+import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 
 export const metadata = {
   title: 'Orders | SENDIT - COD Management Platform',
@@ -7,5 +8,11 @@ export const metadata = {
 };
 
 export default function OrdersPage() {
-  return <OrdersBoard />;
+  return (
+    <div className="flex flex-col min-h-screen">
+      <OrderLifecycleTabs />
+      <OrdersBoard />
+    </div>
+  );
 }
+

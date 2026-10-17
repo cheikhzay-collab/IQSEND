@@ -1,0 +1,186 @@
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import {
+  ClipboardCheck,
+  Package,
+  Truck,
+  CheckCircle2,
+  FileText,
+  ShoppingCart,
+  Star,
+  Kanban,
+  Plus
+} from 'lucide-react';
+import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
+
+export function OrderLifecycleTabs() {
+  const pathname = usePathname();
+  const { pendingCount, processingCount, inTransitCount, completedCount } = useOrderLifecycle();
+
+  const tabs = [
+    {
+      id: 'pending',
+      href: '/dashboard/orders/pending',
+      label: 'Pending Confirmation',
+      arabic: 'بانتظار التأكيد',
+      icon: ClipboardCheck,
+      badge: pendingCount,
+      badgeColor: 'bg-amber-500 text-white animate-pulse',
+      activeColor: 'bg-amber-100/80 text-amber-900 border-amber-300 font-bold',
+    },
+    {
+      id: 'processing',
+      href: '/dashboard/orders/processing',
+      label: 'Processing',
+      arabic: 'قيد التجهيز',
+      icon: Package,
+      badge: processingCount,
+      badgeColor: 'bg-blue-100 text-blue-700',
+      activeColor: 'bg-blue-100/80 text-blue-900 border-blue-300 font-bold',
+    },
+    {
+      id: 'in-transit',
+      href: '/dashboard/orders/in-transit',
+      label: 'In Transit',
+      arabic: 'قيد التوصيل',
+      icon: Truck,
+      badge: inTransitCount,
+      badgeColor: 'bg-indigo-100 text-indigo-700',
+      activeColor: 'bg-indigo-100/80 text-indigo-900 border-indigo-300 font-bold',
+    },
+    {
+      id: 'completed',
+      href: '/dashboard/orders/completed',
+      label: 'Completed',
+      arabic: 'المكتملة',
+      icon: CheckCircle2,
+      badge: completedCount,
+      badgeColor: 'bg-emerald-100 text-emerald-700',
+      activeColor: 'bg-emerald-100/80 text-emerald-900 border-emerald-300 font-bold',
+    },
+  ];
+
+  const secondaryTabs = [
+    {
+      id: 'drafts',
+      href: '/dashboard/orders/drafts',
+      label: 'Drafts',
+      icon: FileText,
+    },
+    {
+      id: 'abandoned',
+      href: '/dashboard/orders/abandoned',
+      label: 'Abandoned Carts',
+      icon: ShoppingCart,
+      badge: 3,
+      badgeColor: 'bg-rose-100 text-rose-700',
+    },
+    {
+      id: 'reviews',
+      href: '/dashboard/orders/reviews',
+      label: 'Reviews',
+      icon: Star,
+      badgeText: '★ 4.9',
+    },
+  ];
+
+  return (
+    <div className="bg-white border-b border-slate-200/80 px-6 py-2.5 flex items-center justify-between gap-4 overflow-x-auto shadow-2xs sticky top-14 z-20">
+      {/* Left: Tab pills */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {/* Kanban Board overview */}
+        <Link
+          href="/dashboard/orders"
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs transition-all border ${
+            pathname === '/dashboard/orders'
+              ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-xs'
+              : 'bg-slate-50 hover:bg-slate-100 text-slate-600 border-slate-200'
+          }`}
+        >
+          <Kanban className="w-3.5 h-3.5" />
+          <span>Pipeline Kanban</span>
+        </Link>
+
+        <div className="w-px h-5 bg-slate-200 mx-1" />
+
+        {/* Fulfillment Stages */}
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
+
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs transition-all border ${
+                isActive
+                  ? tab.activeColor + ' shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 shrink-0" />
+              <span className="font-semibold">{tab.label}</span>
+              <span className="text-[10px] text-slate-400 font-normal hidden sm:inline">
+                ({tab.arabic})
+              </span>
+              {typeof tab.badge === 'number' && (
+                <span
+                  className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tab.badgeColor}`}
+                >
+                  {tab.badge}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+
+        <div className="w-px h-5 bg-slate-200 mx-1" />
+
+        {/* Secondary Pages */}
+        {secondaryTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
+
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs transition-all border ${
+                isActive
+                  ? 'bg-slate-200 text-slate-900 font-bold border-slate-300 shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span
+                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tab.badgeColor}`}
+                >
+                  {tab.badge}
+                </span>
+              )}
+              {tab.badgeText && (
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded">
+                  {tab.badgeText}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
+
+      {/* Right: Quick CTA */}
+      <Link
+        href="/dashboard/orders"
+        className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0 shadow-xs transition-colors"
+      >
+        <Plus className="w-3.5 h-3.5" />
+        <span>Nouvelle Commande</span>
+      </Link>
+    </div>
+  );
+}
