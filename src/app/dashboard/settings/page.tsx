@@ -17,7 +17,11 @@ import {
   ExternalLink,
   Check,
   AlertTriangle,
-  Play
+  Play,
+  Database,
+  Server,
+  HardDrive,
+  Layers
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -29,6 +33,47 @@ export default function SettingsPage() {
   const [geminiMessage, setGeminiMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [evolutionUrl, setEvolutionUrl] = useState('https://whatsapp.yourdomain.com');
   const [rotationActive, setRotationActive] = useState(true);
+
+  // Hostinger MySQL Database state
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [isInitializingDb, setIsInitializingDb] = useState(false);
+  const [dbMessage, setDbMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const fetchDbStatus = () => {
+    fetch('/api/database/init')
+      .then((res) => res.json())
+      .then((data) => setDbStatus(data))
+      .catch(() => {});
+  };
+
+  useEffect(() => {
+    fetchDbStatus();
+  }, []);
+
+  const handleInitDb = async () => {
+    setIsInitializingDb(true);
+    setDbMessage(null);
+    try {
+      const res = await fetch('/api/database/init', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setDbMessage({
+          type: 'success',
+          text: '✅ Base de données Hostinger MySQL initialisée avec succès ! Toutes les tables COD et données de départ sont prêtes.',
+        });
+        fetchDbStatus();
+      } else {
+        setDbMessage({
+          type: 'error',
+          text: data.error || 'Échec de l initialisation de la base de données',
+        });
+      }
+    } catch (e: any) {
+      setDbMessage({ type: 'error', text: 'Erreur réseau lors de l initialisation de la base' });
+    } finally {
+      setIsInitializingDb(false);
+    }
+  };
 
   useEffect(() => {
     fetch('/api/settings/gemini')
@@ -415,7 +460,141 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* 3. WHATSAPP ROTATION & ANTI-BAN */}
+      {/* 3. BASE DE DONNÉES HOSTINGER MYSQL */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200/60 flex items-center justify-center text-blue-600">
+              <Database className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900">
+                  Base de Données Hostinger MySQL (قاعدة البيانات الرسمية)
+                </h2>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                    dbStatus?.connected
+                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border border-amber-200'
+                  }`}
+                >
+                  <span
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      dbStatus?.connected ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                    }`}
+                  />
+                  {dbStatus?.connected ? 'Connectée (MySQL v8)' : 'En attente de connexion'}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Gestionnaire de stockage persistant : Clients, Commandes COD, Produits, Suivis Sendit et Logs WhatsApp
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={handleInitDb}
+            disabled={isInitializingDb}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs"
+          >
+            {isInitializingDb ? (
+              <>
+                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                Initialisation en cours...
+              </>
+            ) : (
+              <>
+                <Layers className="w-3.5 h-3.5" />
+                Initialiser / Migrer les Tables COD
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Database Alert Message */}
+        {dbMessage && (
+          <div
+            className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+              dbMessage.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}
+          >
+            {dbMessage.type === 'success' ? (
+              <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{dbMessage.text}</span>
+          </div>
+        )}
+
+        {/* Database Metrics and Details */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Serveur & Hôte
+            </span>
+            <span className="text-xs font-mono font-bold text-slate-800 mt-1 block">
+              srv977.hstgr.io : 3306
+            </span>
+            <span className="text-[10px] text-slate-500">Hostinger Cloud MySQL</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Nom de la Base & Utilisateur
+            </span>
+            <span className="text-xs font-mono font-bold text-slate-800 mt-1 block truncate">
+              {dbStatus?.database || 'u663560985_vC9mY'}
+            </span>
+            <span className="text-[10px] text-slate-500">User: u663560985_hjwut</span>
+          </div>
+
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+              Tables Créées & Actives
+            </span>
+            <span className="text-xs font-mono font-bold text-blue-600 mt-1 block">
+              {dbStatus?.tablesCount ?? 10} Tables COD
+            </span>
+            <span className="text-[10px] text-slate-500">Prisma Client & MySQL2 Pool</span>
+          </div>
+        </div>
+
+        {/* Tables Grid */}
+        <div className="pt-1">
+          <div className="text-[11px] font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+            <HardDrive className="w-3.5 h-3.5 text-slate-500" />
+            Schéma complet de la plateforme SENDIT :
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[10px]">
+            {[
+              { name: 'users', desc: 'Gestionnaires & Agents' },
+              { name: 'products', desc: 'Catalogue & Knowledge AI' },
+              { name: 'order_leads', desc: 'Commandes & Cycle COD' },
+              { name: 'order_items', desc: 'Articles & Tailles/Couleurs' },
+              { name: 'shipment_details', desc: 'Suivis Sendit.ma & AWB' },
+              { name: 'whatsapp_messages', desc: 'Historique des conversations' },
+              { name: 'call_logs', desc: 'Logs du Call Center' },
+              { name: 'order_timelines', desc: 'Audit des événements' },
+              { name: 'store_settings', desc: 'Configuration de la boutique' },
+              { name: 'google_sheets_sync_logs', desc: 'Synchronisation Sheets' },
+            ].map((t) => (
+              <div
+                key={t.name}
+                className="p-2 bg-slate-50/70 border border-slate-200 rounded-lg flex flex-col justify-between"
+              >
+                <span className="font-mono font-bold text-slate-800 truncate">{t.name}</span>
+                <span className="text-[9px] text-slate-500 mt-0.5">{t.desc}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 4. WHATSAPP ROTATION & ANTI-BAN */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
         <div className="flex items-center justify-between pb-2 border-b border-slate-100">
           <div className="flex items-center gap-2">
