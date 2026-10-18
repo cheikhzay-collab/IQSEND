@@ -7,24 +7,39 @@ export const dynamic = 'force-dynamic';
 
 const CONFIG_PATH = path.join(process.cwd(), 'ai_config.json');
 
+const isExcludedModel = (name: string): boolean => {
+  const lower = name.toLowerCase();
+  return (
+    lower.includes('tts') ||
+    lower.includes('embedding') ||
+    lower.includes('embed') ||
+    lower.includes('imagen') ||
+    lower.includes('audio') ||
+    lower.includes('vision-preview') ||
+    lower.includes('aqa') ||
+    lower.includes('learnlm')
+  );
+};
+
 /**
- * Automatically discovers which Gemini models are available and active for this API key
+ * Automatically discovers and tests which text Gemini model is active and has free quota for this key
  */
 async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
-  const preferredPriority = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash-latest',
+  const standardPriority = [
     'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-flash-latest',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
     'gemini-1.5-flash-001',
     'gemini-1.5-flash-002',
-    'gemini-2.5-flash',
-    'gemini-1.5-pro-latest',
     'gemini-1.5-pro',
+    'gemini-1.5-pro-latest',
     'gemini-pro',
   ];
 
-  // 1. Ask Google ModelService directly for the list of authorized models
-  let availableModelNames: string[] = [];
+  let authorizedModels: string[] = [];
+
   try {
     const listRes = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
@@ -35,56 +50,64 @@ async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
       const data = await listRes.json();
       const modelsList: Array<{ name: string; supportedGenerationMethods?: string[] }> =
         data.models || [];
-      availableModelNames = modelsList
-        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+      authorizedModels = modelsList
+        .filter(
+          (m) =>
+            m.supportedGenerationMethods?.includes('generateContent') &&
+            !isExcludedModel(m.name)
+        )
         .map((m) => m.name.replace(/^models\//, ''));
     } else {
       const errData = await listRes.json().catch(() => ({}));
-      if (errData?.error?.message) {
-        throw new Error(errData.error.message);
+      if (
+        errData?.error?.message?.includes('API_KEY_INVALID') ||
+        errData?.error?.message?.includes('API key not valid')
+      ) {
+        throw new Error('Clé API Gemini non valide (vérifiez la clé copiée depuis Google AI Studio).');
       }
     }
   } catch (apiErr: any) {
     if (
-      apiErr.message &&
-      (apiErr.message.includes('API_KEY_INVALID') ||
-        apiErr.message.includes('API key not valid') ||
-        apiErr.message.includes('403'))
+      apiErr.message?.includes('API_KEY_INVALID') ||
+      apiErr.message?.includes('API key not valid')
     ) {
       throw apiErr;
     }
   }
 
-  // Combine preferred models that exist in availableModelNames, or use fallback list
-  const candidatesToTry: string[] = [];
+  // Build candidate list: prioritize standard fast models that are authorized
+  const candidates: string[] = [];
 
-  for (const pref of preferredPriority) {
-    if (availableModelNames.includes(pref) && !candidatesToTry.includes(pref)) {
-      candidatesToTry.push(pref);
+  for (const pref of standardPriority) {
+    if (authorizedModels.includes(pref) && !candidates.includes(pref)) {
+      candidates.push(pref);
     }
   }
 
-  for (const avail of availableModelNames) {
-    if (!candidatesToTry.includes(avail)) {
-      candidatesToTry.push(avail);
+  for (const auth of authorizedModels) {
+    if (!candidates.includes(auth) && !isExcludedModel(auth)) {
+      candidates.push(auth);
     }
   }
 
   // Fallback defaults if list API didn't return
-  if (candidatesToTry.length === 0) {
-    candidatesToTry.push(...preferredPriority);
+  for (const pref of standardPriority) {
+    if (!candidates.includes(pref)) {
+      candidates.push(pref);
+    }
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
   let lastError: any = null;
 
-  for (const candidate of candidatesToTry) {
+  for (const candidate of candidates) {
+    if (isExcludedModel(candidate)) continue;
     try {
       const model = genAI.getGenerativeModel({ model: candidate });
       const testRes = await model.generateContent('مرحبا');
       const text = testRes?.response?.text();
       if (text) {
-        console.log(`[Gemini Auth] Successfully validated key with model: ${candidate}`);
+        console.log(`[Gemini Auth] Successfully validated key with active model: ${candidate}`);
         return candidate;
       }
     } catch (testErr: any) {
@@ -92,19 +115,18 @@ async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
       if (
         testErr.message &&
         (testErr.message.includes('API_KEY_INVALID') ||
-          testErr.message.includes('API key not valid') ||
-          testErr.message.includes('quota') ||
-          testErr.message.includes('RESOURCE_EXHAUSTED'))
+          testErr.message.includes('API key not valid'))
       ) {
         throw testErr;
       }
-      // If 404 on this model, continue to next candidate
+      // If 404 or 429 on this specific preview model, keep trying next candidate!
+      console.warn(`[Gemini Probe] Model ${candidate} failed (${testErr.message?.slice(0, 80)}), trying next...`);
     }
   }
 
   throw (
     lastError ||
-    new Error('Aucun modèle Gemini compatible generateContent trouvé pour cette clé API.')
+    new Error('Aucun modèle Gemini actif avec quota disponible trouvé pour cette clé API.')
   );
 }
 
@@ -154,7 +176,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           success: false,
-          error: `Échec de validation de la clé Gemini: ${err.message || 'Clé non valide'}`,
+          error: `Échec de validation de la clé Gemini: ${err.message || 'Clé non valide ou quota dépassé'}`,
         },
         { status: 400 }
       );
@@ -180,7 +202,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: `Clé API Gemini validée avec succès ! Le bot utilise le modèle [${workingModel}] en direct.`,
+      message: `Clé API Gemini validée avec succès ! Modèle sélectionné: [${workingModel}].`,
       maskedKey: `${cleanKey.slice(0, 7)}...${cleanKey.slice(-4)}`,
       model: workingModel,
     });
