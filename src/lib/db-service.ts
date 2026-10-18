@@ -614,10 +614,27 @@ export async function executeAiLeadConfirmation(leadId: string): Promise<{
       actor: 'AI_AGENT:Sarah',
     });
 
-    // 5. Attempt live WhatsApp dispatch if gateway is reachable
+    // 5. Attempt live WhatsApp dispatch if gateway is reachable (Text + Product Photo)
     try {
-      const { sendWhatsAppMessage } = await import('./whatsapp');
+      const { sendWhatsAppMessage, sendWhatsAppImage } = await import('./whatsapp');
       await sendWhatsAppMessage(phone, darijaReply);
+
+      // Lookup product image from products table or store catalog
+      try {
+        const [prodRows]: any = await pool.execute(
+          'SELECT image_url FROM products WHERE name = ? OR name_ar = ? OR sku = ? LIMIT 1',
+          [productName, productName, lead.sku || '']
+        );
+        let imgUrl = prodRows?.[0]?.image_url;
+        if (!imgUrl) {
+          const { findProductByNameOrKeyword } = await import('./products-store');
+          const p = findProductByNameOrKeyword(productName);
+          imgUrl = p?.image;
+        }
+        if (imgUrl) {
+          await sendWhatsAppImage(phone, imgUrl, `صورة المنتج المطلوب: *${productName}* 📸✨`);
+        }
+      } catch (imgErr) {}
     } catch (waErr: any) {
       console.warn('[AI Execute] WhatsApp dispatch note:', waErr.message);
     }
@@ -653,7 +670,8 @@ export async function executeAiAutoPilotAll(): Promise<{
   try {
     const pool = getMysqlPool();
     const [newLeads]: any = await pool.execute(`
-      SELECT id, order_number, customer_name, city FROM order_leads WHERE status = 'NEW'
+      SELECT id, order_number, customer_name, city FROM order_leads 
+      WHERE status = 'NEW' OR (status = 'PENDING' AND ai_confirmation_status = 'PENDING')
     `);
 
     if (!Array.isArray(newLeads) || newLeads.length === 0) {

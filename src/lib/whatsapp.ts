@@ -273,7 +273,33 @@ export async function sendWhatsAppMedia(
   caption: string
 ) {
   const formattedPhone = formatMoroccanPhoneForWhatsApp(to);
-  const { provider, meta, evolution } = runtimeWhatsAppConfig;
+  const { provider, meta } = runtimeWhatsAppConfig;
+
+  // PRIORITY 1: Check if external Baileys Bridge on port 5050 is active
+  try {
+    const bridgeRes = await fetch('http://127.0.0.1:5050/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: formattedPhone, imageUrl: mediaUrl, caption }),
+      signal: AbortSignal.timeout(3000),
+    });
+    if (bridgeRes.ok) {
+      const data = await bridgeRes.json();
+      if (data.success) {
+        return { success: true, provider: 'BAILEYS_BRIDGE', recipient: formattedPhone, mediaUrl };
+      }
+    }
+  } catch (e) {}
+
+  // PRIORITY 2: Check if live in-process Baileys direct WhatsApp session is CONNECTED
+  try {
+    const { getWhatsAppDirectStatus, sendWhatsAppDirectMessage } = await import('@/lib/whatsapp/baileys-service');
+    const directStatus = getWhatsAppDirectStatus();
+    if (directStatus.status === 'CONNECTED') {
+      const directRes = await sendWhatsAppDirectMessage(formattedPhone, `${caption}\n${mediaUrl}`);
+      if (directRes.success) return directRes;
+    }
+  } catch (e) {}
 
   if (provider === 'META_CLOUD_API' && meta.accessToken && !meta.accessToken.includes('votre_token')) {
     try {
@@ -304,7 +330,14 @@ export async function sendWhatsAppMedia(
   }
 
   // Fallback text with link
-  return await sendWhatsAppMessage(to, `${caption}\n🔗 ${mediaUrl}`);
+  return await sendWhatsAppMessage(to, `${caption ? `${caption}\n` : ''}🔗 ${mediaUrl}`);
+}
+
+/**
+ * Convenience helper: Send high-resolution product image via WhatsApp
+ */
+export async function sendWhatsAppImage(to: string, imageUrl: string, caption?: string) {
+  return await sendWhatsAppMedia(to, imageUrl, 'image', caption || '');
 }
 
 /**

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import makeWASocket, {
   DisconnectReason,
   useMultiFileAuthState,
+  downloadMediaMessage,
 } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
@@ -169,7 +170,32 @@ async function startBaileys() {
           '';
         const isLocation = !!msg.message.locationMessage;
 
-        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone}: "${text}" (Location: ${isLocation})`);
+        const audioMsg = msg.message.audioMessage || msg.message.ptvMessage;
+        const isAudio = !!audioMsg;
+        let audioPayload = null;
+
+        if (isAudio) {
+          try {
+            console.log(`[WhatsApp Bridge] 🎙️ Inbound Voice Note from +${rawPhone} (${audioMsg.seconds || 0}s, ${audioMsg.mimetype})`);
+            const audioBuffer = await downloadMediaMessage(
+              msg,
+              'buffer',
+              {},
+              { logger: pino({ level: 'silent' }) }
+            );
+            if (audioBuffer && audioBuffer.length > 0) {
+              audioPayload = {
+                base64: audioBuffer.toString('base64'),
+                mimetype: audioMsg.mimetype || 'audio/ogg; codecs=opus',
+                seconds: audioMsg.seconds || 0,
+              };
+            }
+          } catch (audioDownloadErr) {
+            console.warn('[WhatsApp Bridge] Could not download voice note buffer:', audioDownloadErr.message);
+          }
+        }
+
+        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone}: "${text}" (Audio: ${isAudio}, Location: ${isLocation})`);
 
         // Forward inbound message directly to Next.js webhook to trigger AI Agent
         try {
@@ -187,7 +213,8 @@ async function startBaileys() {
                           {
                             from: rawPhone,
                             id: msg.key.id,
-                            type: isLocation ? 'location' : 'text',
+                            type: isAudio ? 'audio' : isLocation ? 'location' : 'text',
+                            audio: audioPayload,
                             text: { body: text },
                             location: isLocation
                               ? {
@@ -307,7 +334,7 @@ const server = http.createServer(async (req, res) => {
     req.on('data', (chunk) => (body += chunk));
     req.on('end', async () => {
       try {
-        const { to, message } = JSON.parse(body || '{}');
+        const { to, message, image, imageUrl, caption } = JSON.parse(body || '{}');
         if (!sock || bridgeState.status !== 'CONNECTED') {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: false, error: 'WhatsApp not connected' }));
@@ -319,7 +346,18 @@ const server = http.createServer(async (req, res) => {
         else if (!cleaned.startsWith('212')) cleaned = '212' + cleaned;
 
         const jid = `${cleaned}@s.whatsapp.net`;
-        await sock.sendMessage(jid, { text: message });
+
+        const targetImage = imageUrl || image;
+        if (targetImage) {
+          console.log(`[WhatsApp Bridge] 🖼️ Sending Product Image to +${cleaned}: ${targetImage}`);
+          await sock.sendMessage(jid, {
+            image: { url: targetImage },
+            caption: caption || message || '',
+          });
+        } else {
+          await sock.sendMessage(jid, { text: message });
+        }
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true, recipient: cleaned }));
       } catch (err) {

@@ -236,6 +236,19 @@ export const requestHumanHandoverDeclaration: FunctionDeclaration = {
   },
 };
 
+export const sendProductImagesDeclaration: FunctionDeclaration = {
+  name: 'send_product_images',
+  description: 'Send high-resolution photo/media of the ordered product or requested product from store inventory directly to the customer via WhatsApp.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      productNameOrSku: { type: SchemaType.STRING, description: 'Product name or SKU to send photos of' },
+      caption: { type: SchemaType.STRING, description: 'Friendly message in Moroccan Darija describing the photo' },
+    },
+    required: ['productNameOrSku'],
+  },
+};
+
 /**
  * Strips any internal thoughts, chain-of-thought, or English planning prefixes (e.g. "Plan: ...", "The user is from Fez...")
  * and ensures ONLY the customer-facing Moroccan Darija text is returned.
@@ -385,6 +398,7 @@ export async function processCustomerWhatsAppMessage(
     onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
     onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
     onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
+    onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
   },
   permissions: AgentPermissionsConfig = DEFAULT_AGENT_PERMISSIONS
 ): Promise<{ replyText: string; toolCalled?: string; requiresHumanHandover: boolean }> {
@@ -430,6 +444,7 @@ export async function processCustomerWhatsAppMessage(
         {
           functionDeclarations: [
             getProductCatalogDeclaration,
+            sendProductImagesDeclaration,
             checkOrderStatusDeclaration,
             createNewOrderDeclaration,
             updateConfirmationDeclaration,
@@ -473,6 +488,33 @@ export async function processCustomerWhatsAppMessage(
         const args = (call.args || {}) as Record<string, any>;
 
         switch (call.name) {
+          case 'send_product_images': {
+            const queryName = args.productNameOrSku || context.items[0]?.name || '';
+            const foundProd = findProductByNameOrKeyword(queryName);
+            const imgUrl = foundProd?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800';
+            const caption = args.caption || `ها هي صورة المنتج *${foundProd?.nameAr || queryName}* أخي! 📸✨`;
+
+            try {
+              const { sendWhatsAppImage } = await import('./whatsapp');
+              await sendWhatsAppImage(context.phoneNumber, imgUrl, caption);
+            } catch (imgErr) {
+              console.warn('[AI Agent] Could not dispatch product photo:', imgErr);
+            }
+
+            if (databaseHandler.onSendProductImages) {
+              await databaseHandler.onSendProductImages({
+                productNameOrSku: queryName,
+                imageUrl: imgUrl,
+                caption,
+              });
+            }
+
+            if (!replyText) {
+              replyText = caption;
+            }
+            break;
+          }
+
           case 'get_product_catalog':
             replyText = formatProductListForWhatsApp();
             break;
@@ -843,4 +885,206 @@ async function processWithRulesFallback(
     replyText: `مرحبا بك أخي الكريم! توصلنا برسالتك.\nتقدر تطلب منا أي حاجة دابا:\n• كتب *المنتجات* لعرض الكتالوج والأسعار 🛍️\n• كتب *فين وصل الطلب* لتتبع طلبيتك 📦\n• أو عطينا اسم المنتج ومدينتك وغادي نسجلوا طلبك فوراً 🚚✨`,
     requiresHumanHandover: false,
   };
+}
+
+
+/**
+ * 5. Multimodal Audio Voice Note Processor
+ * Listens to Moroccan customer WhatsApp voice notes using Gemini 1.5/2.0 native audio understanding.
+ * Extracts intent (confirmation, change address, product questions, request photos, etc.) and executes actions.
+ */
+export async function processCustomerVoiceNote(
+  audioBase64: string,
+  mimetype: string,
+  context: OrderContext,
+  databaseHandler: {
+    onConfirm: (args: { orderId: string; verifiedCity: string; verifiedAddress: string; deliveryNotes?: string }) => Promise<void>;
+    onUpdateDetails: (args: { orderId: string; newSize?: string; newColor?: string; quantity?: number; updatedPrice?: number; reason?: string }) => Promise<void>;
+    onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
+    onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
+    onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
+    onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
+  }
+): Promise<{
+  transcription: string;
+  replyText: string;
+  toolCalled?: string;
+  requiresHumanHandover: boolean;
+}> {
+  const apiKey = getEffectiveGeminiKey();
+  const cleanMimeType = mimetype.split(';')[0].trim() || 'audio/ogg';
+
+  if (!apiKey) {
+    return {
+      transcription: '[رسالة صوتية من الزبون عبر الواتساب بالدارجة المغربية]',
+      replyText: `السلام عليكم أخي ${context.customerName}! شكراً على الأوديو، بخصوص طلبيتك لـ *${context.items[0]?.name || 'المنتج'}*، واش نأكدوا ليك الإرسال لمدينة *${context.city}*؟ الدفع نقداً عند الاستلام بعد المعاينة 📦✨`,
+      requiresHumanHandover: false,
+    };
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const activeModelName = getEffectiveGeminiModel();
+    const systemPrompt = buildMoroccanSystemPrompt(context) + `\n\n### 🎙️ تعليمات معالجة الرسائل الصوتية (Voice Notes):
+أنت تستمعين الآن إلى تسجيل صوتي مرسل من الزبون عبر الواتساب بالدارجة المغربية.
+- استمعي للرسالة الصوتية بدقة وافهمي قصد الزبون (هل يؤكد الطلبية؟ هل يغير العنوان أو المقاس؟ هل يطلب صور المنتج؟ هل يلغي الطلب؟).
+- استدعي الأداة المناسبة فوراً:
+  * إذا وافق أو أكد -> استدعي confirm_order_and_address
+  * إذا طلب صور المنتج -> استدعي send_product_images
+  * إذا أراد تغيير العنوان أو المقاس -> استدعي update_order_details
+  * إذا أراد الإلغاء -> استدعي cancel_order
+- ردي بالدارجة المغربية المباشرة وطمئنيه بأن الدفع عند الاستلام بعد المعاينة.`;
+
+    const model = genAI.getGenerativeModel({
+      model: activeModelName,
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.3,
+      },
+      tools: [
+        {
+          functionDeclarations: [
+            getProductCatalogDeclaration,
+            sendProductImagesDeclaration,
+            checkOrderStatusDeclaration,
+            createNewOrderDeclaration,
+            updateConfirmationDeclaration,
+            updateOrderDetailsDeclaration,
+            saveGpsLocationDeclaration,
+            cancelOrderDeclaration,
+            requestHumanHandoverDeclaration,
+          ],
+        },
+      ],
+    });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: cleanMimeType,
+          data: audioBase64,
+        },
+      },
+      {
+        text: `الزبون: ${context.customerName}\nالهاتف: ${context.phoneNumber}\nالمدينة: ${context.city}\nالمنتج المطلوب: ${context.items[0]?.name || 'Smart Watch Ultra Pro S2'}\nالمبلغ: ${context.totalAmount} درهم.\nاستمعي لهذا الأوديو وقومي بالمهمة وأجيبي بالدارجة المغربية.`,
+      },
+    ]);
+
+    const candidate = result.response.candidates?.[0];
+    let replyText = '';
+    try {
+      replyText = result.response.text();
+    } catch {}
+
+    let toolCalled: string | undefined = undefined;
+    let requiresHumanHandover = false;
+
+    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      if (call) {
+        toolCalled = call.name;
+        const args = (call.args || {}) as Record<string, any>;
+
+        switch (call.name) {
+          case 'confirm_order_and_address':
+            await databaseHandler.onConfirm({
+              orderId: context.orderId,
+              verifiedCity: args.verifiedCity || context.city,
+              verifiedAddress: args.verifiedAddress || context.address,
+              deliveryNotes: args.deliveryNotes,
+            });
+            if (!replyText) {
+              replyText = `شكراً بزاف على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك تأكدات بنجاح لـ ${args.verifiedCity || context.city} وغادي نجهزوها للتوصيل السريع. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
+            }
+            break;
+
+          case 'send_product_images': {
+            const queryName = args.productNameOrSku || context.items[0]?.name || '';
+            const foundProd = findProductByNameOrKeyword(queryName);
+            const imgUrl = foundProd?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800';
+            const caption = args.caption || `ها هي صورة *${foundProd?.nameAr || queryName}* كما طلبت في الأوديو أخي! 📸✨`;
+
+            try {
+              const { sendWhatsAppImage } = await import('./whatsapp');
+              await sendWhatsAppImage(context.phoneNumber, imgUrl, caption);
+            } catch (imgErr) {}
+
+            if (databaseHandler.onSendProductImages) {
+              await databaseHandler.onSendProductImages({
+                productNameOrSku: queryName,
+                imageUrl: imgUrl,
+                caption,
+              });
+            }
+            if (!replyText) replyText = caption;
+            break;
+          }
+
+          case 'update_order_details':
+            await databaseHandler.onUpdateDetails({
+              orderId: context.orderId,
+              newSize: args.newSize,
+              newColor: args.newColor,
+              quantity: args.quantity,
+              updatedPrice: args.updatedPrice,
+              reason: args.reason,
+            });
+            if (!replyText) {
+              replyText = `تمام أخي، سجلنا التعديل لي طلبتي في الأوديو بنجاح! واش العنوان والمدينة هما هادوك نيت؟`;
+            }
+            break;
+
+          case 'save_gps_location':
+            await databaseHandler.onSaveGps({
+              orderId: context.orderId,
+              googleMapsUrl: args.googleMapsUrl,
+            });
+            if (!replyText) {
+              replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة 📍✅';
+            }
+            break;
+
+          case 'cancel_order':
+            await databaseHandler.onCancel({
+              orderId: context.orderId,
+              reason: args.reason || 'Client cancellation via WhatsApp voice note',
+            });
+            if (!replyText) {
+              replyText = 'مرحبا أخي، سمعنا الأوديو وتم إلغاء الطلبية بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏';
+            }
+            break;
+
+          case 'request_human_handover':
+            requiresHumanHandover = true;
+            await databaseHandler.onHandover({
+              orderId: context.orderId,
+              reason: args.reason || 'Voice note complex request',
+            });
+            if (!replyText) {
+              replyText = 'لحظة واحدة أخي، سمعت الأوديو وغادي نحولك مباشرة لواحد من الفريق ديالنا باش يتواصل معاك ويجاوبك على كامل التفاصيل 📞✨';
+            }
+            break;
+        }
+      }
+    }
+
+    if (!replyText) {
+      replyText = `شكراً على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك لـ *${context.items[0]?.name || 'المنتج'}* قيد المعالجة للتوصيل لـ *${context.city}*.`;
+    }
+
+    return {
+      transcription: '[تم الاستماع للرسالة الصوتية بنجاح عبر الذكاء الاصطناعي]',
+      replyText: cleanGeminiReply(replyText),
+      toolCalled,
+      requiresHumanHandover,
+    };
+  } catch (audioErr: any) {
+    console.error('[AI Agent Audio Error]:', audioErr.message);
+    return {
+      transcription: '[رسالة صوتية من الزبون عبر الواتساب]',
+      replyText: `شكراً على الأوديو ديالك أخي ${context.customerName}! واش تأكد لينا طلبيتك لـ *${context.items[0]?.name || 'المنتج'}* بمبلغ *${context.totalAmount} درهم* لمدينة *${context.city}*؟ والدفع عند الاستلام بعد المعاينة 📦✨`,
+      requiresHumanHandover: false,
+    };
+  }
 }

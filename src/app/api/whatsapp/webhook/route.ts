@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsAppMessage, verifyWebhookChallenge } from '@/lib/whatsapp';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
-import { processCustomerWhatsAppMessage, OrderContext } from '@/lib/gemini-agent';
+import { processCustomerWhatsAppMessage, processCustomerVoiceNote, OrderContext } from '@/lib/gemini-agent';
 import { getMysqlPool } from '@/lib/db';
 import { logWhatsAppMessageToDb, addTimelineEventToDb } from '@/lib/db-service';
 
@@ -170,6 +170,118 @@ export async function POST(request: Request) {
       const reply = `شكراً جزيلاً! تسجل موقع التوصيل الجغرافي بنجاح وغادي نمرروه مباشرة لموزع Sendit باش يوصل بدون أي تعثر. نهارك سعيد! 📍✅`;
       await sendWhatsAppMessage(rawFrom, reply);
       return new NextResponse('EVENT_RECEIVED', { status: 200 });
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2B. Handle WhatsApp Voice Note / Audio Message (Gemini Native Audio)
+    // ─────────────────────────────────────────────────────────────
+    if ((msg.type === 'audio' || msg.audio) && msg.audio?.base64) {
+      console.log(`[WhatsApp Webhook] 🎙️ Processing Voice Note from ${cleanedFrom} (${msg.audio.seconds || 0}s, ${msg.audio.mimetype})`);
+      const orderContext: OrderContext = {
+        orderId: order?.id || 'lead_temp',
+        orderNumber: order?.orderNumber || 'MA-TEMP',
+        customerName: order?.customer?.name || 'الزبون المحترم',
+        phoneNumber: rawFrom,
+        city: order?.customer?.city || 'المغرب',
+        address: order?.customer?.address || 'غير محدد',
+        totalAmount: order?.payment?.amount || 299,
+        items: (order?.items || []).map((it: any) => ({
+          name: it.name,
+          sku: it.sku,
+          quantity: it.quantity,
+          price: it.price,
+        })),
+        conversationHistory: [],
+      };
+
+      try {
+        await logWhatsAppMessageToDb({
+          orderId: order?.id,
+          phone: rawFrom,
+          sender: 'CUSTOMER',
+          body: `[رسالة صوتية ${msg.audio.seconds || 0} ثانية]`,
+          messageType: 'audio',
+        });
+
+        const voiceResult = await processCustomerVoiceNote(
+          msg.audio.base64,
+          msg.audio.mimetype || 'audio/ogg',
+          orderContext,
+          {
+            onConfirm: async (args) => {
+              if (order) {
+                order.aiVerification = {
+                  status: 'CONFIRMED_BY_AI',
+                  riskScore: 5,
+                  notes: 'Confirmé par note vocale WhatsApp via Gemini IA',
+                };
+                order.stage = 'CONFIRMED';
+              }
+              try {
+                const pool = getMysqlPool();
+                await pool.execute(
+                  `UPDATE order_leads 
+                   SET status = 'CONFIRMED', 
+                       ai_confirmation_status = 'CONFIRMED', 
+                       city = IFNULL(?, city),
+                       address = IFNULL(?, address),
+                       notes = CONCAT(IFNULL(notes, ''), ' [تأكيد عبر رسالة صوتية واتساب]'),
+                       updated_at = CURRENT_TIMESTAMP 
+                   WHERE id = ? OR phone_number LIKE ?`,
+                  [args.verifiedCity || null, args.verifiedAddress || null, order?.id || '', `%${cleanedFrom.slice(-9)}%`]
+                );
+                await addTimelineEventToDb({
+                  orderId: order?.id || 'lead_temp',
+                  action: 'AI_CONFIRMED',
+                  title: 'Confirmation par Note Vocale WhatsApp',
+                  details: `Le client a confirmé sa commande par note vocale pour ${args.verifiedCity || order?.customer?.city}.`,
+                  actor: 'AI_AGENT:Sarah',
+                });
+              } catch (dbErr) {
+                console.warn('[Webhook Voice onConfirm DB error]:', dbErr);
+              }
+            },
+            onUpdateDetails: async (args) => {
+              if (order && args.updatedPrice) {
+                order.payment.amount = args.updatedPrice;
+              }
+            },
+            onSaveGps: async (args) => {
+              if (order) order.gpsLocationUrl = args.googleMapsUrl;
+            },
+            onCancel: async (args) => {
+              if (order) order.stage = 'CANCELLED';
+              try {
+                const pool = getMysqlPool();
+                await pool.execute(
+                  `UPDATE order_leads SET status = 'CANCELED', updated_at = CURRENT_TIMESTAMP WHERE id = ? OR phone_number LIKE ?`,
+                  [order?.id || '', `%${cleanedFrom.slice(-9)}%`]
+                );
+              } catch (e) {}
+            },
+            onHandover: async () => {},
+            onSendProductImages: async (args) => {
+              if (args.imageUrl) {
+                const { sendWhatsAppImage } = await import('@/lib/whatsapp');
+                await sendWhatsAppImage(rawFrom, args.imageUrl, args.caption);
+              }
+            },
+          }
+        );
+
+        if (voiceResult.replyText) {
+          await sendWhatsAppMessage(rawFrom, voiceResult.replyText);
+          await logWhatsAppMessageToDb({
+            orderId: order?.id,
+            phone: rawFrom,
+            sender: 'AI_BOT',
+            body: voiceResult.replyText,
+          });
+        }
+        return new NextResponse('EVENT_RECEIVED', { status: 200 });
+      } catch (voiceErr) {
+        console.error('[WhatsApp Webhook] Voice note handling error:', voiceErr);
+      }
     }
 
     // ─────────────────────────────────────────────────────────────
