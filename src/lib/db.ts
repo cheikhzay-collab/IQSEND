@@ -55,16 +55,18 @@ export function getDbConfig() {
     try {
       const parsed = new URL(url);
       const host = normalizeHost(parsed.hostname);
-      const user = cleanSecret(decodeURIComponent(parsed.username || DEFAULT_USER));
-      const password = cleanSecret(decodeURIComponent(parsed.password || DEFAULT_PASSWORD));
+      const rawUser = cleanSecret(decodeURIComponent(parsed.username || DEFAULT_USER));
+      const rawPassword = cleanSecret(decodeURIComponent(parsed.password || DEFAULT_PASSWORD));
+      const user = rawUser === 'root' ? DEFAULT_USER : rawUser;
+      const password = user === DEFAULT_USER ? DEFAULT_PASSWORD : (rawPassword || DEFAULT_PASSWORD);
       const database = parsed.pathname ? parsed.pathname.replace(/^\//, '') : DEFAULT_DATABASE;
       const port = parsed.port ? parseInt(parsed.port, 10) : DEFAULT_PORT;
 
       return {
         host,
         port,
-        user: user === 'root' ? DEFAULT_USER : user,
-        password: password || DEFAULT_PASSWORD,
+        user,
+        password,
         database: database || DEFAULT_DATABASE,
         ssl: undefined,
       };
@@ -74,16 +76,18 @@ export function getDbConfig() {
   }
 
   const host = normalizeHost(process.env.DB_HOST);
-  const user = cleanSecret(process.env.DB_USER) || DEFAULT_USER;
-  const password = cleanSecret(process.env.DB_PASSWORD) || DEFAULT_PASSWORD;
+  const rawUser = cleanSecret(process.env.DB_USER) || DEFAULT_USER;
+  const rawPassword = cleanSecret(process.env.DB_PASSWORD) || DEFAULT_PASSWORD;
+  const user = rawUser === 'root' ? DEFAULT_USER : rawUser;
+  const password = user === DEFAULT_USER ? DEFAULT_PASSWORD : (rawPassword || DEFAULT_PASSWORD);
   const database = cleanSecret(process.env.DB_NAME) || DEFAULT_DATABASE;
   const port = process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : DEFAULT_PORT;
 
   return {
     host,
     port,
-    user: user === 'root' ? DEFAULT_USER : user,
-    password: password || DEFAULT_PASSWORD,
+    user,
+    password,
     database: database || DEFAULT_DATABASE,
     ssl: undefined,
   };
