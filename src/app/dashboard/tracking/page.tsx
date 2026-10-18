@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search,
   Filter,
@@ -201,6 +201,28 @@ export default function TrackingPage() {
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<TrackingOrder | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLiveDb, setIsLiveDb] = useState(false);
+
+  const fetchOrders = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/tracking');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+        setOrders(data.orders);
+        setIsLiveDb(true);
+      }
+    } catch (e) {
+      console.warn('Error fetching tracking orders from DB:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   // Compute dynamic KPIs
   const kpis: TrackingKpis = useMemo(() => {
@@ -256,6 +278,13 @@ export default function TrackingPage() {
   };
 
   const handleStatusChange = (orderId: string, newStatus: ShipmentStatus) => {
+    // Sync to MySQL Database
+    fetch('/api/tracking', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId, shipmentStatus: newStatus }),
+    }).catch((err) => console.warn('[Tracking Page] DB PATCH error:', err));
+
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
@@ -358,6 +387,12 @@ export default function TrackingPage() {
                 <Bot className="w-3.5 h-3.5 text-blue-600" />
                 Gemini 1.5 Flash (WhatsApp Bot)
               </span>
+              {isLiveDb && (
+                <span className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 text-xs px-2.5 py-1 rounded-full font-medium border border-indigo-200">
+                  <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                  Base MySQL ({orders.length} Colis)
+                </span>
+              )}
             </div>
           </div>
 
@@ -391,6 +426,15 @@ export default function TrackingPage() {
               </select>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
+
+            <button
+              onClick={fetchOrders}
+              disabled={isLoading}
+              className="p-2 border border-slate-200/90 rounded-xl bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shrink-0"
+              title="Actualiser depuis la base de données"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
 
             <button
               onClick={() => {}}

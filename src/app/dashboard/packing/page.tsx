@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   PackageCheck,
   Printer,
@@ -11,7 +11,9 @@ import {
   Truck,
   Box,
   Layers,
-  ArrowRight
+  ArrowRight,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 
 interface PackingItem {
@@ -47,50 +49,59 @@ const INITIAL_PACKING: PackingItem[] = [
     isPacked: true,
     senditStatus: 'PENDING',
   },
-  {
-    id: 'pk-2',
-    orderNumber: 'MA-20497',
-    customerName: 'Salma Idrissi',
-    city: 'Rabat',
-    productName: 'Robe Brodée Traditionnelle',
-    sku: 'ROB-TRAD-BLU-M',
-    size: 'M',
-    color: 'Bleu',
-    quantity: 1,
-    totalAmount: 249,
-    stockAvailable: 15,
-    isPacked: false,
-    senditStatus: 'PENDING',
-  },
-  {
-    id: 'pk-3',
-    orderNumber: 'MA-20498',
-    customerName: 'Tariq Alami',
-    city: 'Fes',
-    productName: 'Chaussures Cuir Véritable',
-    sku: 'CHS-CUIR-BRN-43',
-    size: '43',
-    color: 'Marron',
-    quantity: 1,
-    totalAmount: 550,
-    stockAvailable: 6,
-    isPacked: true,
-    senditStatus: 'PUSHED',
-    trackingCode: 'SND-910291',
-  },
 ];
 
 export default function PackingPage() {
   const [items, setItems] = useState<PackingItem[]>(INITIAL_PACKING);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLiveDb, setIsLiveDb] = useState(false);
+
+  const fetchItems = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/packing');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.items) && data.items.length > 0) {
+        setItems(data.items);
+        setIsLiveDb(true);
+      }
+    } catch (e) {
+      console.warn('Error fetching packing items from DB:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchItems();
+  }, []);
 
   const togglePacked = (id: string) => {
+    const item = items.find((i) => i.id === id);
+    const newPacked = item ? !item.isPacked : true;
+
+    // Sync to MySQL
+    fetch('/api/packing', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: id, action: 'TOGGLE_PACKED', isPacked: newPacked }),
+    }).catch((e) => console.warn('Packing toggle DB error:', e));
+
     setItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, isPacked: !i.isPacked } : i))
+      prev.map((i) => (i.id === id ? { ...i, isPacked: newPacked } : i))
     );
   };
 
   const handlePushSingle = (id: string) => {
     const tracking = `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+
+    // Sync to MySQL
+    fetch('/api/packing', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: id, action: 'PUSH_SENDIT', trackingCode: tracking }),
+    }).catch((e) => console.warn('Push Sendit DB error:', e));
+
     setItems((prev) =>
       prev.map((i) =>
         i.id === id ? { ...i, senditStatus: 'PUSHED', trackingCode: tracking } : i
@@ -110,6 +121,11 @@ export default function PackingPage() {
             <h1 className="text-xl font-bold text-slate-900">
               Packing & Préparation des Expéditions
             </h1>
+            {isLiveDb && (
+              <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 font-bold">
+                <Database className="w-2.5 h-2.5" /> Base MySQL ({items.length} Commandes)
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-500 mt-1">
             Vérification des stocks, impression des bordereaux thermiques AWB et transmission groupée à Sendit.ma
@@ -117,6 +133,15 @@ export default function PackingPage() {
         </div>
 
         <div className="flex gap-2">
+          <button
+            onClick={fetchItems}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-colors shadow-2xs"
+            title="Actualiser depuis la base de données"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
           <button className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors">
             <Printer className="w-3.5 h-3.5" /> Imprimer les Bordereaux Prêts (AWB)
           </button>

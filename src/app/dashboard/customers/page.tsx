@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   Search,
@@ -17,7 +17,9 @@ import {
   AlertOctagon,
   UserCheck,
   UserX,
-  X
+  X,
+  RefreshCw,
+  Database
 } from 'lucide-react';
 
 interface CustomerItem {
@@ -64,62 +66,6 @@ const INITIAL_CUSTOMERS: CustomerItem[] = [
     reliabilityScore: 'FIABLE',
     notes: 'Demande à être appelé 30min avant le passage du livreur.',
   },
-  {
-    id: 'cust-3',
-    name: 'Dounia Saber',
-    phone: '0662998811',
-    city: 'Rabat',
-    address: 'Hay Riad, Secteur 14, Villa 12',
-    totalOrders: 2,
-    deliveredOrders: 2,
-    refusedOrders: 0,
-    totalSpent: 858,
-    lastOrderDate: 'Il y a 3 jours',
-    reliabilityScore: 'FIABLE',
-    notes: 'A laissé un avis 5 étoiles sur le Kaftan.',
-  },
-  {
-    id: 'cust-4',
-    name: 'Karim Lemrani',
-    phone: '0663445566',
-    city: 'Fès',
-    address: 'Route d’Immouzer, Résidence Atlas',
-    totalOrders: 1,
-    deliveredOrders: 1,
-    refusedOrders: 0,
-    totalSpent: 249,
-    lastOrderDate: 'Il y a 5 jours',
-    reliabilityScore: 'NOUVEAU',
-    notes: 'Confirmé via agent IA WhatsApp.',
-  },
-  {
-    id: 'cust-5',
-    name: 'Youssef Berrada',
-    phone: '0671449922',
-    city: 'Casablanca',
-    address: 'Maarif, Rue Ibn Batouta',
-    totalOrders: 3,
-    deliveredOrders: 1,
-    refusedOrders: 2,
-    totalSpent: 299,
-    lastOrderDate: 'Il y a 1 semaine',
-    reliabilityScore: 'RISQUE',
-    notes: 'Téléphone éteint lors de la première tentative de livraison.',
-  },
-  {
-    id: 'cust-6',
-    name: 'Mehdi Naciri',
-    phone: '0668001122',
-    city: 'Agadir',
-    address: 'Dakhla, Agadir',
-    totalOrders: 2,
-    deliveredOrders: 0,
-    refusedOrders: 2,
-    totalSpent: 0,
-    lastOrderDate: 'Il y a 2 semaines',
-    reliabilityScore: 'BLACKLIST',
-    notes: 'Refus systématique à la porte sans motif valable. Faux numéro récurrent.',
-  },
 ];
 
 export default function CustomersPage() {
@@ -127,6 +73,28 @@ export default function CustomersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterScore, setFilterScore] = useState('ALL');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLiveDb, setIsLiveDb] = useState(false);
+
+  const fetchCustomers = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/customers');
+      const data = await res.json();
+      if (data.success && Array.isArray(data.customers) && data.customers.length > 0) {
+        setCustomers(data.customers);
+        setIsLiveDb(true);
+      }
+    } catch (e) {
+      console.warn('Failed to load customers from DB:', e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
 
   // Stats
   const totalCustomers = customers.length;
@@ -151,16 +119,30 @@ export default function CustomersPage() {
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mb-2">
             <Users className="w-3.5 h-3.5 text-blue-600" />
             CRM & Score de Fiabilité Client COD Maroc
+            {isLiveDb && (
+              <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                <Database className="w-2.5 h-2.5" /> Base MySQL ({totalCustomers} Clients)
+              </span>
+            )}
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Base Clients & Anti-Fraude
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Détection automatique des clients fiables, historique des réceptions d'argent et liste noire des refus abusifs.
+            Détection automatique des clients fiables, historique des réceptions d'argent et liste noire des refus abusifs synchronisés depuis la base de données.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
+          <button
+            onClick={fetchCustomers}
+            disabled={isLoading}
+            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-2 shadow-2xs transition-colors"
+            title="Rafraîchir depuis la base de données"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Actualiser
+          </button>
           <button
             onClick={() => {
               const csvData = customers.map((c) => `${c.name},${c.phone},${c.city},${c.totalSpent},${c.reliabilityScore}`).join('\n');

@@ -796,9 +796,18 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 3. Edit Order
   const editOrder = (orderId: string, updates: Partial<LifecycleOrder>) => {
-    setOrders((prev) =>
-      prev.map((order) => (order.id === orderId ? { ...order, ...updates } : order))
-    );
+    setOrders((prev) => {
+      const next = prev.map((order) => (order.id === orderId ? { ...order, ...updates } : order));
+      const target = next.find((o) => o.id === orderId);
+      if (target) {
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(target),
+        }).catch((e) => console.warn('[OrderLifecycle] DB save error:', e));
+      }
+      return next;
+    });
     showToast(`Les modifications de la commande ont été enregistrées.`, 'success');
   };
 
@@ -813,7 +822,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
           lastUpdated: 'À l’instant',
           deliveryAttempts: 0,
         };
-        return {
+        const updated = {
           ...order,
           shipping: {
             ...currentShipping,
@@ -821,6 +830,14 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
             lastUpdated: 'À l’instant',
           },
         };
+
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updated),
+        }).catch((e) => console.warn('[OrderLifecycle] Courier DB error:', e));
+
+        return updated;
       })
     );
     showToast(`Transporteur ${courier} assigné avec succès.`, 'info');
@@ -863,6 +880,16 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 6. Reschedule Delivery
   const rescheduleDelivery = (orderId: string, newDate: string, note?: string) => {
+    fetch('/api/tracking', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        orderId,
+        shipmentStatus: 'DELIVERY_FAILED',
+        failedReason: `Reprogrammé pour ${newDate}: ${note || 'Demande client'}`,
+      }),
+    }).catch((e) => console.warn('[OrderLifecycle] Reschedule DB error:', e));
+
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;

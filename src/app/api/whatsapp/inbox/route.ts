@@ -10,13 +10,112 @@ import { getMysqlPool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// GET: Return all active WhatsApp conversations
+// GET: Return all active WhatsApp conversations (hydrated from Hostinger MySQL + in-memory store)
 export async function GET() {
-  const conversations = getInboxConversations();
-  return NextResponse.json({
-    success: true,
-    conversations,
-  });
+  try {
+    const memoryConversations = getInboxConversations();
+    const pool = getMysqlPool();
+
+    // Fetch messages from MySQL
+    const [dbMsgs]: any = await pool.execute(`
+      SELECT 
+        m.id, m.order_id, m.phone, m.sender, m.body, m.message_type, m.audio_transcribed_text, m.created_at,
+        l.order_number, l.customer_name, l.city, l.total_amount
+      FROM whatsapp_messages m
+      LEFT JOIN order_leads l ON (m.order_id = l.id OR m.phone = l.phone_number)
+      ORDER BY m.created_at ASC
+    `);
+
+    if (Array.isArray(dbMsgs) && dbMsgs.length > 0) {
+      // Group by phone
+      const convsByPhone = new Map<string, any>();
+
+      for (const msg of dbMsgs) {
+        const phone = msg.phone || '';
+        if (!phone) continue;
+
+        const cleanKey = phone.replace(/\D/g, '').slice(-9);
+
+        if (!convsByPhone.has(cleanKey)) {
+          const rawNum = msg.order_number || '';
+          const cleanNum = rawNum ? (rawNum.startsWith('#') ? rawNum : `#${rawNum}`) : `CMD-${cleanKey.slice(-4)}`;
+          convsByPhone.set(cleanKey, {
+            id: `conv-db-${cleanKey}`,
+            orderId: msg.order_id || undefined,
+            orderNumber: cleanNum,
+            customerName: msg.customer_name || `الزبون (${phone})`,
+            phoneNumber: phone,
+            city: msg.city || 'Maroc',
+            totalAmount: Number(msg.total_amount) || 299,
+            lastMessage: msg.body,
+            lastTime: msg.created_at
+              ? new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+              : '12:00',
+            unreadCount: 0,
+            isAiActive: true,
+            needsHumanTakeover: false,
+            hasVoiceNote: msg.message_type === 'audio' || Boolean(msg.audio_transcribed_text),
+            messages: [],
+          });
+        }
+
+        const conv = convsByPhone.get(cleanKey);
+        const timeStr = msg.created_at
+          ? new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+          : '12:00';
+
+        conv.messages.push({
+          id: msg.id,
+          sender: msg.sender,
+          text: msg.body,
+          timestamp: timeStr,
+          isVoice: msg.message_type === 'audio' || Boolean(msg.audio_transcribed_text),
+          voiceTranscription: msg.audio_transcribed_text || undefined,
+        });
+
+        conv.lastMessage = msg.body;
+        conv.lastTime = timeStr;
+      }
+
+      // Merge memory conversations with DB conversations
+      const mergedList = [...memoryConversations];
+      for (const [key, dbConv] of Array.from(convsByPhone.entries())) {
+        const exists = mergedList.find(
+          (mc) => mc.phoneNumber.replace(/\D/g, '').slice(-9) === key || (mc.realPhoneNumber && mc.realPhoneNumber.replace(/\D/g, '').slice(-9) === key)
+        );
+        if (!exists) {
+          mergedList.unshift(dbConv);
+        } else {
+          // Add any DB messages not already in memory
+          const existingIds = new Set(exists.messages.map((m) => m.id));
+          for (const dm of dbConv.messages) {
+            if (!existingIds.has(dm.id)) {
+              exists.messages.push(dm);
+            }
+          }
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        source: 'database_and_memory',
+        conversations: mergedList,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      source: 'memory',
+      conversations: memoryConversations,
+    });
+  } catch (err: any) {
+    console.warn('[Inbox GET] Fallback to memory:', err.message);
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      conversations: getInboxConversations(),
+    });
+  }
 }
 
 // POST: Human agent sends a message to customer via WhatsApp
@@ -44,19 +143,20 @@ export async function POST(request: Request) {
     // 1. Send message via Baileys direct WhatsApp session
     const sendResult = await sendWhatsAppDirectMessage(phone, text);
 
-    if (!sendResult.success) {
-      console.warn(`[Inbox API] ⚠️ Message could not be sent to WhatsApp servers: ${sendResult.error}`);
-      return NextResponse.json(
-        {
-          success: false,
-          error: sendResult.error || 'WhatsApp not connected or delivery failed',
-          sendResult,
-        },
-        { status: 400 }
-      );
+    // 2. Persist to MySQL whatsapp_messages table
+    try {
+      const { logWhatsAppMessageToDb } = await import('@/lib/db-service');
+      await logWhatsAppMessageToDb({
+        phone,
+        sender: 'AGENT',
+        body: text,
+        messageType: 'text',
+      });
+    } catch (dbErr) {
+      console.warn('[Inbox API] Could not persist agent reply to MySQL:', dbErr);
     }
 
-    // 2. Record outbound human message in store & turn off AI for this customer
+    // 3. Record outbound human message in store & turn off AI for this customer
     const updatedConv = recordOutboundMessage({
       phone,
       text,
