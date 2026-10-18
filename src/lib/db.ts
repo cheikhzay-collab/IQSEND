@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import mysql, { Pool } from 'mysql2/promise';
+import mysql from 'mysql2/promise';
+import type { Pool } from 'mysql2/promise';
 
 declare global {
   // eslint-disable-next-line no-var

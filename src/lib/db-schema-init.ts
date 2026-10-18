@@ -195,7 +195,7 @@ export const CREATE_TABLES_SQL = [
 /**
  * Initializes and executes schema creation and seeding on Hostinger MySQL database
  */
-export async function initializeDatabase() {
+export async function initializeDatabase(forceReset: boolean = false) {
   const pool = getMysqlPool();
   const results: { table: string; status: 'created' | 'already_exists' | 'error'; error?: string }[] = [];
 
@@ -277,62 +277,278 @@ export async function initializeDatabase() {
     console.warn('[DB Init] Products seed note:', e.message);
   }
 
-  // 4. Seed initial orders if empty
+  // 4. Seed initial orders across all 4 COD lifecycle stages if empty or requested
   try {
     const [ordersCount]: any = await pool.query('SELECT COUNT(*) as cnt FROM order_leads');
-    if (ordersCount[0]?.cnt === 0) {
-      const defaultOrders = getInboundOrders();
-      for (const ord of defaultOrders) {
+    const [statusDist]: any = await pool.query('SELECT DISTINCT status FROM order_leads');
+    
+    // Check if we need to seed: either empty or less than 10 or missing stages
+    const needSeed = forceReset || ordersCount[0]?.cnt === 0 || (Array.isArray(statusDist) && statusDist.length < 3);
+
+    if (needSeed) {
+      if (forceReset || (Array.isArray(statusDist) && statusDist.length < 3)) {
+        await pool.query('DELETE FROM shipment_details');
+        await pool.query('DELETE FROM order_items');
+        await pool.query('DELETE FROM order_leads');
+      }
+
+      const COMPREHENSIVE_COD_ORDERS = [
+        // ── 1. EN ATTENTE DE CONFIRMATION (PENDING_CONFIRMATION) ──
+        {
+          id: 'ord-1044',
+          order_number: '#AT1044',
+          customer_name: 'Omar El Amrani',
+          phone_number: '0661223344',
+          city: 'Tanger',
+          address: 'Boulevard Pasteur, Tanger Centre, Résidence Al Majd Appt 4',
+          total_amount: 349.00,
+          status: 'NEW',
+          risk_score: 18,
+          ai_confirmation_status: 'PENDING',
+          notes: 'Rappeler vers 16h pour confirmer la taille L',
+          item: { name: 'Black Bomber Jacket Luxury', sku: 'BMB-BLK-L', qty: 1, price: 349.00 },
+        },
+        {
+          id: 'ord-1047',
+          order_number: '#AT1047',
+          customer_name: 'Fatima Zahra Idrissi',
+          phone_number: '0663889900',
+          city: 'Casablanca',
+          address: 'Corniche Ain Diab, Villa 12, Casablanca',
+          total_amount: 490.00,
+          status: 'AI_CHATTING',
+          risk_score: 12,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Adresse validée automatiquement par GPS WhatsApp.',
+          item: { name: 'Robe Traditionnelle Soie Brodée', sku: 'ROB-SOIE-M', qty: 1, price: 490.00 },
+        },
+        {
+          id: 'ord-1049',
+          order_number: '#AT1049',
+          customer_name: 'Mehdi Bennani',
+          phone_number: '0670114455',
+          city: 'Rabat',
+          address: 'Avenue de France, Agdal, Rabat',
+          total_amount: 650.00,
+          status: 'NEW',
+          risk_score: 5,
+          ai_confirmation_status: 'VERIFIED',
+          notes: 'Paiement CMI prépayé en ligne vérifié avec succès.',
+          item: { name: 'Montre Chronographe Homme', sku: 'WTC-CHRONO-SLV', qty: 1, price: 650.00 },
+        },
+        {
+          id: 'ord-1052',
+          order_number: '#AT1052',
+          customer_name: 'Soukaina Tazi',
+          phone_number: '0655443322',
+          city: 'Marrakech',
+          address: 'Rue Mohammed El Beqal, Gueliz, Marrakech',
+          total_amount: 598.00,
+          status: 'NEW',
+          risk_score: 28,
+          ai_confirmation_status: 'PENDING',
+          notes: 'Premier achat - Appel de courtoisie suggéré.',
+          item: { name: 'Pack Soins Visage Huile d’Argan Pure', sku: 'ARG-CARE-PK', qty: 2, price: 299.00 },
+        },
+
+        // ── 2. EN PRÉPARATION (PROCESSING) ──
+        {
+          id: 'ord-1045',
+          order_number: '#AT1045',
+          customer_name: 'Noura Sbihi',
+          phone_number: '0677112299',
+          city: 'Agadir',
+          address: 'Avenue Hassan II, Immeuble Al Amal, Agadir',
+          total_amount: 299.00,
+          status: 'CONFIRMED',
+          risk_score: 8,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Validé par agent call center. Préparation Hub Casa.',
+          item: { name: 'Amber Perfume Intense 50ml', sku: 'PRF-AMB-50', qty: 1, price: 299.00 },
+        },
+        {
+          id: 'ord-1041',
+          order_number: '#AT1041',
+          customer_name: 'Karim Tazi',
+          phone_number: '0661448899',
+          city: 'Fès',
+          address: 'Boulevard Allal Ben Abdellah, Atlas, Fès',
+          total_amount: 399.00,
+          status: 'PACKING',
+          risk_score: 10,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Emballage en cours - Bordereau imprimé.',
+          item: { name: 'Sneakers Cuir Minimalistes Blanc', sku: 'SNK-WHT-LTHR', qty: 1, price: 399.00 },
+        },
+        {
+          id: 'ord-1037',
+          order_number: '#AT1037',
+          customer_name: 'Houda Mansouri',
+          phone_number: '0662334455',
+          city: 'Kenitra',
+          address: 'Avenue Diouri, Résidence Ryad, Kenitra',
+          total_amount: 450.00,
+          status: 'CONFIRMED',
+          risk_score: 15,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Prêt pour ramassage livreur Sendit.ma.',
+          item: { name: 'Sac à Main Artisanal Cuir Maroquin', sku: 'SAC-CUIR-BRN', qty: 1, price: 450.00 },
+        },
+
+        // ── 3. EN COURS DE LIVRAISON (IN_TRANSIT) ──
+        {
+          id: 'ord-1038',
+          order_number: '#AT1038',
+          customer_name: 'Amine Tahiri',
+          phone_number: '0661123456',
+          city: 'Casablanca',
+          address: '24 Rue Abou Al Alaa, Maarif, Casablanca',
+          total_amount: 399.00,
+          status: 'OUT_FOR_DELIVERY',
+          risk_score: 10,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Colis sorti en tournée de livraison avec Mohamed Tazi.',
+          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819204', status: 'OUT_FOR_DELIVERY' },
+          item: { name: 'White Leather Sneakers Classic', sku: 'SNK-WHT-42', qty: 1, price: 399.00 },
+        },
+        {
+          id: 'ord-1039',
+          order_number: '#AT1039',
+          customer_name: 'Khadija El Amrani',
+          phone_number: '0655819033',
+          city: 'Marrakech',
+          address: 'Résidence Jnane Gueliz, Appt 14, Marrakech',
+          total_amount: 249.00,
+          status: 'IN_TRANSIT',
+          risk_score: 14,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'En transit inter-villes vers Marrakech.',
+          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819205', status: 'IN_TRANSIT' },
+          item: { name: 'Robe Brodée Traditionnelle', sku: 'ROB-BRD-BLU', qty: 1, price: 249.00 },
+        },
+        {
+          id: 'ord-1040',
+          order_number: '#AT1040',
+          customer_name: 'Tariq Bakkali',
+          phone_number: '0663990011',
+          city: 'Tanger',
+          address: 'Route Malabata, Complexe Al Khaima, Tanger',
+          total_amount: 550.00,
+          status: 'OUT_FOR_DELIVERY',
+          risk_score: 6,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Chauffeur Yassine Drissi en cours de distribution.',
+          tracking: { carrier: 'DHL Morocco', number: 'DHL-48293170', status: 'OUT_FOR_DELIVERY' },
+          item: { name: 'Chaussures Ville Derby Cuir', sku: 'CHS-DRB-43', qty: 1, price: 550.00 },
+        },
+
+        // ── 4. LIVRÉES & ENCAISSÉES (COMPLETED) ──
+        {
+          id: 'ord-1033',
+          order_number: '#AT1033',
+          customer_name: 'Samira Belkacem',
+          phone_number: '0663412099',
+          city: 'Rabat',
+          address: 'Avenue Fal Ould Oumeir, Agdal, Rabat',
+          total_amount: 450.00,
+          status: 'DELIVERED_PAID',
+          risk_score: 2,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Livré et fonds encaissés (Virement VIR-SENDIT-89410).',
+          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819207', status: 'DELIVERED_PAID' },
+          item: { name: 'Montre Automatique Édition Noire', sku: 'WTC-AUTO-BLK', qty: 1, price: 450.00 },
+        },
+        {
+          id: 'ord-1034',
+          order_number: '#AT1034',
+          customer_name: 'Hamza Chraibi',
+          phone_number: '0661228844',
+          city: 'Casablanca',
+          address: 'Boulevard Ghandi, Résidence Les Fleurs, Casablanca',
+          total_amount: 798.00,
+          status: 'DELIVERED_PAID',
+          risk_score: 3,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Signature client et OTP validés.',
+          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819201', status: 'DELIVERED_PAID' },
+          item: { name: 'Pack Duo Smart Watch S2 + Écouteurs', sku: 'PK-SW2-EAR', qty: 1, price: 798.00 },
+        },
+        {
+          id: 'ord-1036',
+          order_number: '#AT1036',
+          customer_name: 'Ibtissam Berrada',
+          phone_number: '0662771199',
+          city: 'Fès',
+          address: 'Route d’Ain Chkef, Fès',
+          total_amount: 310.00,
+          status: 'DELIVERED_PAID',
+          risk_score: 5,
+          ai_confirmation_status: 'CONFIRMED',
+          notes: 'Finition artisanale validée par la cliente.',
+          tracking: { carrier: 'Cathedis Maroc', number: 'CAT-481902', status: 'DELIVERED_PAID' },
+          item: { name: 'Sac à Main Artisanal en Cuir Maroquin', sku: 'SAC-CUIR-BRN', qty: 1, price: 310.00 },
+        },
+      ];
+
+      for (const ord of COMPREHENSIVE_COD_ORDERS) {
         await pool.query(
           `INSERT INTO order_leads 
-           (id, order_number, customer_name, phone_number, city, address, gps_location_url, total_amount, status, risk_score, ai_confirmation_status, store_source)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, order_number, customer_name, phone_number, city, address, total_amount, status, risk_score, ai_confirmation_status, store_source, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE 
+             status = VALUES(status), 
+             total_amount = VALUES(total_amount),
+             customer_name = VALUES(customer_name),
+             city = VALUES(city),
+             address = VALUES(address),
+             notes = VALUES(notes)`,
           [
             ord.id,
-            ord.orderNumber,
-            ord.customer.name,
-            ord.customer.phone,
-            ord.customer.city,
-            ord.customer.address,
-            ord.gpsLocationUrl || null,
-            ord.payment.amount,
-            ord.stage === 'CONFIRMED' ? 'CONFIRMED' : 'NEW',
-            ord.aiVerification?.riskScore ?? 0,
-            ord.aiVerification?.status || 'PENDING',
-            ord.source || 'Direct Funnel',
+            ord.order_number,
+            ord.customer_name,
+            ord.phone_number,
+            ord.city,
+            ord.address,
+            ord.total_amount,
+            ord.status,
+            ord.risk_score,
+            ord.ai_confirmation_status,
+            'Direct Store',
+            ord.notes,
           ]
         );
 
-        // Insert items
-        for (const item of ord.items) {
-          await pool.query(
-            `INSERT INTO order_items (id, order_id, product_id, product_name, sku, quantity, price)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              'item-' + Math.random().toString(36).slice(2, 9),
-              ord.id,
-              'prod-ref',
-              item.name,
-              item.sku,
-              item.quantity,
-              item.price,
-            ]
-          );
-        }
+        // Insert item
+        await pool.query(
+          `INSERT INTO order_items (id, order_id, product_id, product_name, sku, quantity, price)
+           VALUES (?, ?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE product_name = VALUES(product_name), price = VALUES(price)`,
+          [
+            'item-' + ord.id,
+            ord.id,
+            'prod-' + ord.item.sku,
+            ord.item.name,
+            ord.item.sku,
+            ord.item.qty,
+            ord.item.price,
+          ]
+        );
 
-        // Insert shipment detail
-        if (ord.tracking?.trackingNumber) {
+        // Insert shipment if tracking exists
+        if ((ord as any).tracking) {
+          const trk = (ord as any).tracking;
           await pool.query(
             `INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, status, shipping_fee, cod_amount_collected)
-             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+             VALUES (?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE carrier = VALUES(carrier), sendit_tracking_number = VALUES(sendit_tracking_number), status = VALUES(status)`,
             [
               'ship-' + ord.id,
               ord.id,
-              ord.tracking.carrier || 'Sendit.ma',
-              ord.tracking.trackingNumber,
-              'IN_TRANSIT',
+              trk.carrier,
+              trk.number,
+              trk.status,
               35.00,
-              ord.payment.amount,
+              ord.total_amount,
             ]
           );
         }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Package,
@@ -135,6 +135,42 @@ export default function ProductsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Load products directly from Hostinger MySQL Database
+  useEffect(() => {
+    const fetchDbProducts = async () => {
+      try {
+        setIsLoading(true);
+        const res = await fetch('/api/products');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+          const mapped: ProductItem[] = data.products.map((p: any) => ({
+            id: p.id || `prod-${Math.random().toString(36).slice(2, 7)}`,
+            name: p.name || p.nameAr || 'Produit COD',
+            sku: p.sku || 'SKU-UNKNOWN',
+            category: p.category || 'High-Tech',
+            image: p.image || p.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+            sellingPrice: Number(p.sellingPrice || p.basePrice || 299),
+            costPrice: Number(p.costPrice || 80),
+            deliveryFee: Number(p.deliveryFee || 35),
+            totalStock: Number(p.totalStock ?? p.stockQuantity ?? 50),
+            hubs: p.hubs || { casablanca: Number(p.totalStock ?? p.stockQuantity ?? 50), fes: 0, marrakech: 0, tanger: 0 },
+            status: (p.totalStock ?? p.stockQuantity ?? 50) > 15 ? 'IN_STOCK' : (p.totalStock ?? p.stockQuantity ?? 50) > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
+            pendingOrders: p.pendingOrders || 0,
+          }));
+          setProducts(mapped);
+        }
+      } catch (err) {
+        console.warn('[ProductsPage] DB fetch error:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDbProducts();
+  }, []);
 
   // New product form state
   const [newProdName, setNewProdName] = useState('');
@@ -185,6 +221,25 @@ export default function ProductsPage() {
     setIsAddModalOpen(false);
     setNewProdName('');
     setNewProdSku('');
+
+    // Persist new product to MySQL Database
+    try {
+      fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: item.id,
+          name: item.name,
+          nameAr: item.name,
+          sku: item.sku,
+          basePrice: item.sellingPrice,
+          costPrice: item.costPrice,
+          stockQuantity: item.totalStock,
+          category: item.category,
+          imageUrl: item.image,
+        }),
+      }).catch((err) => console.warn('[ProductsPage] DB persistence error:', err));
+    } catch {}
   };
 
   return (

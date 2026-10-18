@@ -29,10 +29,18 @@ export async function GET() {
  * POST /api/database/init
  * Execute table creation (DDL) and initial seed data on Hostinger MySQL.
  */
-export async function POST() {
+export async function POST(req: Request) {
   try {
-    console.log('[Hostinger DB] Initializing comprehensive MySQL schema and seed data...');
-    const result = await initializeDatabase();
+    let forceReset = false;
+    try {
+      const body = await req.json();
+      forceReset = !!body?.reset || !!body?.force;
+    } catch {
+      // no body
+    }
+
+    console.log(`[Hostinger DB] Initializing MySQL schema and seed data (forceReset=${forceReset})...`);
+    const result = await initializeDatabase(forceReset);
     const updatedStatus = await getDatabaseStatus();
 
     return NextResponse.json({

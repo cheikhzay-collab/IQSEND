@@ -50,16 +50,22 @@ export default function SettingsPage() {
     fetchDbStatus();
   }, []);
 
-  const handleInitDb = async () => {
+  const handleInitDb = async (reset = false) => {
     setIsInitializingDb(true);
     setDbMessage(null);
     try {
-      const res = await fetch('/api/database/init', { method: 'POST' });
+      const res = await fetch('/api/database/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reset }),
+      });
       const data = await res.json();
       if (data.success) {
         setDbMessage({
           type: 'success',
-          text: '✅ Base de données Hostinger MySQL initialisée avec succès ! Toutes les tables COD et données de départ sont prêtes.',
+          text: reset
+            ? '✅ Jeu de données COD rechargé avec succès sur Hostinger Cloud MySQL (15 commandes réparties sur les 4 étapes du cycle) !'
+            : '✅ Base de données Hostinger MySQL initialisée avec succès ! Toutes les tables COD et données sont prêtes.',
         });
         fetchDbStatus();
       } else {
@@ -493,23 +499,33 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button
-            onClick={handleInitDb}
-            disabled={isInitializingDb}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs"
-          >
-            {isInitializingDb ? (
-              <>
-                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                Initialisation en cours...
-              </>
-            ) : (
-              <>
-                <Layers className="w-3.5 h-3.5" />
-                Initialiser / Migrer les Tables COD
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleInitDb(false)}
+              disabled={isInitializingDb}
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-500" />
+              Vérifier Schéma
+            </button>
+            <button
+              onClick={() => handleInitDb(true)}
+              disabled={isInitializingDb}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs"
+            >
+              {isInitializingDb ? (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                  Synchronisation...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  Recharger les 4 Étapes COD (15 Commandes)
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Database Alert Message */}
