@@ -8,13 +8,6 @@ export const metadata = {
 };
 
 export default function OrdersPage() {
-  return (
-    <div className="flex flex-col min-h-screen">
-      <div className="md:hidden">
-        <OrderLifecycleTabs />
-      </div>
-      <OrdersBoard />
-    </div>
-  );
+  return <OrdersBoard />;
 }
 

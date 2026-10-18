@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,53 +7,260 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// -------------------------------------------------------------
-// ENUMS
-// -------------------------------------------------------------
+model User {
+  id            Int       @id @default(autoincrement())
+  email         String    @unique(map: "email")
+  password_hash String    @db.VarChar(255)
+  name          String    @db.VarChar(100)
+  role          String    @default("admin") @db.VarChar(50)
+  created_at    DateTime? @default(now()) @db.Timestamp(0)
 
-enum Role {
-  ADMIN
-  CONFIRMATION_AGENT
-  PACKER
-  TRACKING_AGENT
+  @@map("users")
 }
 
-enum LeadStatus {
-  NEW
-  AI_CHATTING
-  CONFIRMED
-  PACKING
-  CANCELED
-  DUPLICATE
+model Product {
+  id             String    @id @default(uuid()) @db.VarChar(36)
+  name           String    @db.VarChar(255)
+  name_ar        String    @db.VarChar(255)
+  sku            String    @unique(map: "sku") @db.VarChar(100)
+  base_price     Decimal   @db.Decimal(10, 2)
+  cost_price     Decimal   @db.Decimal(10, 2)
+  stock_quantity Int?      @default(0)
+  category       String?   @default("General") @db.VarChar(100)
+  image_url      String?   @db.Text
+  attributes     String?   @db.LongText
+  description_ar String?   @db.Text
+  knowledge_base String?   @db.Text
+  selling_points String?   @db.LongText
+  objection_faqs String?   @db.LongText
+  upsell_bundles String?   @db.LongText
+  is_active      Boolean?  @default(true)
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+  updated_at     DateTime? @default(now()) @db.Timestamp(0)
+
+  @@map("products")
 }
 
-enum ShipmentStatus {
-  READY_FOR_PICKUP     // Prêt pour ramassage
-  IN_TRANSIT           // Ramassé / En cours de transfert
-  OUT_FOR_DELIVERY     // En cours de livraison (avec le livreur)
-  DELIVERY_FAILED      // Échec de livraison (Injoignable, reporté, refusé)
-  DELIVERED_PAID       // Livré et argent COD encaissé
-  RETURNED             // Retourné au stock
+model OrderLead {
+  id                      String                     @id @default(uuid()) @db.VarChar(36)
+  order_number            String                     @unique(map: "order_number") @db.VarChar(100)
+  customer_name           String                     @db.VarChar(255)
+  phone_number            String                     @db.VarChar(50)
+  alt_phone_number        String?                    @db.VarChar(50)
+  city                    String                     @db.VarChar(100)
+  address                 String                     @db.Text
+  gps_location_url        String?                    @db.Text
+  preferred_delivery_time String?                    @db.VarChar(100)
+  total_amount            Decimal                    @db.Decimal(10, 2)
+  discount_amount         Decimal?                   @default(0.00) @db.Decimal(10, 2)
+  status                  order_leads_status?        @default(NEW)
+  risk_score              Int?                       @default(0)
+  risk_level              order_leads_risk_level?    @default(LOW)
+  ai_confirmation_status  String?                    @default("PENDING") @db.VarChar(50)
+  upsell_offered          Boolean?                   @default(false)
+  upsell_accepted         Boolean?                   @default(false)
+  upsell_details          String?                    @db.LongText
+  rescue_status           order_leads_rescue_status? @default(NONE)
+  rescue_notes            String?                    @db.Text
+  review_rating           Int?
+  review_comment          String?                    @db.Text
+  review_tags             String?                    @db.LongText
+  ai_conversation_enabled Boolean?                   @default(true)
+  ai_handover_required    Boolean?                   @default(false)
+  ai_handover_reason      String?                    @db.VarChar(255)
+  assigned_to_agent_id    String?                    @db.VarChar(36)
+  store_source            String?                    @default("Direct Funnel") @db.VarChar(100)
+  notes                   String?                    @db.Text
+  created_at              DateTime?                  @default(now()) @db.Timestamp(0)
+  updated_at              DateTime?                  @default(now()) @db.Timestamp(0)
+  call_logs               CallLog[]
+  order_items             OrderItem[]
+  order_timelines         OrderTimeline[]
+  shipment_details        ShipmentDetail?
+
+  @@index([city], map: "idx_city")
+  @@index([phone_number], map: "idx_phone")
+  @@index([rescue_status], map: "idx_rescue")
+  @@index([status], map: "idx_status")
+  @@map("order_leads")
 }
 
-enum RescueStatus {
-  NONE
-  NEEDS_ATTENTION      // Détecté en échec de livraison (Injoignable / Reporté / Adresse)
-  OUTREACH_SENT        // Message WhatsApp d'assistance envoyé
-  RESCHEDULED          // Nouvelle date / créneau convenu avec le client
-  ADDRESS_UPDATED      // Adresse ou position GPS actualisée
-  ESCALATED            // Transféré manuellement à un agent
-  RETURN_CONFIRMED     // Confirmation de retour définitif
+model OrderItem {
+  id                  String    @id @default(uuid()) @db.VarChar(36)
+  order_id            String    @db.VarChar(36)
+  product_id          String?   @db.VarChar(36)
+  product_name        String    @db.VarChar(255)
+  sku                 String    @db.VarChar(100)
+  quantity            Int?      @default(1)
+  price               Decimal   @db.Decimal(10, 2)
+  selected_attributes String?   @db.LongText
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  order_leads         OrderLead @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_order_items_order")
+
+  @@index([order_id], map: "idx_order_id")
+  @@map("order_items")
 }
 
-enum InteractiveMessageType {
-  TEXT
-  CONFIRMATION_BUTTONS
-  LOCATION_REQUEST
-  UPSELL_CARD
-  MEDIA_SHOWCASE
-  RESCUE_PROMPT
-  REVIEW_INVITE
+model ShipmentDetail {
+  id                       String                   @id @default(uuid()) @db.VarChar(36)
+  order_id                 String                   @unique(map: "order_id") @db.VarChar(36)
+  carrier                  String?                  @default("Sendit.ma") @db.VarChar(100)
+  sendit_tracking_number   String?                  @unique(map: "sendit_tracking_number") @db.VarChar(100)
+  sendit_pickup_id         String?                  @db.VarChar(100)
+  status                   shipment_details_status? @default(READY_FOR_PICKUP)
+  waybill_url              String?                  @db.Text
+  shipping_fee             Decimal?                 @default(35.00) @db.Decimal(10, 2)
+  cod_amount_collected     Decimal?                 @default(0.00) @db.Decimal(10, 2)
+  is_cod_reconciled        Boolean?                 @default(false)
+  cod_payout_reference     String?                  @db.VarChar(100)
+  failed_reason            String?                  @db.VarChar(255)
+  failure_category         String?                  @db.VarChar(100)
+  delivery_attempts_count  Int?                     @default(0)
+  rescue_attempt_count     Int?                     @default(0)
+  last_rescue_outreach_at  DateTime?                @db.Timestamp(0)
+  last_status_update_at    DateTime?                @default(now()) @db.Timestamp(0)
+  dispatch_notice_sent     Boolean?                 @default(false)
+  dispatch_notice_sent_at  DateTime?                @db.Timestamp(0)
+  morning_reminder_sent    Boolean?                 @default(false)
+  morning_reminder_sent_at DateTime?                @db.Timestamp(0)
+  review_prompt_sent       Boolean?                 @default(false)
+  review_prompt_sent_at    DateTime?                @db.Timestamp(0)
+  delivery_proof_url       String?                  @db.Text
+  created_at               DateTime?                @default(now()) @db.Timestamp(0)
+  updated_at               DateTime?                @default(now()) @db.Timestamp(0)
+  order_leads              OrderLead                @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_shipment_order")
+
+  @@index([status], map: "idx_ship_status")
+  @@index([sendit_tracking_number], map: "idx_tracking")
+  @@map("shipment_details")
+}
+
+model WhatsAppMessage {
+  id                     String     @id @default(uuid()) @db.VarChar(100)
+  order_id               String?    @db.VarChar(36)
+  phone                  String     @db.VarChar(50)
+  sender                 SenderType
+  body                   String     @db.Text
+  audio_transcribed_text String?    @db.Text
+  audio_url              String?    @db.Text
+  message_type           String?    @default("text") @db.VarChar(50)
+  interactive_type       String?    @default("TEXT") @db.VarChar(50)
+  button_payload         String?    @db.VarChar(100)
+  quick_reply_options    String?    @db.LongText
+  media_url              String?    @db.Text
+  external_message_id    String?    @db.VarChar(255)
+  delivery_status        String?    @default("sent") @db.VarChar(50)
+  created_at             DateTime?  @default(now()) @db.Timestamp(0)
+
+  @@index([order_id], map: "idx_msg_order")
+  @@index([phone], map: "idx_msg_phone")
+  @@map("whatsapp_messages")
+}
+
+model CallLog {
+  id          String     @id @default(uuid()) @db.VarChar(36)
+  order_id    String     @db.VarChar(36)
+  user_id     String?    @db.VarChar(36)
+  result      CallResult
+  notes       String?    @db.Text
+  created_at  DateTime?  @default(now()) @db.Timestamp(0)
+  order_leads OrderLead  @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_call_order")
+
+  @@index([order_id], map: "idx_call_order")
+  @@map("call_logs")
+}
+
+model OrderTimeline {
+  id          String    @id @default(uuid()) @db.VarChar(36)
+  order_id    String    @db.VarChar(36)
+  action      String    @db.VarChar(100)
+  title       String    @db.VarChar(255)
+  details     String?   @db.Text
+  actor       String?   @default("SYSTEM") @db.VarChar(100)
+  created_at  DateTime? @default(now()) @db.Timestamp(0)
+  order_leads OrderLead @relation(fields: [order_id], references: [id], onDelete: Cascade, onUpdate: Restrict, map: "fk_timeline_order")
+
+  @@index([order_id], map: "idx_timeline_order")
+  @@map("order_timelines")
+}
+
+model alerts {
+  id         Int       @id @default(autoincrement())
+  order_id   String?
+  tracking   String?
+  alert_type String?   @db.VarChar(100)
+  priority   String?   @default("medium") @db.VarChar(50)
+  message    String?   @db.Text
+  is_read    Int?      @default(0)
+  created_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model events {
+  id          Int       @id @default(autoincrement())
+  order_id    String?
+  tracking    String?
+  event_type  String?   @db.VarChar(100)
+  old_status  String?   @db.VarChar(100)
+  new_status  String?   @db.VarChar(100)
+  raw_payload String?   @db.Text
+  received_at DateTime? @default(now()) @db.Timestamp(0)
+  status      String?   @db.VarChar(100)
+  reason      String?   @db.VarChar(255)
+  note        String?   @db.Text
+  timestamp   String?   @db.VarChar(50)
+}
+
+model google_sheets_sync_logs {
+  id             String    @id @db.VarChar(36)
+  spreadsheet_id String    @db.VarChar(255)
+  sheet_name     String    @db.VarChar(100)
+  rows_synced    Int?      @default(0)
+  status         String?   @default("SUCCESS") @db.VarChar(50)
+  details        String?   @db.Text
+  created_at     DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model messages {
+  id                  Int       @id @default(autoincrement())
+  order_id            String?
+  client_phone        String?   @db.VarChar(50)
+  message_text        String?   @db.Text
+  language            String?   @default("ar") @db.VarChar(10)
+  status              String?   @default("pending") @db.VarChar(50)
+  whatsapp_message_id String?
+  sent_at             String?   @db.VarChar(50)
+  created_at          DateTime? @default(now()) @db.Timestamp(0)
+  generated_by        String?   @default("ai") @db.VarChar(50)
+}
+
+model orders {
+  id                String    @id
+  tracking          String?   @unique(map: "tracking")
+  client_name       String?   @db.VarChar(255)
+  client_phone      String?   @db.VarChar(50)
+  city              String?   @db.VarChar(100)
+  status            String?   @db.VarChar(100)
+  previous_status   String?   @db.VarChar(100)
+  attempt_count     Int?      @default(0)
+  last_updated      String?   @db.VarChar(50)
+  created_at        DateTime? @default(now()) @db.Timestamp(0)
+  notes             String?   @db.Text
+  risk_level        String?   @default("low") @db.VarChar(50)
+  address           String?   @db.Text
+  price             Decimal?  @default(0.00) @db.Decimal(10, 2)
+  ai_recommendation String?   @db.Text
+}
+
+model settings {
+  key        String    @id
+  value      String?   @db.Text
+  updated_at DateTime? @default(now()) @db.Timestamp(0)
+}
+
+model store_settings {
+  setting_key   String    @id @db.VarChar(100)
+  setting_value String    @db.Text
+  updated_at    DateTime? @default(now()) @db.Timestamp(0)
 }
 
 enum CallResult {
@@ -69,228 +273,47 @@ enum CallResult {
   CANCELED_BY_CLIENT
 }
 
-enum RiskLevel {
-  LOW
-  MEDIUM
-  HIGH
-  BLACK_LISTED
-}
-
 enum SenderType {
   CUSTOMER
   AI_BOT
   AGENT
 }
 
-enum ChannelType {
-  WHATSAPP
-  CALL
-  STOREFRONT_WEBHOOK
-  MANUAL
+enum shipment_details_status {
+  READY_FOR_PICKUP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED_PAID
+  DELIVERY_FAILED
+  RETURNED
 }
 
-// -------------------------------------------------------------
-// MODELS
-// -------------------------------------------------------------
-
-model User {
-  id            String       @id @default(uuid())
-  name          String
-  email         String       @unique
-  passwordHash  String
-  role          Role         @default(CONFIRMATION_AGENT)
-  isActive      Boolean      @default(true)
-  assignedLeads OrderLead[]  @relation("AssignedLeads")
-  callLogs      CallLog[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  @@map("users")
+enum order_leads_status {
+  NEW
+  AI_CHATTING
+  CONFIRMED
+  PACKING
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED_PAID
+  DELIVERY_FAILED
+  CANCELED
+  DUPLICATE
 }
 
-model Product {
-  id             String       @id @default(uuid())
-  name           String
-  sku            String       @unique
-  basePrice      Float        // Selling price in MAD
-  costPrice      Float        // Cost of Goods Sold in MAD
-  stockQuantity  Int          @default(0)
-  attributes     Json         // e.g. { "colors": ["Noir", "Blanc"], "sizes": ["M", "L", "XL"] }
-  knowledgeBase  String       @db.Text // Darija/FR FAQs, selling points, objection handling for AI
-  
-  // Pillar 3: Product AI Knowledge Base & Upselling
-  sellingPoints  Json?        // Points forts et arguments clés (JSON array of strings)
-  objectionFaqs  Json?        // Objections courantes (prix, qualité, garantie) et réponses
-  upsellBundles  Json?        // Offres groupées (ex: 2ème pièce -30%, pack duo)
-  mediaGallery   Json?        // Galerie média { type: 'image'|'video', url: string, caption: string }[]
-  
-  orderItems     OrderItem[]
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-
-  @@map("products")
+enum order_leads_risk_level {
+  LOW
+  MEDIUM
+  HIGH
+  BLACK_LISTED
 }
 
-model OrderLead {
-  id                   String            @id @default(uuid())
-  orderNumber          String            @unique // e.g. "MA-10492"
-  customerName         String
-  phoneNumber          String            // Moroccan formatted phone (e.g. "0661234567" or "+212661234567")
-  altPhoneNumber       String?
-  city                 String
-  address              String
-  gpsLocationUrl       String?           // Google Maps pin from WhatsApp Location message
-  preferredDeliveryTime String?          // Créneau horaire souhaité (Matinée / Après-midi)
-  totalAmount          Float             // Total COD to collect in MAD
-  discountAmount       Float             @default(0.0)
-  status               LeadStatus        @default(NEW)
-  riskScore            Int               @default(0) // 0-100 risk scoring
-  riskLevel            RiskLevel         @default(LOW)
-  duplicateOfId        String?
-  duplicateOf          OrderLead?        @relation("Duplicates", fields: [duplicateOfId], references: [id])
-  duplicateLeads       OrderLead[]       @relation("Duplicates")
-  
-  // Pillar 1: AI Confirmation & Upselling
-  aiConfirmationStatus String            @default("PENDING") // PENDING, CONFIRMED, MODIFIED, CANCELLED, ESCALATED
-  upsellOffered        Boolean           @default(false)
-  upsellAccepted       Boolean           @default(false)
-  upsellDetails        Json?             // { originalQty, newQty, extraPrice, discountPercent }
-
-  // Pillar 2: Needs Attention & Rescue Engine
-  rescueStatus         RescueStatus      @default(NONE)
-  rescueNotes          String?           @db.Text
-
-  // Pillar 4: Reviews & Customer Feedback
-  reviewRating         Int?              // 1 à 5 étoiles
-  reviewComment        String?           @db.Text
-  reviewTags           Json?             // Mots-clés ou tags d'avis (ex: ["Livraison rapide", "Qualité top"])
-  reviewSubmittedAt    DateTime?
-  
-  // AI Automation & Handover flags
-  aiConversationEnabled Boolean          @default(true)
-  aiHandoverRequired    Boolean          @default(false)
-  aiHandoverReason      String?
-  assignedToAgentId     String?
-  assignedUser          User?            @relation("AssignedLeads", fields: [assignedToAgentId], references: [id])
-
-  // Relations
-  items                OrderItem[]
-  shipmentDetail       ShipmentDetail?
-  whatsAppMessages     WhatsAppMessage[]
-  callLogs             CallLog[]
-  timelineEvents       OrderTimeline[]
-
-  createdAt            DateTime          @default(now())
-  updatedAt            DateTime          @updatedAt
-
-  @@index([phoneNumber])
-  @@index([status])
-  @@index([city])
-  @@index([rescueStatus])
-  @@map("order_leads")
-}
-
-model OrderItem {
-  id                 String     @id @default(uuid())
-  orderId            String
-  order              OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId          String
-  product            Product    @relation(fields: [productId], references: [id])
-  quantity           Int        @default(1)
-  price              Float      // Unit price at sale time
-  selectedAttributes Json?      // e.g. { "size": "XL", "color": "Noir" }
-
-  createdAt          DateTime   @default(now())
-
-  @@map("order_items")
-}
-
-model ShipmentDetail {
-  id                    String          @id @default(uuid())
-  orderId               String          @unique
-  order                 OrderLead       @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
-  carrier               String          @default("Sendit.ma")
-  senditTrackingNumber  String?         @unique // Sendit Barcode / Parcel ID
-  senditPickupId        String?         // Sendit Ramassage batch ID
-  status                ShipmentStatus  @default(READY_FOR_PICKUP)
-  waybillUrl            String?         // Printable PDF AWB link from Sendit
-  
-  shippingFee           Float           @default(35.0) // Agreed carrier fee in MAD
-  codAmountCollected    Float           @default(0.0)  // Amount actually collected by driver
-  isCodReconciled       Boolean         @default(false)// Matched against Sendit payout statement
-  codPayoutReference    String?         // Sendit payment batch / transfer ref
-  
-  // Pillar 2: Delivery Failure & Rescue Tracking
-  failedReason          String?         // e.g. "Client Injoignable", "Refusé", "Numéro erroné"
-  failureCategory       String?         // "UNREACHABLE", "POSTPONED", "WRONG_ADDRESS", "REFUSED"
-  deliveryAttemptsCount Int             @default(0)
-  rescueAttemptCount    Int             @default(0)
-  lastRescueOutreachAt  DateTime?
-  lastStatusUpdateAt    DateTime        @default(now())
-  
-  // Pillar 4: Interactive Tracking & Notifications
-  dispatchNoticeSent    Boolean         @default(false) // WhatsApp départ en livraison avec lien de tracking
-  dispatchNoticeSentAt  DateTime?
-  morningReminderSent   Boolean         @default(false) // WhatsApp rappel matin avec montant exact COD
-  morningReminderSentAt DateTime?
-  reviewPromptSent      Boolean         @default(false) // WhatsApp remerciement & lien avis
-  reviewPromptSentAt    DateTime?
-  deliveryProofUrl      String?         // Preuve de livraison (photo / signature)
-  
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
-
-  @@index([senditTrackingNumber])
-  @@index([status])
-  @@map("shipment_details")
-}
-
-model WhatsAppMessage {
-  id                   String                 @id @default(uuid())
-  orderId              String
-  order                OrderLead              @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sender               SenderType
-  body                 String                 @db.Text
-  audioTranscribedText String?                @db.Text
-  audioUrl             String?
-  messageType          String                 @default("text") // "text", "audio", "location", "interactive", "media"
-  interactiveType      InteractiveMessageType @default(TEXT)
-  buttonPayload        String?                // e.g. "CONFIRM_ORDER", "MODIFY_ORDER", "ADD_UPSELL_1", "RETRY_TOMORROW"
-  quickReplyOptions    Json?                  // Boutons interactifs ou options rapides
-  mediaUrl             String?                // Photo / Vidéo du produit
-  externalMessageId    String?                // WhatsApp message id from Evolution / Meta Cloud API
-  deliveryStatus       String?                // "sent", "delivered", "read", "failed"
-  timestamp            DateTime               @default(now())
-
-  @@index([orderId])
-  @@map("whatsapp_messages")
-}
-
-model CallLog {
-  id        String     @id @default(uuid())
-  orderId   String
-  order     OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User       @relation(fields: [userId], references: [id])
-  result    CallResult
-  notes     String?    @db.Text
-  createdAt DateTime   @default(now())
-
-  @@index([orderId])
-  @@map("call_logs")
-}
-
-model OrderTimeline {
-  id        String     @id @default(uuid())
-  orderId   String
-  order     OrderLead  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  action    String     // e.g. "ORDER_CREATED", "AI_CONFIRMED", "SENDIT_DISPATCHED", "DELIVERY_ATTEMPT_FAILED", "RESCUE_OUTREACH"
-  title     String
-  details   String?    @db.Text
-  actor     String     // "SYSTEM", "AI_AGENT", "SENDIT_WEBHOOK", "USER:john"
-  createdAt DateTime   @default(now())
-
-  @@index([orderId])
-  @@map("order_timelines")
+enum order_leads_rescue_status {
+  NONE
+  NEEDS_ATTENTION
+  OUTREACH_SENT
+  RESCHEDULED
+  ADDRESS_UPDATED
+  ESCALATED
+  RETURN_CONFIRMED
 }

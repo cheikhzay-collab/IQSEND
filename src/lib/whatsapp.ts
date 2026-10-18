@@ -75,7 +75,25 @@ export async function sendWhatsAppMessage(to: string, message: string) {
   const formattedPhone = formatMoroccanPhoneForWhatsApp(to);
   const { provider, meta, evolution } = runtimeWhatsAppConfig;
 
-  // PRIORITY: Check if live in-process Baileys direct WhatsApp session is CONNECTED
+  // PRIORITY 1: Check if external Baileys Bridge on port 5050 is active
+  try {
+    const bridgeRes = await fetch('http://127.0.0.1:5050/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to: formattedPhone, message }),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (bridgeRes.ok) {
+      const data = await bridgeRes.json();
+      if (data.success) {
+        return { success: true, provider: 'BAILEYS_BRIDGE', recipient: formattedPhone };
+      }
+    }
+  } catch (e) {
+    // Bridge not listening or offline, continue
+  }
+
+  // PRIORITY 2: Check if live in-process Baileys direct WhatsApp session is CONNECTED
   try {
     const { getWhatsAppDirectStatus, sendWhatsAppDirectMessage } = await import('@/lib/whatsapp/baileys-service');
     const directStatus = getWhatsAppDirectStatus();

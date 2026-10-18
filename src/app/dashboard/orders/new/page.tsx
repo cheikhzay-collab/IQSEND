@@ -207,11 +207,6 @@ export default function NewOrderPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
-      {/* 1. TOP PIPELINE TABS (Mobile only - on desktop it is in top header) */}
-      <div className="md:hidden">
-        <OrderLifecycleTabs />
-      </div>
-
       {/* 2. MAIN CONTAINER */}
       <div className="max-w-6xl mx-auto p-6 space-y-6">
 
