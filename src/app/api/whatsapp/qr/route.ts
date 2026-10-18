@@ -29,11 +29,17 @@ function ensureBridgeRunning() {
   }
 }
 
+const NO_CACHE_HEADERS = {
+  'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+  'Pragma': 'no-cache',
+  'Expires': '0',
+};
+
 // GET: Returns current connection status and live QR Code Data URL from the bridge
 export async function GET() {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+    const timeoutId = setTimeout(() => controller.abort(), 4500);
     const res = await fetch(`${BRIDGE_URL}/qr`, { 
       cache: 'no-store',
       signal: controller.signal
@@ -46,10 +52,10 @@ export async function GET() {
         success: true,
         status: 'INITIALIZING',
         qrCodeDataUrl: null,
-      });
+      }, { headers: NO_CACHE_HEADERS });
     }
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS });
   } catch (err: any) {
     // If bridge is not reachable, auto-launch it in background
     ensureBridgeRunning();
@@ -58,7 +64,7 @@ export async function GET() {
       status: 'INITIALIZING',
       qrCodeDataUrl: null,
       message: 'Démarrage automatique du pont WhatsApp...',
-    });
+    }, { headers: NO_CACHE_HEADERS });
   }
 }
 
@@ -72,15 +78,16 @@ export async function POST(request: Request) {
     const res = await fetch(`${BRIDGE_URL}${targetEndpoint}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      cache: 'no-store',
     });
 
     if (!res.ok) {
-      return NextResponse.json({ success: false, status: 'ERROR' });
+      return NextResponse.json({ success: false, status: 'ERROR' }, { headers: NO_CACHE_HEADERS });
     }
 
     const data = await res.json();
-    return NextResponse.json(data);
+    return NextResponse.json(data, { headers: NO_CACHE_HEADERS });
   } catch (err: any) {
-    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: NO_CACHE_HEADERS });
   }
 }

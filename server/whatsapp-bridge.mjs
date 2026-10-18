@@ -12,6 +12,9 @@ const PORT = 5050;
 const AUTH_DIR = path.join(process.cwd(), 'whatsapp_sessions');
 
 let sock = null;
+let reconnectTimer = null;
+let isStarting = false;
+
 let bridgeState = {
   status: 'INITIALIZING',
   qrCodeDataUrl: null,
@@ -19,17 +22,41 @@ let bridgeState = {
   connectedPhone: null,
   connectedName: null,
   error: null,
+  lastUpdated: Date.now(),
 };
 
+function cleanupSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  if (sock) {
+    try {
+      sock.ev.removeAllListeners('connection.update');
+      sock.ev.removeAllListeners('creds.update');
+      sock.ev.removeAllListeners('messages.upsert');
+      sock.end();
+    } catch (e) {
+      // ignore
+    }
+    sock = null;
+  }
+}
+
 async function startBaileys() {
+  if (isStarting) return;
+  isStarting = true;
+
   try {
+    cleanupSocket();
+
     if (!fs.existsSync(AUTH_DIR)) {
       fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
 
-    sock = makeWASocket({
+    const currentSocket = makeWASocket({
       auth: state,
       logger: pino({ level: 'silent' }),
       browser: ['Sendit COD Morocco', 'Chrome', '120.0.0'],
@@ -38,10 +65,14 @@ async function startBaileys() {
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
     });
+    sock = currentSocket;
 
-    sock.ev.on('creds.update', saveCreds);
+    currentSocket.ev.on('creds.update', saveCreds);
 
-    sock.ev.on('connection.update', async (update) => {
+    currentSocket.ev.on('connection.update', async (update) => {
+      // Ignore updates if this is no longer the active socket
+      if (sock !== currentSocket) return;
+
       const { connection, lastDisconnect, qr } = update;
 
       if (qr) {
@@ -55,27 +86,35 @@ async function startBaileys() {
             },
           });
 
-          bridgeState.status = 'SCAN_QR';
-          bridgeState.rawQr = qr;
-          bridgeState.qrCodeDataUrl = qrDataUrl;
-          bridgeState.error = null;
-          console.log('[WhatsApp Bridge] 📲 New Real QR Code emitted! Ready to scan in WhatsApp Mobile.');
+          bridgeState = {
+            status: 'SCAN_QR',
+            rawQr: qr,
+            qrCodeDataUrl: qrDataUrl,
+            connectedPhone: null,
+            connectedName: null,
+            error: null,
+            lastUpdated: Date.now(),
+          };
+          console.log('[WhatsApp Bridge] 📲 New Real QR Code ready to scan!');
         } catch (err) {
           console.error('[WhatsApp Bridge] Failed to render QR code:', err);
         }
       }
 
       if (connection === 'open') {
-        const userJid = sock.user?.id || '';
+        const userJid = currentSocket.user?.id || '';
         const phone = userJid.split(':')[0] || userJid.split('@')[0] || '';
-        const name = sock.user?.name || 'SIM Maroc';
+        const name = currentSocket.user?.name || 'SIM Maroc';
 
-        bridgeState.status = 'CONNECTED';
-        bridgeState.connectedPhone = phone;
-        bridgeState.connectedName = name;
-        bridgeState.qrCodeDataUrl = null;
-        bridgeState.rawQr = null;
-        bridgeState.error = null;
+        bridgeState = {
+          status: 'CONNECTED',
+          connectedPhone: phone,
+          connectedName: name,
+          qrCodeDataUrl: null,
+          rawQr: null,
+          error: null,
+          lastUpdated: Date.now(),
+        };
         console.log(`[WhatsApp Bridge] 🟢 WhatsApp Connected successfully as +${phone} (${name})`);
       }
 
@@ -84,23 +123,33 @@ async function startBaileys() {
         console.log(`[WhatsApp Bridge] Connection closed: statusCode=${statusCode}`);
 
         if (statusCode === DisconnectReason.loggedOut) {
-          bridgeState.status = 'DISCONNECTED';
-          bridgeState.qrCodeDataUrl = null;
-          bridgeState.connectedPhone = null;
-          bridgeState.connectedName = null;
+          bridgeState = {
+            status: 'DISCONNECTED',
+            qrCodeDataUrl: null,
+            rawQr: null,
+            connectedPhone: null,
+            connectedName: null,
+            error: null,
+            lastUpdated: Date.now(),
+          };
           try {
             if (fs.existsSync(AUTH_DIR)) {
               fs.rmSync(AUTH_DIR, { recursive: true, force: true });
             }
           } catch (e) {}
         } else {
-          bridgeState.status = 'INITIALIZING';
-          setTimeout(startBaileys, 4000);
+          // If expired or disconnected, schedule restart with debounce
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              startBaileys();
+            }, 3000);
+          }
         }
       }
     });
 
-    sock.ev.on('messages.upsert', async (m) => {
+    currentSocket.ev.on('messages.upsert', async (m) => {
       if (m.type !== 'notify') return;
       for (const msg of m.messages) {
         if (!msg.message || msg.key.fromMe) continue;
@@ -117,6 +166,8 @@ async function startBaileys() {
     console.error('[WhatsApp Bridge] Startup error:', err);
     bridgeState.status = 'ERROR';
     bridgeState.error = err.message;
+  } finally {
+    isStarting = false;
   }
 }
 
@@ -128,6 +179,9 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(200);
@@ -145,11 +199,7 @@ const server = http.createServer(async (req, res) => {
 
   if (url.pathname === '/restart' && req.method === 'POST') {
     try {
-      if (sock) {
-        try {
-          sock.end();
-        } catch (e) {}
-      }
+      cleanupSocket();
       if (fs.existsSync(AUTH_DIR)) {
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
       }
@@ -160,6 +210,7 @@ const server = http.createServer(async (req, res) => {
         connectedPhone: null,
         connectedName: null,
         error: null,
+        lastUpdated: Date.now(),
       };
       startBaileys();
       res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -174,19 +225,29 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === '/disconnect' && req.method === 'POST') {
     try {
       if (sock) {
-        await sock.logout();
+        try {
+          await sock.logout();
+        } catch (e) {}
       }
-    } catch (e) {}
-    try {
+      cleanupSocket();
       if (fs.existsSync(AUTH_DIR)) {
         fs.rmSync(AUTH_DIR, { recursive: true, force: true });
       }
-    } catch (e) {}
-    bridgeState.status = 'DISCONNECTED';
-    bridgeState.qrCodeDataUrl = null;
-    bridgeState.connectedPhone = null;
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: true, status: 'DISCONNECTED' }));
+      bridgeState = {
+        status: 'DISCONNECTED',
+        qrCodeDataUrl: null,
+        rawQr: null,
+        connectedPhone: null,
+        connectedName: null,
+        error: null,
+        lastUpdated: Date.now(),
+      };
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, status: 'DISCONNECTED' }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: false, error: e.message }));
+    }
     return;
   }
 

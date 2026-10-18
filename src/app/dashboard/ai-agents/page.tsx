@@ -148,7 +148,7 @@ export default function AiAgentsPage() {
     let interval: any;
     const fetchStatus = async () => {
       try {
-        const res = await fetch('/api/whatsapp/qr');
+        const res = await fetch(`/api/whatsapp/qr?t=${Date.now()}`, { cache: 'no-store' });
         const data = await res.json();
         if (data.success) {
           setQrStatus(data.status);
@@ -163,7 +163,7 @@ export default function AiAgentsPage() {
 
     if (showQrModal || (activeTab === 'whatsapp-provider' && selectedProvider === 'EVOLUTION_API_QR')) {
       fetchStatus();
-      interval = setInterval(fetchStatus, 2500);
+      interval = setInterval(fetchStatus, 2000);
     }
 
     return () => {
@@ -173,6 +173,7 @@ export default function AiAgentsPage() {
 
   const handleRestartQr = async () => {
     setIsRefreshingQr(true);
+    setLiveQrDataUrl(null);
     try {
       const res = await fetch('/api/whatsapp/qr', {
         method: 'POST',
@@ -988,7 +989,6 @@ export default function AiAgentsPage() {
                       <button
                         onClick={() => {
                           setShowQrModal(true);
-                          handleRestartQr();
                         }}
                         className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
                       >
@@ -1089,13 +1089,18 @@ export default function AiAgentsPage() {
                           <img
                             src={liveQrDataUrl}
                             alt="Code QR WhatsApp Réel"
-                            className="w-full h-full object-contain"
+                            className="w-full h-full object-contain select-none"
                           />
                         ) : (
                           <div className="space-y-3 p-4">
                             <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
                             <p className="text-[11px] text-slate-600 font-medium">
-                              Génération du code QR chiffré WhatsApp...
+                              {isRefreshingQr
+                                ? "Régénération d'une nouvelle clé QR..."
+                                : "Connexion au serveur WhatsApp..."}
+                            </p>
+                            <p className="text-[10px] text-slate-400">
+                              Affichage instantané dès synchronisation
                             </p>
                           </div>
                         )}
