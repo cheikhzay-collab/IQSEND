@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { getProductsFromDb } from '@/lib/db-service';
-import { getProducts, saveOrUpdateProductInStore, ProductItem } from '@/lib/products-store';
+import {
+  getProducts,
+  saveOrUpdateProductInStore,
+  deleteProductFromStore,
+  syncStoreWithDbProducts,
+  ProductItem,
+} from '@/lib/products-store';
 import { getMysqlPool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
@@ -8,7 +14,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const dbProducts = await getProductsFromDb();
-    if (dbProducts && dbProducts.length > 0) {
+    if (dbProducts) {
+      // Keep in-memory store in sync with actual Hostinger MySQL database state
+      syncStoreWithDbProducts(dbProducts);
       return NextResponse.json({
         success: true,
         source: 'database',
@@ -169,17 +177,54 @@ export async function DELETE(req: Request) {
   try {
     const url = new URL(req.url);
     const id = url.searchParams.get('id');
+    const sku = url.searchParams.get('sku');
 
-    if (!id) {
-      return NextResponse.json({ success: false, message: 'ID requis' }, { status: 400 });
+    if (!id && !sku) {
+      return NextResponse.json({ success: false, message: 'ID ou SKU requis' }, { status: 400 });
     }
 
     const pool = getMysqlPool();
-    await pool.execute('UPDATE products SET is_active = FALSE WHERE id = ?', [id]);
+
+    // 1. Unlink any order items referencing this product to ensure no foreign key conflict occurs and order history is preserved
+    try {
+      if (id) {
+        await pool.execute('UPDATE order_items SET product_id = NULL WHERE product_id = ?', [id]);
+      }
+      if (sku) {
+        await pool.execute('UPDATE order_items SET product_id = NULL WHERE sku = ?', [sku]);
+      }
+    } catch (unlinkErr) {
+      console.warn('[API Products DELETE] Note unlinking order_items:', unlinkErr);
+    }
+
+    // 2. Perform TRUE MySQL DELETION from products table
+    let deleteSql = 'DELETE FROM products WHERE ';
+    const params: any[] = [];
+    if (id && sku) {
+      deleteSql += 'id = ? OR sku = ?';
+      params.push(id, sku);
+    } else if (id) {
+      deleteSql += 'id = ?';
+      params.push(id);
+    } else {
+      deleteSql += 'sku = ?';
+      params.push(sku);
+    }
+
+    const [result]: any = await pool.execute(deleteSql, params);
+    const affected = result?.affectedRows || 0;
+    console.log(`[API Products DELETE] Real delete executed for id=${id}, sku=${sku}. Affected rows: ${affected}`);
+
+    // 3. Remove cleanly from memory store and WhatsApp AI catalog
+    if (id) deleteProductFromStore(id);
+    if (sku) deleteProductFromStore(sku);
 
     return NextResponse.json({
       success: true,
-      message: 'Produit désactivé avec succès',
+      message: 'تم حذف المنتج نهائياً من قاعدة البيانات بنجاح',
+      deletedId: id,
+      deletedSku: sku,
+      affectedRows: affected,
     });
   } catch (error) {
     console.error('[API Products DELETE] Error:', error);

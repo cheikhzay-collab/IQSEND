@@ -245,32 +245,37 @@ export async function initializeDatabase(forceReset: boolean = false) {
     console.warn('[DB Init] User seed note:', e.message);
   }
 
-  // 3. Seed Product Catalog
+  // 3. Seed Product Catalog (only if table is empty or on forceReset)
   try {
-    const products = getProducts();
-    for (const p of products) {
-      const [existing]: any = await pool.query('SELECT COUNT(*) as cnt FROM products WHERE sku = ?', [p.sku]);
-      if (existing[0]?.cnt === 0) {
-        await pool.query(
-          `INSERT INTO products 
-           (id, name, name_ar, sku, base_price, cost_price, stock_quantity, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            p.id,
-            p.name,
-            p.nameAr,
-            p.sku,
-            p.sellingPrice,
-            p.costPrice,
-            p.totalStock,
-            p.category,
-            p.descriptionAr,
-            p.descriptionAr,
-            JSON.stringify(p.keywords || []),
-            JSON.stringify([]),
-            p.status !== 'OUT_OF_STOCK',
-          ]
-        );
+    const [existingCount]: any = await pool.query('SELECT COUNT(*) as cnt FROM products');
+    const isTableEmpty = !existingCount || existingCount[0]?.cnt === 0;
+
+    if (forceReset || isTableEmpty) {
+      const products = getProducts();
+      for (const p of products) {
+        const [existing]: any = await pool.query('SELECT COUNT(*) as cnt FROM products WHERE sku = ?', [p.sku]);
+        if (existing[0]?.cnt === 0) {
+          await pool.query(
+            `INSERT INTO products 
+             (id, name, name_ar, sku, base_price, cost_price, stock_quantity, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              p.id,
+              p.name,
+              p.nameAr,
+              p.sku,
+              p.sellingPrice,
+              p.costPrice,
+              p.totalStock,
+              p.category,
+              p.descriptionAr,
+              p.descriptionAr,
+              JSON.stringify(p.keywords || []),
+              JSON.stringify([]),
+              p.status !== 'OUT_OF_STOCK',
+            ]
+          );
+        }
       }
     }
   } catch (e: any) {

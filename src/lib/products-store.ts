@@ -426,6 +426,21 @@ export function saveOrUpdateProductInStore(product: ProductItem): void {
   }
 }
 
+export function deleteProductFromStore(idOrSku: string): void {
+  if (!idOrSku) return;
+  const target = idOrSku.toLowerCase().trim();
+  const current = getProducts();
+  globalForProducts.__senditProducts = current.filter(
+    (p) => p.id.toLowerCase() !== target && (!p.sku || p.sku.toLowerCase() !== target)
+  );
+}
+
+export function syncStoreWithDbProducts(dbProducts: ProductItem[]): void {
+  if (Array.isArray(dbProducts)) {
+    globalForProducts.__senditProducts = [...dbProducts];
+  }
+}
+
 export function findProductByNameOrKeyword(query: string): ProductItem | undefined {
   if (!query) return undefined;
   const q = query.toLowerCase().trim();

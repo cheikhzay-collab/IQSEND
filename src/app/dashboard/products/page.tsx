@@ -118,16 +118,27 @@ export default function ProductsPage() {
 
   // Delete handler
   const handleDeleteProduct = async (p: ProductItem) => {
-    const confirmDelete = window.confirm(`هل أنت متأكد من حذف/تعطيل المنتج "${p.nameAr || p.name}"؟`);
+    const confirmDelete = window.confirm(`هل أنت متأكد من حذف المنتج "${p.nameAr || p.name}" نهائياً من قاعدة البيانات؟`);
     if (!confirmDelete) return;
 
-    setProducts((prev) => prev.filter((item) => item.id !== p.id));
+    // Optimistic local update
+    setProducts((prev) => prev.filter((item) => item.id !== p.id && item.sku !== p.sku));
     try {
-      await fetch(`/api/products?id=${p.id}`, { method: 'DELETE' });
-      setSaveSuccessAlert(`تم حذف المنتج "${p.nameAr || p.name}" بنجاح.`);
+      const res = await fetch(`/api/products?id=${encodeURIComponent(p.id)}&sku=${encodeURIComponent(p.sku || '')}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || data.message || 'فشل حذف المنتج من قاعدة البيانات');
+      }
+
+      setSaveSuccessAlert(`تم حذف المنتج "${p.nameAr || p.name}" نهائياً من قاعدة البيانات بنجاح.`);
       setTimeout(() => setSaveSuccessAlert(null), 4000);
-    } catch (err) {
+    } catch (err: any) {
       console.warn('[ProductsPage] Delete error:', err);
+      // Revert if deletion failed
+      setProducts((prev) => [...prev, p]);
+      alert(`حدث خطأ أثناء محاولة حذف المنتج من قاعدة البيانات: ${err?.message || 'خطأ غير معروف'}`);
     }
   };
 
