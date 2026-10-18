@@ -1,4 +1,6 @@
 import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import fs from 'node:fs';
+import path from 'node:path';
 import {
   getProducts,
   findProductByNameOrKeyword,
@@ -13,8 +15,31 @@ import {
   IngestedOrder,
 } from './orders-store';
 
-// Initialize the Google Generative AI client
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+/**
+ * Retrieve effective Gemini API Key from environment or runtime ai_config.json
+ */
+export function getEffectiveGeminiKey(): string {
+  let key = process.env.GEMINI_API_KEY || '';
+  if (key && key !== 'votre_cle_gemini_ici' && key.trim().length > 15) {
+    return key.trim();
+  }
+
+  try {
+    const configPath = path.join(process.cwd(), 'ai_config.json');
+    if (fs.existsSync(configPath)) {
+      const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15) {
+        const cleaned = data.apiKey.trim();
+        process.env.GEMINI_API_KEY = cleaned;
+        return cleaned;
+      }
+    }
+  } catch (e) {
+    // Ignore read errors
+  }
+
+  return '';
+}
 
 /**
  * Interface representing the Order and Product context passed to Gemini
@@ -262,15 +287,17 @@ export async function processCustomerWhatsAppMessage(
     };
   }
 
-  const apiKey = process.env.GEMINI_API_KEY;
-  const isKeyConfigured = apiKey && apiKey !== 'votre_cle_gemini_ici' && apiKey.length > 10;
+  const apiKey = getEffectiveGeminiKey();
+  const isKeyConfigured = Boolean(apiKey && apiKey.length > 15);
 
   if (!isKeyConfigured) {
+    console.log('[AI Agent] Clé GEMINI_API_KEY non configurée. Passage au moteur de règles marocaines.');
     return await processWithRulesFallback(incomingMessage, context, databaseHandler);
   }
 
   try {
     const systemInstruction = buildMoroccanSystemPrompt(context);
+    const genAI = new GoogleGenerativeAI(apiKey);
 
     const model = genAI.getGenerativeModel({
       model: 'gemini-1.5-flash',

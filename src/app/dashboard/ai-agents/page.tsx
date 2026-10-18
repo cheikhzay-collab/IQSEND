@@ -143,6 +143,57 @@ export default function AiAgentsPage() {
   const [connectedName, setConnectedName] = useState<string | null>(null);
   const [isRefreshingQr, setIsRefreshingQr] = useState(false);
 
+  // 🤖 Live Gemini LLM API State
+  const [geminiConfigured, setGeminiConfigured] = useState(false);
+  const [geminiMaskedKey, setGeminiMaskedKey] = useState('');
+  const [geminiInputKey, setGeminiInputKey] = useState('');
+  const [isSavingKey, setIsSavingKey] = useState(false);
+  const [isSimulatingApi, setIsSimulatingApi] = useState(false);
+  const [activeModelName, setActiveModelName] = useState('gemini-1.5-flash');
+  const [keyAlert, setKeyAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Check Gemini API Key status on load
+  useEffect(() => {
+    fetch('/api/settings/gemini')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setGeminiConfigured(data.isConfigured);
+          if (data.maskedKey) setGeminiMaskedKey(data.maskedKey);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveGeminiKey = async () => {
+    if (!geminiInputKey.trim()) return;
+    setIsSavingKey(true);
+    setKeyAlert(null);
+    try {
+      const res = await fetch('/api/settings/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: geminiInputKey.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setGeminiConfigured(true);
+        setGeminiMaskedKey(data.maskedKey);
+        setGeminiInputKey('');
+        setKeyAlert({
+          type: 'success',
+          text: '✅ Clé API Gemini validée et activée avec succès auprès de Google AI !',
+        });
+      } else {
+        setKeyAlert({ type: 'error', text: data.error || 'Clé API invalide ou quota dépassé' });
+      }
+    } catch {
+      setKeyAlert({ type: 'error', text: 'Erreur réseau lors de la validation' });
+    } finally {
+      setIsSavingKey(false);
+    }
+  };
+
   // Poll live QR state when modal is open or when provider tab is active
   useEffect(() => {
     let interval: any;
@@ -212,26 +263,27 @@ export default function AiAgentsPage() {
     }
   };
 
-  const handleSimulate = () => {
-    const text = testMessage.toLowerCase();
-    if (text.includes('صافي') || text.includes('أكد') || text.includes('صيفط') || text.includes('نعم') || text.includes('oui')) {
-      setDetectedTool('confirm_order_and_address({ city: "Casablanca", verified: true })');
-      setSimulatedResponse('شكراً بزاف ليك! تم تأكيد طلبك بنجاح، والكولية غتوصلك خلال 24 ساعة مع موزع Sendit. عفاك صيفط لينا اللوكاسيون عبر الواتساب لتسريع التوصيل 📍');
-    } else if (text.includes('بدل') || text.includes('مقاس') || text.includes('taille')) {
-      setDetectedTool('update_order_details({ newSize: "XL", reason: "Customer swap" })');
-      setSimulatedResponse('مرحبا، بدلنا ليك المقاس لـ XL في بطاقة الطلب بنجاح. واش العنوان هو هذاك نيت؟');
-    } else if (text.includes('غالي') || text.includes('تخفيض') || text.includes('cher')) {
-      setDetectedTool('handle_objection({ category: "Prix", productSku: "SKU-LIN-01" })');
-      setSimulatedResponse(selectedProduct.objections[0].replyDarija);
-    } else if (text.includes('نحل') || text.includes('نشوف') || text.includes('نقيس') || text.includes('ouvrir')) {
-      setDetectedTool('handle_objection({ category: "Confiance COD" })');
-      setSimulatedResponse(selectedProduct.objections[2].replyDarija);
-    } else if (text.includes('ثانية') || text.includes('باقة') || text.includes('عرض')) {
-      setDetectedTool('offer_upsell({ bundle: "Pack Trio", discount: 50 })');
-      setSimulatedResponse(selectedProduct.upsellBundle.pitchDarija);
-    } else {
-      setDetectedTool(null);
-      setSimulatedResponse('وعليكم السلام! مرحبا بك في خدمة الزبناء. كيف نقدر نعاونك بخصوص طلبك؟');
+  const handleSimulate = async () => {
+    if (!testMessage.trim()) return;
+    setIsSimulatingApi(true);
+    try {
+      const res = await fetch('/api/ai/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: testMessage.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSimulatedResponse(data.replyText);
+        setDetectedTool(data.toolCalled ? data.toolCalled : null);
+        setActiveModelName(data.model);
+      } else {
+        setSimulatedResponse(`Erreur: ${data.error || "Impossible d'exécuter le modèle"}`);
+      }
+    } catch (err: any) {
+      setSimulatedResponse('Erreur de connexion au serveur');
+    } finally {
+      setIsSimulatingApi(false);
     }
   };
 
@@ -279,6 +331,112 @@ export default function AiAgentsPage() {
           <Save className="w-3.5 h-3.5" />
           {savedSuccess ? 'Configuration Enregistrée !' : 'Sauvegarder la Configuration'}
         </button>
+      </div>
+
+      {/* 🚀 LLM API LIVE STATUS & QUICK ACTIVATION BANNER */}
+      <div
+        className={`p-4 rounded-2xl border-2 transition-all shadow-xs ${
+          geminiConfigured
+            ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border-emerald-500/30'
+            : 'bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border-amber-500/40'
+        }`}
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shrink-0 ${
+                geminiConfigured
+                  ? 'bg-emerald-600 shadow-md shadow-emerald-600/20'
+                  : 'bg-amber-600 shadow-md shadow-amber-600/20'
+              }`}
+            >
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-black text-slate-900">
+                  {geminiConfigured
+                    ? 'وكيل الذكاء الاصطناعي شغال بالـ API المباشر (Google Gemini 1.5 Flash)'
+                    : 'وكيل الذكاء الاصطناعي: يتطلب ربط مفتاح API Google Gemini'}
+                </span>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                    geminiConfigured
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}
+                >
+                  {geminiConfigured ? (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live API Actif ({geminiMaskedKey})
+                    </>
+                  ) : (
+                    'API Inactif - Mode Fallback'
+                  )}
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 mt-0.5">
+                {geminiConfigured
+                  ? 'الوكيل يتصل بالنموذج اللغوي الفعلي لمعالجة استفسارات الزبائن، كتالوج المنتجات، فحص الشحنات برقم الهاتف، وتثبيت وتعديل الطلبيات.'
+                  : 'أدخل مفتاح Gemini API المجاني أدناه ليتحول الوكيل إلى ذكاء اصطناعي حي يتحدث بالدارجة ويفهم المنتجات وحالة الطلبات.'}
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 bg-white hover:bg-purple-50 px-3 py-2 rounded-xl border border-purple-200 transition-colors shrink-0 shadow-2xs self-start md:self-auto"
+          >
+            <ExternalLink className="w-3.5 h-3.5" /> احصل على مفتاح مجاني (Google AI Studio)
+          </a>
+        </div>
+
+        {/* Quick Key Activation Input */}
+        <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row gap-2">
+          <input
+            type="password"
+            placeholder={
+              geminiConfigured
+                ? 'لتغيير المفتاح، ألصق المفتاح الجديد هنا...'
+                : 'ألصق مفتاح Gemini API هنا (مثال: AIzaSy...)'
+            }
+            value={geminiInputKey}
+            onChange={(e) => setGeminiInputKey(e.target.value)}
+            className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+          />
+          <button
+            onClick={handleSaveGeminiKey}
+            disabled={isSavingKey || !geminiInputKey.trim()}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-2xs shrink-0"
+          >
+            {isSavingKey ? (
+              <>
+                <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                جاري التحقق والتفعيل...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-3.5 h-3.5" />
+                تفعيل الـ API
+              </>
+            )}
+          </button>
+        </div>
+
+        {keyAlert && (
+          <div
+            className={`mt-2 p-2.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+              keyAlert.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}
+          >
+            <span>{keyAlert.text}</span>
+          </div>
+        )}
       </div>
 
       {/* Navigation Tabs */}
@@ -379,15 +537,17 @@ export default function AiAgentsPage() {
             {/* Quick Test Prompt Chips */}
             <div className="pt-2">
               <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
-                Exemples de messages fréquents à tester :
+                Exemples de requêtes réelles à tester en direct :
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {[
-                  'واش نقدر نحل الكولية قبل مانخلص؟',
+                  '📦 شنو عندكم دالسلعة؟',
+                  '🔍 فين وصل الكولي ديالي؟ 0670114455',
+                  '🛍️ بغيت نطلب كيت بلوتوث لكازا',
                   'صافي أكد ليا الطلب وعفاك صيفطوها لدار',
+                  'واش نقدر نحل الكولية قبل مانخلص؟',
                   'بدل ليا المقاس لـ XL بغيتو واسع شوية',
                   'الثمن غالي واش ماكاينش تخفيض؟',
-                  'واش كاين شي عرض إلا خديت جوج حبات؟',
                 ].map((sample, idx) => (
                   <button
                     key={idx}
@@ -416,16 +576,30 @@ export default function AiAgentsPage() {
 
             <button
               onClick={handleSimulate}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs"
+              disabled={isSimulatingApi}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all"
             >
-              <Play className="w-3.5 h-3.5 fill-current" /> Tester la Réponse & Détection d'Outil
+              {isSimulatingApi ? (
+                <>
+                  <RotateCcw className="w-3.5 h-3.5 animate-spin" /> Inférence LLM API en direct...
+                </>
+              ) : (
+                <>
+                  <Play className="w-3.5 h-3.5 fill-current" /> إرسال واستدعاء الذكاء الاصطناعي (Live API)
+                </>
+              )}
             </button>
           </div>
 
           {/* AI Output preview */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs">
-            <h3 className="font-bold text-xs text-slate-800 flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600" /> Réponse Générée par Gemini 1.5 Flash
+            <h3 className="font-bold text-xs text-slate-800 flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600" /> Réponse de l'Agent IA
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                {activeModelName}
+              </span>
             </h3>
 
             {simulatedResponse ? (

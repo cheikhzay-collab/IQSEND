@@ -135,36 +135,6 @@ export async function POST(request: Request) {
     // ─────────────────────────────────────────────────────────────
     const incomingText = msg.text?.body || '';
     if (incomingText) {
-      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes('votre_cle')) {
-        // Fallback natural keywords matcher if Gemini key not yet replaced
-        const lower = incomingText.toLowerCase().trim();
-        if (lower.includes('نعم') || lower.includes('اه') || lower.includes('موافق') || lower.includes('صافي') || lower.includes('oui') || lower.includes('daccord')) {
-          if (order) {
-            order.aiVerification = {
-              status: 'CONFIRMED_BY_AI',
-              riskScore: 5,
-              notes: 'Confirmé par texte par le client',
-            };
-          }
-          const reply = `شكراً بزاف ليك! الطلب ديالك تأكد وغادي نجهزو الكولية في أقرب وقت. الموزع ديال Sendit غيتواصل معاك فاش تكون الكولية قريبة ليك. يومك سعيد! 📦✨`;
-          await sendWhatsAppMessage(rawFrom, reply);
-          return new NextResponse('EVENT_RECEIVED', { status: 200 });
-        }
-
-        if (lower.includes('لا') || lower.includes('الغاء') || lower.includes('non') || lower.includes('annuler')) {
-          if (order) {
-            order.aiVerification = {
-              status: 'NEEDS_REVIEW',
-              riskScore: 90,
-              notes: 'Demande d annulation client reçue',
-            };
-          }
-          const reply = `مرحبا أخي، تم تسجيل رغبتك في إلغاء الطلب بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله!`;
-          await sendWhatsAppMessage(rawFrom, reply);
-          return new NextResponse('EVENT_RECEIVED', { status: 200 });
-        }
-      }
-
       // Execute Gemini AI Agent with Moroccan Context
       const orderContext: OrderContext = {
         orderId: order?.id || 'lead_temp',

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Settings,
   Key,
@@ -12,14 +12,70 @@ import {
   CheckCircle,
   Copy,
   Save,
-  RotateCcw
+  RotateCcw,
+  Sparkles,
+  ExternalLink,
+  Check,
+  AlertTriangle,
+  Play
 } from 'lucide-react';
 
 export default function SettingsPage() {
   const [senditKey, setSenditKey] = useState('snd_live_9a8f7c6e5d4b3a210987654321');
-  const [geminiKey, setGeminiKey] = useState('AIzaSyD-sample-gemini-key-morocco-cod');
+  const [geminiKey, setGeminiKey] = useState('');
+  const [isGeminiConfigured, setIsGeminiConfigured] = useState(false);
+  const [maskedKey, setMaskedKey] = useState('');
+  const [isSavingGemini, setIsSavingGemini] = useState(false);
+  const [geminiMessage, setGeminiMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [evolutionUrl, setEvolutionUrl] = useState('https://whatsapp.yourdomain.com');
   const [rotationActive, setRotationActive] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/settings/gemini')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setIsGeminiConfigured(data.isConfigured);
+          if (data.maskedKey) setMaskedKey(data.maskedKey);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveGeminiKey = async () => {
+    if (!geminiKey.trim()) {
+      setGeminiMessage({ type: 'error', text: 'Veuillez saisir votre clé API Google Gemini (commence par AIza...)' });
+      return;
+    }
+    setIsSavingGemini(true);
+    setGeminiMessage(null);
+    try {
+      const res = await fetch('/api/settings/gemini', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey: geminiKey.trim() }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setIsGeminiConfigured(true);
+        setMaskedKey(data.maskedKey);
+        setGeminiKey('');
+        setGeminiMessage({
+          type: 'success',
+          text: '✅ Clé API Gemini validée avec succès ! Le bot utilise désormais le modèle LLM en direct.',
+        });
+      } else {
+        setGeminiMessage({
+          type: 'error',
+          text: data.error || 'Échec de la validation de la clé API',
+        });
+      }
+    } catch (err: any) {
+      setGeminiMessage({ type: 'error', text: 'Erreur réseau lors de la validation' });
+    } finally {
+      setIsSavingGemini(false);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6 max-w-4xl">
@@ -225,30 +281,136 @@ export default function SettingsPage() {
       </div>
 
       {/* 2. GOOGLE GEMINI AI CONFIG */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
-        <div className="flex items-center gap-2 pb-2 border-b border-slate-100">
-          <Bot className="w-4 h-4 text-purple-600" />
-          <h2 className="text-xs font-bold text-slate-900">Configuration Google Gemini AI</h2>
+      <div className="bg-white border-2 border-purple-500/30 rounded-2xl p-5 space-y-4 shadow-sm bg-gradient-to-br from-white via-white to-purple-50/20">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs">
+              <Bot className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-slate-900 flex items-center gap-2">
+                Intelligence Artificielle Google Gemini 1.5 Flash (API)
+                {isGeminiConfigured ? (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    API Active en Direct
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    Clé API Requise
+                  </span>
+                )}
+              </h2>
+              <p className="text-[11px] text-slate-500">
+                Gère les réponses intelligentes en Darija, le catalogue produits, le suivi des colis par téléphone et la création de commandes.
+              </p>
+            </div>
+          </div>
+
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 bg-purple-100/70 hover:bg-purple-100 px-3 py-1.5 rounded-xl border border-purple-200 transition-colors"
+          >
+            <ExternalLink className="w-3 h-3" /> Obtenir une clé gratuite (Google AI Studio)
+          </a>
         </div>
 
         <div className="space-y-3 text-xs">
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Clé API Gemini (GEMINI_API_KEY):</label>
-            <input
-              type="password"
-              value={geminiKey}
-              onChange={(e) => setGeminiKey(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800"
-            />
-          </div>
-          <div className="flex justify-between items-center bg-purple-50 p-3 rounded-xl border border-purple-100">
-            <div>
-              <span className="font-bold text-purple-900 block">Modèle Actif: Gemini 1.5 Flash</span>
-              <span className="text-[11px] text-purple-700">Optimisé pour la vitesse sub-2s et Function Calling en Darija</span>
+          {/* Current Status Info */}
+          {isGeminiConfigured && (
+            <div className="flex items-center justify-between p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-emerald-950 font-medium">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>
+                  Clé API enregistrée et opérationnelle : <strong className="font-mono text-emerald-800">{maskedKey}</strong>
+                </span>
+              </div>
+              <span className="text-[10px] bg-emerald-200/80 text-emerald-900 px-2 py-0.5 rounded-md font-bold">
+                gemini-1.5-flash
+              </span>
             </div>
-            <span className="bg-purple-200 text-purple-800 font-bold px-2 py-0.5 rounded text-[10px]">
-              Actif ✓
-            </span>
+          )}
+
+          {/* Key Input */}
+          <div>
+            <label className="block font-bold text-slate-700 mb-1">
+              {isGeminiConfigured ? 'Remplacer ou mettre à jour la clé API Gemini :' : 'Collez votre clé API Google Gemini :'}
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="password"
+                placeholder="Ex: AIzaSyD39kL89_Z1xxxxxxxxxxxxxxxxxxxxxx"
+                value={geminiKey}
+                onChange={(e) => setGeminiKey(e.target.value)}
+                className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 text-xs focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+              />
+              <button
+                onClick={handleSaveGeminiKey}
+                disabled={isSavingGemini}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white font-bold rounded-xl flex items-center gap-2 transition-colors shrink-0 shadow-xs"
+              >
+                {isSavingGemini ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    Validation Google AI...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-3.5 h-3.5" />
+                    Valider & Activer l'API
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* Alert Message */}
+          {geminiMessage && (
+            <div
+              className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+                geminiMessage.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                  : 'bg-rose-50 text-rose-900 border-rose-200'
+              }`}
+            >
+              {geminiMessage.type === 'success' ? (
+                <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{geminiMessage.text}</span>
+            </div>
+          )}
+
+          {/* Features Enabled by Gemini API */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+            <div className="p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <div className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
+                📦 Catalogue Produits
+              </div>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Présente les prix, photos, offres bundle et détails en Darija fluide.
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <div className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
+                🔍 Suivi par Téléphone
+              </div>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Vérifie l'état d'expédition dès que le client donne son numéro de téléphone.
+              </p>
+            </div>
+            <div className="p-2.5 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+              <div className="font-bold text-slate-800 text-[11px] flex items-center gap-1.5">
+                ✍️ Prise de Commandes
+              </div>
+              <p className="text-[10px] text-slate-500 mt-0.5">
+                Enregistre automatiquement les nouvelles commandes en direct dans le tableau de bord.
+              </p>
+            </div>
           </div>
         </div>
       </div>
