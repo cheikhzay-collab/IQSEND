@@ -38,7 +38,7 @@ export function CreateOrderModal({
   const [address, setAddress] = useState('');
   const [productName, setProductName] = useState('Smart Watch S2');
   const [amount, setAmount] = useState('299');
-  const [status, setStatus] = useState<OrderStatus>('NEW_ORDERS');
+  const [status, setStatus] = useState<OrderStatus>('PENDING_CONFIRMATION');
 
   if (!isOpen) return null;
 
@@ -200,9 +200,10 @@ export function CreateOrderModal({
               onChange={(e) => setStatus(e.target.value as OrderStatus)}
               className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-teal-600 font-medium bg-white"
             >
-              <option value="NEW_ORDERS">NEW ORDERS (Nouveaux)</option>
-              <option value="CONFIRMED">CONFIRMED (Confirmés)</option>
-              <option value="PACKING">PACKING (Préparation)</option>
+              <option value="PENDING_CONFIRMATION">1. En attente de confirmation</option>
+              <option value="PROCESSING">2. En préparation</option>
+              <option value="IN_TRANSIT">3. En cours de livraison</option>
+              <option value="COMPLETED">4. Livrées & Encaissées</option>
             </select>
           </div>
 

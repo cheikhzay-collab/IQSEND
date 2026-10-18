@@ -1,4 +1,9 @@
 export type OrderStatus =
+  | 'PENDING_CONFIRMATION'
+  | 'PROCESSING'
+  | 'IN_TRANSIT'
+  | 'COMPLETED'
+  | 'CANCELED'
   | 'NEW_ORDERS'
   | 'CONFIRMED'
   | 'PACKING'

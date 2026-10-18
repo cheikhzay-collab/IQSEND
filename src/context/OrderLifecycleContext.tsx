@@ -682,6 +682,7 @@ interface OrderLifecycleContextType {
   processReturn: (orderId: string, reason: string) => void;
   addOrder: (newOrder: LifecycleOrder) => void;
   refreshInboundOrders: () => Promise<void>;
+  moveOrderStage: (orderId: string, targetStage: LifecycleStage) => void;
 }
 
 const OrderLifecycleContext = createContext<OrderLifecycleContextType | undefined>(undefined);
@@ -977,6 +978,38 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   };
 
+  // 12. Direct stage transition for Kanban Drag & Drop
+  const moveOrderStage = (orderId: string, targetStage: LifecycleStage) => {
+    if (targetStage === 'PROCESSING') {
+      confirmOrder(orderId);
+      return;
+    }
+    if (targetStage === 'IN_TRANSIT') {
+      shipOrder(orderId);
+      return;
+    }
+    if (targetStage === 'COMPLETED') {
+      markDelivered(orderId);
+      return;
+    }
+    if (targetStage === 'CANCELED') {
+      cancelOrder(orderId);
+      return;
+    }
+    if (targetStage === 'PENDING_CONFIRMATION') {
+      setOrders((prev) =>
+        prev.map((order) => {
+          if (order.id !== orderId) return order;
+          return {
+            ...order,
+            stage: 'PENDING_CONFIRMATION',
+          };
+        })
+      );
+      showToast('Commande replacée en attente de confirmation.', 'info');
+    }
+  };
+
   // Periodic polling for incoming Google Sheet orders (every 6 seconds)
   useEffect(() => {
     refreshInboundOrders();
@@ -1006,6 +1039,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         processReturn,
         addOrder,
         refreshInboundOrders,
+        moveOrderStage,
         showToast,
       }}
     >

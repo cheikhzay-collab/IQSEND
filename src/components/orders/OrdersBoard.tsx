@@ -1,324 +1,224 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
   GraduationCap,
-  Copy,
   Kanban,
   List,
   Columns,
   ArrowUpDown,
   SlidersHorizontal,
   RotateCw,
-  Filter,
-  Plus,
-  ChevronDown,
   Search,
+  Plus,
   MoreVertical,
-  CheckCircle2
+  CheckCircle2,
+  ClipboardCheck,
+  Package,
+  Truck,
+  ExternalLink,
+  Phone,
+  MessageCircle
 } from 'lucide-react';
-import { OrderItem, OrderStatus } from '@/types/orders';
+import { OrderItem, OrderStatus, PaymentBadge } from '@/types/orders';
+import { useOrderLifecycle, LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
 import { OrderCard } from './OrderCard';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { CreateOrderModal } from './CreateOrderModal';
 
-// -------------------------------------------------------------
-// EXACT ORDERS FROM THE SCREENSHOT
-// -------------------------------------------------------------
-const INITIAL_ORDERS: OrderItem[] = [
-  // 1. In NEW ORDERS
-  {
-    id: 'ord-1044',
-    orderNumber: '#AT1044',
-    status: 'NEW_ORDERS',
-    badgeType: 'CALLBACK',
-    badgeLabel: 'Callback - 4pm',
-    amount: 349,
-    currency: 'MAD',
-    productName: 'Black Bomber J...',
-    productThumbnail: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Omar E.',
-    city: 'Tanger',
-    countryCode: 'MA',
-    phone: '0661223344',
-    timeAgo: '3h ago',
-    address: 'Boulevard Pasteur, Tanger Centre',
-    assignedAgent: { type: 'initial', value: 'A', bgClass: 'bg-[#7c3aed]' },
-  },
+// Helper to convert LifecycleOrder to OrderItem for OrderCard rendering
+function lifecycleToOrderItem(o: LifecycleOrder): OrderItem {
+  const firstItem = o.items?.[0];
+  const isPaid =
+    o.payment?.status === 'COLLECTED' ||
+    o.payment?.status === 'SETTLED' ||
+    o.payment?.method === 'PREPAID';
 
-  // 2. In CONFIRMED (Floating / Elevated card in the screenshot)
-  {
-    id: 'ord-1046',
-    orderNumber: '#AT1046',
-    status: 'CONFIRMED',
-    badgeType: 'COD PENDING',
-    amount: 599,
-    currency: 'MAD',
-    productName: 'Smart Watch S2',
-    productThumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Salma R.',
-    city: 'Marrakech',
-    countryCode: 'MA',
-    phone: '0654998877',
-    timeAgo: '6h AGO',
-    address: 'Gueliz, Rue Tarik Ibn Ziad',
-    floatingBadge: { type: 'agent', colorClass: 'bg-[#0d9488]' },
-    assignedAgent: { type: 'initial', value: 'A', bgClass: 'bg-[#7c3aed]' },
-  },
+  let badgeType: PaymentBadge = isPaid ? 'PAID' : 'COD PENDING';
+  let badgeLabel: string | undefined = undefined;
 
-  // 3. In CONFIRMED
-  {
-    id: 'ord-1041-conf',
-    orderNumber: '#AT1041',
-    status: 'CONFIRMED',
-    badgeType: 'COD PENDING',
-    amount: 249,
-    currency: 'MAD',
-    productName: 'Baggy Denim Jeans',
-    productThumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Rachid E.',
-    city: 'Meknès',
-    countryCode: 'MA',
-    phone: '0671882233',
-    timeAgo: '• NOW',
-    address: 'Hamria, Av. des FAR',
-    assignedAgent: { type: 'initial', value: 'A', bgClass: 'bg-[#7c3aed]' },
-  },
+  if (
+    o.customer?.notes?.toLowerCase().includes('rappeler') ||
+    o.customer?.notes?.toLowerCase().includes('callback')
+  ) {
+    badgeType = 'CALLBACK';
+    badgeLabel = 'Callback 16h';
+  } else if (o.aiVerification?.status === 'CONFIRMED_BY_AI') {
+    badgeLabel = 'Validé IA';
+  } else if (o.aiVerification?.status === 'NEEDS_REVIEW') {
+    badgeLabel = 'À vérifier';
+  }
 
-  // 4. In CONFIRMED
-  {
-    id: 'ord-1042',
-    orderNumber: '#AT1042',
-    status: 'CONFIRMED',
-    badgeType: 'COD PENDING',
-    amount: 249,
-    currency: 'MAD',
-    productName: 'Baggy Denim Jeans',
-    productThumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Karim L.',
-    city: 'Fès',
-    countryCode: 'MA',
-    phone: '0663445566',
-    timeAgo: '2h AGO',
-    address: 'Route d’Immouzer, Résidence Atlas',
-    metaBadge: { type: 'ai-call', text: 'AI call' },
-    assignedAgent: { type: 'initial', value: 'A', bgClass: 'bg-[#7c3aed]' },
-  },
+  let metaBadge: { type: 'ai-call' | 'tracking'; text: string } | undefined = undefined;
+  if (o.shipping?.trackingNumber) {
+    metaBadge = { type: 'tracking', text: o.shipping.trackingNumber };
+  } else if (o.aiVerification?.status === 'CONFIRMED_BY_AI') {
+    metaBadge = { type: 'ai-call', text: 'AI Call' };
+  }
 
-  // 5. In PACKING (Tilted in screenshot)
-  {
-    id: 'ord-1045',
-    orderNumber: '#AT1045',
-    status: 'PACKING',
-    badgeType: 'COD PENDING',
-    amount: 299,
-    currency: 'MAD',
-    productName: 'Amber Perfume 50ml',
-    productThumbnail: 'https://images.unsplash.com/photo-1547887537-6158d64c35b3?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Noura S.',
-    city: 'Agadir',
+  return {
+    id: o.id,
+    orderNumber: o.orderNumber,
+    status: o.stage as OrderStatus,
+    badgeType,
+    badgeLabel,
+    amount: o.payment?.amount || 0,
+    currency: o.payment?.currency || 'MAD',
+    productName: firstItem
+      ? o.items.length > 1
+        ? `${firstItem.name} (+${o.items.length - 1})`
+        : firstItem.name
+      : 'Article COD',
+    productThumbnail:
+      firstItem?.thumbnail ||
+      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+    customerName: o.customer?.name || 'Client',
+    city: o.customer?.city || 'Maroc',
     countryCode: 'MA',
-    phone: '0677112299',
-    timeAgo: '5h AGO',
-    address: 'Hassan II, Immeuble Al Amal',
-    floatingBadge: {
-      type: 'photo',
-      imageUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
-      colorClass: '',
-    },
-    assignedAgent: { type: 'initial', value: 'A', bgClass: 'bg-[#7c3aed]' },
-  },
-
-  // 6. In SHIPPED
-  {
-    id: 'ord-1041-ship',
-    orderNumber: '#AT1041',
-    status: 'SHIPPED',
-    badgeType: 'COD PENDING',
-    amount: 399,
-    currency: 'MAD',
-    productName: 'White Leather Sneakers',
-    productThumbnail: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Amine T.',
-    city: 'Casablanca',
-    countryCode: 'MA',
-    phone: '0661123456',
-    timeAgo: 'SENDIT 4829 3170',
-    address: '24 Rue Abou Al Alaa, Maarif',
-    metaBadge: { type: 'tracking', text: 'SENDIT 4829 3170' },
+    phone: o.customer?.phone || '',
+    timeAgo: o.createdAt || 'À l’instant',
+    address: o.customer?.address,
+    metaBadge,
+    hasWhatsapp: true,
+    hasCall: true,
+    hasNote: !!o.customer?.notes,
+    hasReview: !!o.completed?.reviewScore,
     assignedAgent: {
-      type: 'avatar',
-      value: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
+      type: 'initial',
+      value: o.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'IA' : 'A',
+      bgClass: o.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'bg-emerald-600' : 'bg-[#7c3aed]',
     },
-  },
+  };
+}
 
-  // 7. In DELIVERED
-  {
-    id: 'ord-1043',
-    orderNumber: '#AT1043',
-    status: 'DELIVERED',
-    badgeType: 'PAID',
-    amount: 459,
-    currency: 'MAD',
-    productName: 'Linen Kaftan',
-    productThumbnail: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=300&auto=format&fit=crop&q=80',
-    customerName: 'Dounia S.',
-    city: 'Rabat',
-    countryCode: 'MA',
-    phone: '0662998811',
-    timeAgo: 'AM 0482 931 MA',
-    address: 'Hay Riad, Secteur 14',
-    floatingBadge: { type: 'delivery', colorClass: 'bg-[#135d54]' },
-    metaBadge: { type: 'tracking', text: 'AM 0482 931 MA' },
-    hasReview: true,
-    assignedAgent: {
-      type: 'avatar',
-      value: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
-    },
-  },
-];
-
-// COLUMN CONFIGURATION MATCHING SCREENSHOT PASTEL TONES
-const COLUMNS_CONFIG: {
-  id: OrderStatus;
+// 4 STAGES EXACTLY MATCHING THE RED BOX IN THE USER'S SCREENSHOT
+interface ColumnConfig {
+  id: LifecycleStage;
+  step: string;
   title: string;
+  subText: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
   pillBg: string;
   pillBorder: string;
   textColor: string;
   counterBg: string;
-  displayCount?: string;
-  displayAmount?: string;
-}[] = [
+  stepBg: string;
+}
+
+const COLUMNS_CONFIG: ColumnConfig[] = [
   {
-    id: 'NEW_ORDERS',
-    title: 'NOUVELLES COMMANDES',
-    pillBg: 'bg-[#e8f3fc]',
-    pillBorder: 'border-[#bfdbfe]',
-    textColor: 'text-[#1e40af]',
-    counterBg: 'bg-[#dbeafe]',
-    displayCount: '2',
-    displayAmount: '948 MAD',
+    id: 'PENDING_CONFIRMATION',
+    step: '1',
+    title: 'En attente de confirmation',
+    subText: 'Validation & Appels IA',
+    href: '/dashboard/orders/pending',
+    icon: ClipboardCheck,
+    pillBg: 'bg-amber-50/90',
+    pillBorder: 'border-amber-200/90',
+    textColor: 'text-amber-900',
+    counterBg: 'bg-amber-100 text-amber-900 border border-amber-200',
+    stepBg: 'bg-amber-500 text-white',
   },
   {
-    id: 'CONFIRMED',
-    title: 'CONFIRMÉES',
-    pillBg: 'bg-[#eaf7f2]',
-    pillBorder: 'border-[#99f6e4]',
-    textColor: 'text-[#0f766e]',
-    counterBg: 'bg-[#ccfbf1]',
-    displayCount: '3',
-    displayAmount: '797 MAD',
+    id: 'PROCESSING',
+    step: '2',
+    title: 'En préparation',
+    subText: 'Colisage & Bordereaux Sendit',
+    href: '/dashboard/orders/processing',
+    icon: Package,
+    pillBg: 'bg-blue-50/90',
+    pillBorder: 'border-blue-200/90',
+    textColor: 'text-blue-900',
+    counterBg: 'bg-blue-100 text-blue-900 border border-blue-200',
+    stepBg: 'bg-blue-600 text-white',
   },
   {
-    id: 'PACKING',
-    title: 'EN PRÉPARATION',
-    pillBg: 'bg-[#fef7e7]',
-    pillBorder: 'border-[#fde68a]',
-    textColor: 'text-[#b45309]',
-    counterBg: 'bg-[#fef3c7]',
-    displayCount: '0',
-    displayAmount: '0 MAD',
+    id: 'IN_TRANSIT',
+    step: '3',
+    title: 'En cours de livraison',
+    subText: 'Expédition & Suivi Chauffeur',
+    href: '/dashboard/orders/in-transit',
+    icon: Truck,
+    pillBg: 'bg-indigo-50/90',
+    pillBorder: 'border-indigo-200/90',
+    textColor: 'text-indigo-900',
+    counterBg: 'bg-indigo-100 text-indigo-900 border border-indigo-200',
+    stepBg: 'bg-indigo-600 text-white',
   },
   {
-    id: 'SHIPPED',
-    title: 'EXPÉDIÉES',
-    pillBg: 'bg-[#f1edfc]',
-    pillBorder: 'border-[#ddd6fe]',
-    textColor: 'text-[#6d28d9]',
-    counterBg: 'bg-[#ede9fe]',
-    displayCount: '1',
-    displayAmount: '399 MAD',
-  },
-  {
-    id: 'DELIVERED',
-    title: 'LIVRÉES & ENCAISSÉES',
-    pillBg: 'bg-[#edf9f0]',
-    pillBorder: 'border-[#bbf7d0]',
-    textColor: 'text-[#15803d]',
-    counterBg: 'bg-[#dcfce7]',
-    displayAmount: '459 MAD',
+    id: 'COMPLETED',
+    step: '4',
+    title: 'Livrées & Encaissées',
+    subText: 'Fonds COD Collectés & POD',
+    href: '/dashboard/orders/completed',
+    icon: CheckCircle2,
+    pillBg: 'bg-emerald-50/90',
+    pillBorder: 'border-emerald-200/90',
+    textColor: 'text-emerald-900',
+    counterBg: 'bg-emerald-100 text-emerald-900 border border-emerald-200',
+    stepBg: 'bg-emerald-600 text-white',
   },
 ];
 
 export function OrdersBoard() {
-  const [orders, setOrders] = useState<OrderItem[]>(INITIAL_ORDERS);
+  const {
+    orders: lifecycleOrders,
+    pendingCount,
+    processingCount,
+    inTransitCount,
+    completedCount,
+    moveOrderStage,
+    addOrder,
+    refreshInboundOrders,
+    showToast,
+  } = useOrderLifecycle();
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [activeView, setActiveView] = useState<'kanban' | 'list' | 'columns'>('kanban');
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<OrderItem | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<OrderStatus | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [dragOverColumn, setDragOverColumn] = useState<LifecycleStage | null>(null);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
+  // Convert lifecycle orders to OrderItem for display
+  const orders: OrderItem[] = useMemo(() => {
+    return lifecycleOrders.map(lifecycleToOrderItem);
+  }, [lifecycleOrders]);
 
-  // Sync live orders recorded by WhatsApp AI Agent or Webhooks
-  useEffect(() => {
-    let isMounted = true;
-    const fetchLiveOrders = async () => {
-      try {
-        const res = await fetch('/api/webhooks/orders');
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders) && data.orders.length > 0 && isMounted) {
-          const mapped: OrderItem[] = data.orders.map((o: any) => ({
-            id: o.id,
-            orderNumber: o.orderNumber,
-            status: o.stage === 'CONFIRMED' ? 'CONFIRMED' : o.stage === 'PACKING' ? 'PACKING' : o.stage === 'IN_TRANSIT' ? 'SHIPPED' : 'NEW_ORDERS',
-            badgeType: 'COD PENDING',
-            amount: o.payment?.amount || 299,
-            currency: o.payment?.currency || 'MAD',
-            productName: o.items?.[0]?.name || 'Article E-commerce',
-            productThumbnail: o.items?.[0]?.thumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
-            customerName: o.customer?.name || 'Client',
-            city: o.customer?.city || 'Maroc',
-            countryCode: 'MA',
-            phone: o.customer?.phone || '',
-            timeAgo: '• LIVE',
-            address: o.customer?.address || '',
-            assignedAgent: { type: 'initial', value: 'IA', bgClass: 'bg-emerald-600' },
-            hasWhatsapp: true,
-          }));
+  // Unique Moroccan cities from active orders
+  const cities = useMemo(() => {
+    const set = new Set<string>();
+    orders.forEach((o) => {
+      if (o.city) set.add(o.city);
+    });
+    return Array.from(set);
+  }, [orders]);
 
-          setOrders((prev) => {
-            const existingIds = new Set(prev.map((p) => p.id));
-            const newOnes = mapped.filter((m: OrderItem) => !existingIds.has(m.id));
-            if (newOnes.length > 0) {
-              return [...newOnes, ...prev];
-            }
-            return prev;
-          });
-        }
-      } catch (e) {
-        // ignore polling error
-      }
-    };
-
-    fetchLiveOrders();
-    const interval = setInterval(fetchLiveOrders, 8000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, []);
-
-  // Filtered orders
+  // Filtered orders by search query and city
   const filteredOrders = useMemo(() => {
-    if (!searchQuery.trim()) return orders;
-    const q = searchQuery.toLowerCase();
-    return orders.filter(
-      (o) =>
+    return orders.filter((o) => {
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
         o.orderNumber.toLowerCase().includes(q) ||
         o.customerName.toLowerCase().includes(q) ||
         o.city.toLowerCase().includes(q) ||
         o.productName.toLowerCase().includes(q) ||
-        o.phone.includes(q)
-    );
-  }, [orders, searchQuery]);
+        o.phone.includes(q);
+
+      const matchesCity = selectedCity === 'ALL' || o.city === selectedCity;
+      return matchesSearch && matchesCity;
+    });
+  }, [orders, searchQuery, selectedCity]);
+
+  // Total metrics
+  const totalAmount = useMemo(() => {
+    return filteredOrders.reduce((sum, o) => sum + o.amount, 0);
+  }, [filteredOrders]);
 
   // Drag & drop handlers
   const handleDragStart = (e: React.DragEvent, order: OrderItem) => {
@@ -332,7 +232,7 @@ export function OrdersBoard() {
     setDragOverColumn(null);
   };
 
-  const handleDragOver = (e: React.DragEvent, columnId: OrderStatus) => {
+  const handleDragOver = (e: React.DragEvent, columnId: LifecycleStage) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     if (dragOverColumn !== columnId) {
@@ -340,19 +240,16 @@ export function OrdersBoard() {
     }
   };
 
-  const handleDrop = (e: React.DragEvent, targetColumn: OrderStatus) => {
+  const handleDrop = (e: React.DragEvent, targetColumn: LifecycleStage) => {
     e.preventDefault();
     if (!draggedOrder) return;
 
     if (draggedOrder.status !== targetColumn) {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === draggedOrder.id
-            ? { ...o, status: targetColumn, isFloatingDemo: false }
-            : o
-        )
+      moveOrderStage(draggedOrder.id, targetColumn);
+      const targetConfig = COLUMNS_CONFIG.find((c) => c.id === targetColumn);
+      showToast(
+        `Commande ${draggedOrder.orderNumber} déplacée vers "${targetConfig?.title || targetColumn}"!`
       );
-      showToast(`Commande ${draggedOrder.orderNumber} déplacée vers ${targetColumn}!`);
     }
 
     setDraggedOrder(null);
@@ -360,13 +257,10 @@ export function OrdersBoard() {
   };
 
   const handleStatusChange = (orderId: string, newStatus: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
-    );
+    moveOrderStage(orderId, newStatus as LifecycleStage);
     if (selectedOrder && selectedOrder.id === orderId) {
       setSelectedOrder((prev) => (prev ? { ...prev, status: newStatus } : null));
     }
-    showToast(`Statut mis à jour.`);
   };
 
   const handleQuickWhatsApp = (order: OrderItem, e: React.MouseEvent) => {
@@ -374,55 +268,86 @@ export function OrdersBoard() {
     const phoneClean = order.phone.replace(/\D/g, '');
     const intlPhone = phoneClean.startsWith('0') ? '212' + phoneClean.slice(1) : phoneClean;
     const msg = encodeURIComponent(
-      `السلام عليكم ${order.customerName}، معكم متجرنا بخصوص طلبك #${order.orderNumber} لـ ${order.productName}. واش نأكدو الإرسال اليوم؟`
+      `Salam ${order.customerName}, m3ak service de livraison bkhosous talab #${order.orderNumber} dyal ${order.productName}. Wach t2akkad lina l'envoi l ${order.city} ?`
     );
     window.open(`https://wa.me/${intlPhone}?text=${msg}`, '_blank');
   };
 
   const handleCreateOrder = (newOrder: OrderItem) => {
-    setOrders((prev) => [newOrder, ...prev]);
-    showToast(`Nouvelle commande ${newOrder.orderNumber} créée avec succès!`);
+    const newLifecycle: LifecycleOrder = {
+      id: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      stage: (newOrder.status as LifecycleStage) || 'PENDING_CONFIRMATION',
+      createdAt: 'À l’instant',
+      customer: {
+        name: newOrder.customerName,
+        phone: newOrder.phone,
+        address: newOrder.address || '',
+        city: newOrder.city,
+      },
+      items: [
+        {
+          id: `item-${Date.now()}`,
+          name: newOrder.productName,
+          sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+          thumbnail: newOrder.productThumbnail,
+          quantity: 1,
+          price: newOrder.amount,
+        },
+      ],
+      payment: {
+        method: 'COD',
+        amount: newOrder.amount,
+        currency: newOrder.currency || 'MAD',
+        status: 'PENDING',
+      },
+      aiVerification: {
+        status: 'NEEDS_REVIEW',
+        riskScore: 10,
+        notes: 'Commande enregistrée manuellement depuis le Kanban.',
+      },
+    };
+    addOrder(newLifecycle);
   };
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-10">
-      
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-xl flex items-center gap-2 border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
-          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* TOP ACTION TOOLBAR (Identical to screenshot) */}
+      {/* TOP ACTION TOOLBAR */}
       <div className="h-16 px-6 bg-white border-b border-slate-200/80 flex items-center justify-between relative z-10 shadow-2xs">
-        
         {/* Left: Back Arrow + Page Title + Setup Guide */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            title="Retour"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <h1 className="text-xl font-black text-slate-900 tracking-tight">Commandes</h1>
-
-          <button className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold text-[#0d9488] bg-[#f0fdfa] border border-[#ccfbf1] hover:bg-[#ccfbf1]/60 transition-colors">
-            <GraduationCap className="w-3.5 h-3.5" />
-            <span>Guide de configuration</span>
-          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-black text-slate-900 tracking-tight">
+                Vue Kanban des Commandes
+              </h1>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white">
+                Cycle COD 4 Étapes
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Glissez et déposez les commandes entre les 4 étapes du cycle logistique
+            </p>
+          </div>
         </div>
 
         {/* Right Action Bar */}
         <div className="flex items-center gap-2.5">
-          {/* Duplicated orders button */}
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors shadow-2xs">
-            <span className="w-4 h-4 rounded border border-amber-500 bg-amber-50 text-amber-600 flex items-center justify-center text-[10px]">
-              ⊞
-            </span>
-            <span>Commandes en double</span>
+          {/* New Order Button */}
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Nouvelle commande</span>
           </button>
 
           {/* View Mode Switcher */}
@@ -434,7 +359,7 @@ export function OrdersBoard() {
                   ? 'bg-white text-slate-800 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
-              title="Vue Kanban"
+              title="Vue Kanban (4 Colonnes)"
             >
               <Kanban className="w-4 h-4" />
             </button>
@@ -456,146 +381,243 @@ export function OrdersBoard() {
                   ? 'bg-white text-slate-800 shadow-2xs'
                   : 'text-slate-500 hover:text-slate-700'
               }`}
-              title="Colonnes"
+              title="Colonnes condensées"
             >
               <Columns className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Icon Controls */}
-          <button className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors" title="Trier">
-            <ArrowUpDown className="w-3.5 h-3.5" />
-          </button>
-          <button className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors" title="Colonnes">
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-          </button>
+          {/* Refresh Data */}
           <button
             onClick={() => {
-              setOrders([...INITIAL_ORDERS]);
-              showToast('Données réinitialisées!');
+              refreshInboundOrders();
+              showToast('Synchronisation avec la base de données effectuée!', 'info');
             }}
             className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors"
             title="Rafraîchir"
           >
             <RotateCw className="w-3.5 h-3.5" />
           </button>
-          <button className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors" title="Filtrer">
-            <Filter className="w-3.5 h-3.5" />
-          </button>
-
-          {/* More actions dropdown */}
-          <button className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
-            <span>Actions groupées</span>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-          </button>
-
-          {/* + Create Order Primary Button */}
-          <Link
-            href="/dashboard/orders/new"
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#135d54] hover:bg-[#0f4a42] shadow-xs hover:shadow transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Nouvelle Commande</span>
-          </Link>
         </div>
-
       </div>
 
-      {/* MAIN KANBAN BOARD CONTAINER */}
+      {/* MAIN CONTENT AREA */}
       <div className="p-6">
-        
         {/* Search & Filter Bar */}
-        <div className="mb-4 flex items-center justify-between">
-          <div className="relative w-72">
-            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filtrer par nom, commande, ville..."
-              className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs text-slate-700 placeholder-slate-400 focus:outline-teal-600 shadow-2xs font-medium"
-            />
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher par N° commande, client, ville, téléphone, article..."
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-teal-600 shadow-2xs font-medium transition-colors"
+              />
+            </div>
+
+            {/* City Filter */}
+            <select
+              value={selectedCity}
+              onChange={(e) => setSelectedCity(e.target.value)}
+              className="text-xs py-1.5 px-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold focus:outline-teal-600 shadow-2xs"
+            >
+              <option value="ALL">Toutes les villes ({cities.length})</option>
+              {cities.map((city) => (
+                <option key={city} value={city}>
+                  {city}
+                </option>
+              ))}
+            </select>
           </div>
 
-          <div className="flex items-center gap-2 text-xs text-slate-500 font-medium">
-            <span>Total commandes: <strong className="text-slate-800">{orders.length}</strong></span>
-            <span>•</span>
-            <span className="text-teal-700 font-bold">
-              Total valeur: {orders.reduce((sum, o) => sum + o.amount, 0)} MAD
-            </span>
+          {/* Real-time Metrics summary */}
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-600">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200">
+              <span className="text-slate-500">Commandes actives:</span>
+              <strong className="text-slate-900">{filteredOrders.length}</strong>
+            </div>
+
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
+              <span>Valeur pipeline:</span>
+              <strong className="font-mono">{totalAmount.toLocaleString()} MAD</strong>
+            </div>
           </div>
         </div>
 
-        {/* 5 COLUMNS BOARD */}
-        <div className="flex gap-4 overflow-x-auto pb-8 items-start select-none min-h-[calc(100vh-230px)]">
-          {COLUMNS_CONFIG.map((col) => {
-            const colOrders = filteredOrders.filter((o) => o.status === col.id);
-            const isTarget = dragOverColumn === col.id;
+        {/* ── KANBAN VIEW (4 MAIN STAGES FROM THE RED BOX) ── */}
+        {activeView === 'kanban' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start select-none">
+            {COLUMNS_CONFIG.map((col) => {
+              const colOrders = filteredOrders.filter((o) => o.status === col.id);
+              const colTotal = colOrders.reduce((sum, o) => sum + o.amount, 0);
+              const isTarget = dragOverColumn === col.id;
+              const Icon = col.icon;
 
-            return (
-              <div
-                key={col.id}
-                onDragOver={(e) => handleDragOver(e, col.id)}
-                onDrop={(e) => handleDrop(e, col.id)}
-                className={`w-[290px] shrink-0 flex flex-col transition-colors rounded-2xl ${
-                  isTarget ? 'bg-teal-50/50 ring-2 ring-teal-400' : ''
-                }`}
-              >
-                {/* COLUMN HEADER PILL */}
+              return (
                 <div
-                  className={`px-3 py-2 rounded-xl border flex items-center justify-between mb-3 shadow-2xs ${col.pillBg} ${col.pillBorder} ${col.textColor}`}
+                  key={col.id}
+                  onDragOver={(e) => handleDragOver(e, col.id)}
+                  onDrop={(e) => handleDrop(e, col.id)}
+                  className={`flex flex-col rounded-2xl transition-all duration-200 border border-slate-200/90 bg-white/70 backdrop-blur-xs p-3 shadow-2xs ${
+                    isTarget ? 'bg-teal-50/70 ring-2 ring-teal-500 border-teal-300' : ''
+                  }`}
                 >
-                  {/* Left: Drag dots + Title + Count Pill + Amount */}
-                  <div className="flex items-center gap-1.5 text-xs font-black tracking-tight">
-                    <span className="text-slate-400">⋮⋮</span>
-                    <span>{col.title}</span>
+                  {/* COLUMN HEADER */}
+                  <div
+                    className={`px-3 py-2.5 rounded-xl border flex items-center justify-between mb-3 shadow-2xs transition-colors ${col.pillBg} ${col.pillBorder}`}
+                  >
+                    {/* Left: Step Badge + Icon + Title + Count */}
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div
+                        className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 shadow-2xs ${col.stepBg}`}
+                      >
+                        {col.step}
+                      </div>
 
-                    {/* Count badge */}
-                    <span
-                      className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${col.counterBg}`}
+                      <Icon className={`w-4 h-4 shrink-0 ${col.textColor}`} />
+
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`text-xs font-black tracking-tight truncate ${col.textColor}`}
+                          >
+                            {col.title}
+                          </span>
+
+                          <span
+                            className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 shadow-2xs ${col.counterBg}`}
+                          >
+                            {colOrders.length}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Link to Dedicated Stage Page */}
+                    <Link
+                      href={col.href}
+                      className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-white/80 transition-colors"
+                      title={`Voir la table détaillée ${col.title}`}
                     >
-                      {col.displayCount ?? colOrders.length}
-                    </span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
 
-                    {/* Column Total MAD */}
-                    <span className="text-[11px] font-bold opacity-80">
-                      {col.displayAmount ?? `${colOrders.reduce((s, o) => s + o.amount, 0)} MAD`}
+                  {/* Subtitle / Volume MAD */}
+                  <div className="px-1.5 pb-2.5 flex items-center justify-between text-[11px] font-bold text-slate-500 border-b border-slate-100 mb-3">
+                    <span className="truncate">{col.subText}</span>
+                    <span className="font-mono text-slate-800 shrink-0">
+                      {colTotal.toLocaleString()} MAD
                     </span>
                   </div>
 
-                  {/* Right options icon */}
-                  <button className="text-slate-400 hover:text-slate-700 p-0.5">
-                    <MoreVertical className="w-3.5 h-3.5" />
-                  </button>
-                </div>
+                  {/* CARDS LIST IN COLUMN */}
+                  <div className="space-y-3 min-h-[480px]">
+                    {colOrders.map((order) => (
+                      <OrderCard
+                        key={order.id}
+                        order={order}
+                        isFloating={false}
+                        onSelect={setSelectedOrder}
+                        onQuickWhatsApp={handleQuickWhatsApp}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                      />
+                    ))}
 
-                {/* CARDS LIST IN COLUMN */}
-                <div className="space-y-3 min-h-[400px]">
-                  {colOrders.map((order) => (
-                    <OrderCard
+                    {/* Empty Drop Zone */}
+                    {colOrders.length === 0 && (
+                      <div className="h-44 rounded-2xl border-2 border-dashed border-slate-200/90 flex flex-col items-center justify-center text-slate-400 text-xs font-medium p-4 text-center bg-slate-50/50">
+                        <Icon className="w-6 h-6 mb-1.5 opacity-30" />
+                        <span>Aucune commande dans cette étape</span>
+                        <span className="text-[10px] text-slate-400 mt-1">
+                          Glissez une commande ici pour la passer à l'étape {col.step}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── LIST VIEW (FALLBACK TABLE) ── */}
+        {activeView !== 'kanban' && (
+          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-2xs">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="py-3 px-4">Commande</th>
+                  <th className="py-3 px-4">Étape Pipeline</th>
+                  <th className="py-3 px-4">Client</th>
+                  <th className="py-3 px-4">Ville</th>
+                  <th className="py-3 px-4">Article</th>
+                  <th className="py-3 px-4">Montant</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {filteredOrders.map((order) => {
+                  const currentStageConfig = COLUMNS_CONFIG.find((c) => c.id === order.status);
+                  return (
+                    <tr
                       key={order.id}
-                      order={order}
-                      isFloating={false}
-                      onSelect={setSelectedOrder}
-                      onQuickWhatsApp={handleQuickWhatsApp}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                    />
-                  ))}
-
-                  {/* If column is empty */}
-                  {colOrders.length === 0 && (
-                    <div className="h-32 rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-300 text-xs font-medium">
-                      <span>Glisser une commande ici</span>
-                    </div>
-                  )}
-                </div>
-
-              </div>
-            );
-          })}
-        </div>
-
+                      onClick={() => setSelectedOrder(order)}
+                      className="hover:bg-slate-50/80 transition-colors cursor-pointer"
+                    >
+                      <td className="py-3 px-4 font-black text-slate-900">
+                        {order.orderNumber}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            currentStageConfig?.counterBg || 'bg-slate-100 text-slate-700'
+                          }`}
+                        >
+                          <span>Étape {currentStageConfig?.step || '•'}</span>
+                          <span>{currentStageConfig?.title || order.status}</span>
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-slate-800 font-bold">
+                        {order.customerName}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600">{order.city}</td>
+                      <td className="py-3 px-4 text-slate-700 truncate max-w-[200px]">
+                        {order.productName}
+                      </td>
+                      <td className="py-3 px-4 font-black font-mono text-slate-900">
+                        {order.amount} {order.currency}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={(e) => handleQuickWhatsApp(order, e)}
+                            className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50"
+                            title="Envoyer WhatsApp"
+                          >
+                            <MessageCircle className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={`tel:${order.phone}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
+                            title="Appeler"
+                          >
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Order Details Modal */}
@@ -616,7 +638,6 @@ export function OrdersBoard() {
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateOrder}
       />
-
     </div>
   );
 }
