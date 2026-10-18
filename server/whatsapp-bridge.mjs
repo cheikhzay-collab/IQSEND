@@ -137,6 +137,14 @@ async function startBaileys() {
               fs.rmSync(AUTH_DIR, { recursive: true, force: true });
             }
           } catch (e) {}
+
+          // Auto-restart fresh Baileys to produce a new QR code immediately
+          if (!reconnectTimer) {
+            reconnectTimer = setTimeout(() => {
+              reconnectTimer = null;
+              startBaileys();
+            }, 1500);
+          }
         } else {
           // If expired or disconnected, schedule restart with debounce
           if (!reconnectTimer) {
@@ -192,6 +200,10 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
 
   if (url.pathname === '/qr' && req.method === 'GET') {
+    // If not connected and not currently starting, trigger Baileys startup
+    if (bridgeState.status === 'DISCONNECTED' || (bridgeState.status === 'ERROR' && !isStarting)) {
+      startBaileys();
+    }
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, ...bridgeState }));
     return;
@@ -283,6 +295,13 @@ const server = http.createServer(async (req, res) => {
   res.end(JSON.stringify({ error: 'Not found' }));
 });
 
-server.listen(PORT, () => {
-  console.log(`[WhatsApp Bridge Server] 🚀 Running on http://localhost:${PORT}`);
+server.on('error', (err) => {
+  console.error('[WhatsApp Bridge Server] Server error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`[WhatsApp Bridge Server] Port ${PORT} already in use. A bridge instance is likely already running.`);
+  }
+});
+
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`[WhatsApp Bridge Server] 🚀 Running on http://127.0.0.1:${PORT}`);
 });

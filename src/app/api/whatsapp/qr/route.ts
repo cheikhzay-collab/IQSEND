@@ -2,8 +2,10 @@ import { NextResponse } from 'next/server';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 
+import fs from 'node:fs';
+
 export const dynamic = 'force-dynamic';
-const BRIDGE_URL = 'http://localhost:5050';
+const BRIDGE_URL = 'http://127.0.0.1:5050';
 
 let isStartingBridge = false;
 
@@ -12,9 +14,11 @@ function ensureBridgeRunning() {
   isStartingBridge = true;
   try {
     const bridgeScript = path.join(process.cwd(), 'server', 'whatsapp-bridge.mjs');
+    const outLog = fs.openSync(path.join(process.cwd(), 'bridge_out.log'), 'a');
+    const errLog = fs.openSync(path.join(process.cwd(), 'bridge_err.log'), 'a');
     const child = spawn(process.execPath, [bridgeScript], {
       detached: true,
-      stdio: 'ignore',
+      stdio: ['ignore', outLog, errLog],
       cwd: process.cwd(),
       windowsHide: true,
     });

@@ -152,7 +152,11 @@ export default function AiAgentsPage() {
         const data = await res.json();
         if (data.success) {
           setQrStatus(data.status);
-          if (data.qrCodeDataUrl) setLiveQrDataUrl(data.qrCodeDataUrl);
+          if (data.status === 'SCAN_QR' && data.qrCodeDataUrl) {
+            setLiveQrDataUrl(data.qrCodeDataUrl);
+          } else if (data.status === 'CONNECTED' || data.status === 'DISCONNECTED') {
+            setLiveQrDataUrl(null);
+          }
           if (data.connectedPhone) setConnectedPhone(data.connectedPhone);
           if (data.connectedName) setConnectedName(data.connectedName);
         }
@@ -1054,7 +1058,7 @@ export default function AiAgentsPage() {
                     </div>
 
                     <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-mono font-bold">
-                      +{connectedPhone || '212XXXXXXXXX'}
+                      +{connectedPhone || '212XXXXXXXXX'} {connectedName ? `(${connectedName})` : ''}
                     </div>
 
                     <p className="text-[11px] text-slate-500 leading-relaxed">
@@ -1066,6 +1070,16 @@ export default function AiAgentsPage() {
                       className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
                     >
                       Terminer & Fermer
+                    </button>
+
+                    <button
+                      onClick={async () => {
+                        await handleDisconnectQr();
+                        await handleRestartQr();
+                      }}
+                      className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all border border-rose-200"
+                    >
+                      Déconnecter et scanner un autre numéro
                     </button>
                   </div>
                 ) : (
@@ -1091,16 +1105,37 @@ export default function AiAgentsPage() {
                             alt="Code QR WhatsApp Réel"
                             className="w-full h-full object-contain select-none"
                           />
+                        ) : qrStatus === 'ERROR' ? (
+                          <div className="space-y-3 p-4 text-center">
+                            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center font-bold text-lg border border-rose-200">
+                              ⚠️
+                            </div>
+                            <p className="text-xs text-rose-700 font-bold">
+                              Échec de connexion au serveur WhatsApp
+                            </p>
+                            <p className="text-[10px] text-slate-500 leading-snug">
+                              Le pont WhatsApp tente de se reconnecter.
+                            </p>
+                            <button
+                              onClick={handleRestartQr}
+                              disabled={isRefreshingQr}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm"
+                            >
+                              Réessayer
+                            </button>
+                          </div>
                         ) : (
                           <div className="space-y-3 p-4">
                             <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
                             <p className="text-[11px] text-slate-600 font-medium">
                               {isRefreshingQr
                                 ? "Régénération d'une nouvelle clé QR..."
-                                : "Connexion au serveur WhatsApp..."}
+                                : qrStatus === 'INITIALIZING'
+                                ? "Connexion au serveur WhatsApp..."
+                                : "Génération du code QR chiffré WhatsApp..."}
                             </p>
                             <p className="text-[10px] text-slate-400">
-                              Affichage instantané dès synchronisation
+                              Affichage instantané dès synchronisation (environ 3 à 5 sec)
                             </p>
                           </div>
                         )}
