@@ -104,8 +104,127 @@ export default function CompletedOrdersPage() {
           </div>
         </div>
 
-        {/* Data Table */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
+        {/* Mobile View: High-Touch App Cards (md:hidden) */}
+        <div className="space-y-3.5 md:hidden">
+          {completedOrders.length === 0 ? (
+            <div className="py-12 bg-white rounded-2xl border border-slate-200 text-center px-4">
+              <CheckCircle2 className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p className="font-bold text-xs text-slate-700">Aucune commande clôturée</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                Les commandes livrées et encaissées apparaîtront ici.
+              </p>
+            </div>
+          ) : (
+            completedOrders.map((order) => (
+              <div
+                key={order.id}
+                className="bg-white rounded-2xl border border-slate-200/90 shadow-app-card p-4 space-y-3"
+              >
+                {/* Header: Order ID & Financial Status */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black text-slate-900 bg-slate-100 px-2.5 py-1 rounded-lg">
+                      {order.orderNumber}
+                    </span>
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      Virement Encaissé
+                    </span>
+                  </div>
+                  <span className="text-xs font-black text-emerald-700">
+                    {order.payment.amount} MAD
+                  </span>
+                </div>
+
+                {/* Customer Info */}
+                <div className="flex items-center justify-between text-xs">
+                  <div>
+                    <h3 className="font-black text-slate-900 text-sm">{order.customer.name}</h3>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      📍 {order.customer.city} • 📞 {order.customer.phone}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Article Info */}
+                <div className="flex items-center gap-3 bg-slate-50/80 p-2.5 rounded-xl border border-slate-100">
+                  <img
+                    src={order.items[0]?.thumbnail}
+                    alt=""
+                    className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 text-xs truncate">
+                      {order.items[0]?.name}
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      Qté: {order.items[0]?.quantity} • Livré le {order.completed?.deliveredAt || '16 Oct 2026 à 14:32'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* POD & Settlement Info */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100 text-[10px]">
+                  <div>
+                    {order.completed?.podType === 'OTP_VERIFIED' ? (
+                      <span className="inline-flex items-center gap-1 text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                        <ShieldCheck className="w-3 h-3 text-blue-600" />
+                        Code OTP Validé
+                      </span>
+                    ) : order.completed?.podType === 'PHOTO_CONFIRMATION' ? (
+                      <span className="inline-flex items-center gap-1 text-purple-700 font-bold bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
+                        <CheckCircle2 className="w-3 h-3 text-purple-600" />
+                        Bon Signé (Photo)
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        <Check className="w-3 h-3 text-emerald-600" />
+                        Signature Client
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-slate-400 font-mono">
+                    {order.payment.settlementRef || 'VIR-SENDIT-89410'}
+                  </span>
+                </div>
+
+                {/* Mobile Action Buttons */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <button
+                    onClick={() => setInvoiceOrder(order)}
+                    className="py-2.5 px-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center justify-center gap-1.5 active:scale-95 transition-transform"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Facture</span>
+                  </button>
+
+                  <button
+                    onClick={() => requestReview(order.id)}
+                    className={`py-2.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 active:scale-95 transition-transform ${
+                      order.completed?.reviewRequested
+                        ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                        : 'bg-amber-500 text-white shadow-xs'
+                    }`}
+                  >
+                    <Star className="w-3.5 h-3.5 fill-current" />
+                    <span>{order.completed?.reviewRequested ? 'Avis ✓' : 'Avis WA'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => setReturnOrder(order)}
+                    className="py-2.5 px-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 font-bold text-xs flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
+                    <span>Retour</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Data Table (hidden on mobile, visible md:block) */}
+        <div className="hidden md:block bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           {completedOrders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
               <CheckCircle2 className="w-12 h-12 mx-auto text-slate-300 mb-3" />

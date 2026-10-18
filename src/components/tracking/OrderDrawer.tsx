@@ -69,9 +69,9 @@ export function OrderDrawer({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/30 backdrop-blur-xs transition-opacity">
-      <div className="fixed inset-y-0 right-0 max-w-full flex pl-10">
-        <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col border-l border-slate-200">
+    <div className="fixed inset-0 z-50 overflow-hidden bg-slate-900/40 backdrop-blur-xs transition-opacity">
+      <div className="fixed inset-y-0 right-0 max-w-full flex pl-0 sm:pl-10">
+        <div className="w-screen max-w-2xl bg-white shadow-2xl flex flex-col sm:border-l border-slate-200">
           
           {/* Header */}
           <div className="px-6 py-4 border-b border-slate-200 bg-slate-50/70 flex items-center justify-between">

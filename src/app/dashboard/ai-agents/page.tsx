@@ -304,7 +304,7 @@ export default function AiAgentsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-7xl mx-auto pb-20 md:pb-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div className="flex items-center gap-3">
@@ -439,11 +439,11 @@ export default function AiAgentsPage() {
         )}
       </div>
 
-      {/* Navigation Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-2 text-xs font-bold">
+      {/* Navigation Tabs - Mobile Horizontal Swipe */}
+      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold overflow-x-auto no-scrollbar scroll-smooth">
         <button
           onClick={() => setActiveTab('simulator')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'simulator'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -453,7 +453,7 @@ export default function AiAgentsPage() {
         </button>
         <button
           onClick={() => setActiveTab('product-kb')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'product-kb'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -463,7 +463,7 @@ export default function AiAgentsPage() {
         </button>
         <button
           onClick={() => setActiveTab('permissions')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'permissions'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -473,7 +473,7 @@ export default function AiAgentsPage() {
         </button>
         <button
           onClick={() => setActiveTab('whatsapp-provider')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'whatsapp-provider'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -483,7 +483,7 @@ export default function AiAgentsPage() {
         </button>
         <button
           onClick={() => setActiveTab('prompt')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'prompt'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'
@@ -493,7 +493,7 @@ export default function AiAgentsPage() {
         </button>
         <button
           onClick={() => setActiveTab('knowledge')}
-          className={`px-4 py-2.5 rounded-xl transition-all flex items-center gap-2 ${
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
             activeTab === 'knowledge'
               ? 'bg-blue-600 text-white shadow-sm'
               : 'text-slate-600 hover:bg-slate-100'

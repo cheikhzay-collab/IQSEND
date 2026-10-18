@@ -16,7 +16,8 @@ import {
   Sparkles,
   CheckCheck,
   RefreshCw,
-  ExternalLink
+  ExternalLink,
+  ChevronLeft
 } from 'lucide-react';
 import { ChatConversation, ChatMessage } from '@/lib/inbox-store';
 
@@ -27,6 +28,7 @@ export default function WhatsAppInboxPage() {
   const [inputMessage, setInputMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Fetch live conversations from API
@@ -142,31 +144,31 @@ export default function WhatsAppInboxPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-2px)] flex flex-col bg-white">
-      {/* Inbox Header */}
-      <div className="h-16 border-b border-slate-200 px-6 flex items-center justify-between shrink-0">
+    <div className="h-[calc(100dvh-64px)] md:h-[calc(100vh-2px)] flex flex-col bg-white pb-16 md:pb-0">
+      {/* Inbox Header (Hidden on mobile when in chat view for native feel) */}
+      <div className={`h-16 border-b border-slate-200 px-4 md:px-6 items-center justify-between shrink-0 bg-white ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-bold">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
             <MessageSquare className="w-4 h-4" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-slate-900">
               Boîte de Réception Omnicanale WhatsApp
             </h1>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-slate-500 hidden sm:block">
               Gestion centralisée des conversations clients • Passage Humain/IA en un clic
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 flex items-center gap-1.5">
+          <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 hidden sm:flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            Passerelle: WhatsApp Connecté (Direct Baileys)
+            WhatsApp Connecté
           </span>
           <button
             onClick={fetchConversations}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            className="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-colors"
             title="Actualiser les messages"
           >
             <RefreshCw className="w-4 h-4" />
@@ -174,10 +176,10 @@ export default function WhatsAppInboxPage() {
         </div>
       </div>
 
-      {/* Main Inbox Body: Split View */}
+      {/* Main Inbox Body: Responsive Split View */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left Column: Chat List */}
-        <div className="w-80 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0">
+        <div className={`w-full md:w-80 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0 ${mobileView === 'chat' ? 'hidden md:flex' : 'flex'}`}>
           {/* Search & Filter */}
           <div className="p-3 border-b border-slate-200 space-y-2 bg-white">
             <div className="relative">
@@ -185,15 +187,15 @@ export default function WhatsAppInboxPage() {
               <input
                 type="text"
                 placeholder="Rechercher une conversation..."
-                className="w-full bg-slate-100 rounded-lg pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:bg-white"
+                className="w-full bg-slate-100 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:bg-white"
               />
             </div>
             <div className="flex gap-1 text-[11px]">
               <button
                 onClick={() => setFilter('all')}
-                className={`flex-1 py-1 rounded-md font-medium text-center ${
+                className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors ${
                   filter === 'all'
-                    ? 'bg-slate-800 text-white'
+                    ? 'bg-slate-900 text-white shadow-2xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -201,9 +203,9 @@ export default function WhatsAppInboxPage() {
               </button>
               <button
                 onClick={() => setFilter('ai')}
-                className={`flex-1 py-1 rounded-md font-medium text-center ${
+                className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors ${
                   filter === 'ai'
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-blue-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -211,9 +213,9 @@ export default function WhatsAppInboxPage() {
               </button>
               <button
                 onClick={() => setFilter('human')}
-                className={`flex-1 py-1 rounded-md font-medium text-center ${
+                className={`flex-1 py-1.5 rounded-lg font-bold text-center transition-colors ${
                   filter === 'human'
-                    ? 'bg-rose-600 text-white'
+                    ? 'bg-rose-600 text-white shadow-2xs'
                     : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -223,7 +225,7 @@ export default function WhatsAppInboxPage() {
           </div>
 
           {/* Conversations Scroll */}
-          <div className="flex-1 overflow-y-auto divide-y divide-slate-100">
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 no-scrollbar">
             {conversations
               .filter((c) => {
                 if (filter === 'ai') return c.isAiActive;
@@ -233,10 +235,13 @@ export default function WhatsAppInboxPage() {
               .map((chat) => (
                 <div
                   key={chat.id}
-                  onClick={() => setSelectedChatId(chat.id)}
-                  className={`p-3 cursor-pointer transition-colors ${
+                  onClick={() => {
+                    setSelectedChatId(chat.id);
+                    setMobileView('chat');
+                  }}
+                  className={`p-3.5 cursor-pointer transition-colors active:bg-slate-100 ${
                     (currentChat && currentChat.id === chat.id)
-                      ? 'bg-blue-50/80 border-l-4 border-blue-600'
+                      ? 'bg-blue-50/90 border-l-4 border-blue-600'
                       : 'hover:bg-slate-100/60'
                   }`}
                 >
@@ -247,7 +252,7 @@ export default function WhatsAppInboxPage() {
                     <span className="text-[10px] text-slate-400">{chat.lastTime}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                    <span className="font-mono">
+                    <span className="font-mono text-[10px]">
                       {chat.city} • {chat.orderNumber}
                     </span>
                     <span className="font-bold text-emerald-600">
@@ -261,16 +266,16 @@ export default function WhatsAppInboxPage() {
                   <div className="mt-2 flex items-center justify-between">
                     <div className="flex items-center gap-1">
                       {chat.isAiActive ? (
-                        <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
                           AI Actif
                         </span>
                       ) : (
-                        <span className="bg-slate-200 text-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded">
+                        <span className="bg-slate-200 text-slate-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
                           Humain
                         </span>
                       )}
                       {chat.needsHumanTakeover && (
-                        <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded animate-pulse">
+                        <span className="bg-rose-100 text-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded-md animate-pulse">
                           Aide Requise
                         </span>
                       )}
@@ -288,31 +293,39 @@ export default function WhatsAppInboxPage() {
 
         {/* Right Column: Chat Conversation Thread */}
         {currentChat ? (
-          <div className="flex-1 flex flex-col bg-slate-50/30">
+          <div className={`w-full flex-1 flex flex-col bg-[#F0F2F5]/60 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
             {/* Thread Header */}
-            <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs font-bold text-slate-900">
-                    {currentChat.customerName}
-                  </h2>
-                  <span className="font-mono text-[11px] text-slate-400">
-                    ({currentChat.phoneNumber})
-                  </span>
-                  <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                    {currentChat.city}
-                  </span>
+            <div className="h-14 border-b border-slate-200 bg-white px-3 md:px-6 flex items-center justify-between shrink-0 shadow-2xs">
+              <div className="flex items-center gap-1.5 min-w-0">
+                {/* Mobile Back Button */}
+                <button
+                  onClick={() => setMobileView('list')}
+                  className="md:hidden p-1.5 -ml-1 mr-1 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors shrink-0"
+                  title="Retour à la liste"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-bold text-slate-900 truncate">
+                      {currentChat.customerName}
+                    </h2>
+                    <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                      {currentChat.city}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 truncate">
+                    {currentChat.phoneNumber} • {currentChat.orderNumber} ({currentChat.totalAmount} MAD)
+                  </p>
                 </div>
-                <p className="text-[10px] text-slate-400">
-                  Commande {currentChat.orderNumber} • Montant: {currentChat.totalAmount} MAD
-                </p>
               </div>
 
-              {/* AI Takeover Switch */}
-              <div className="flex items-center gap-3">
+              {/* AI Takeover Switch & Call */}
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   onClick={() => handleToggleTakeover(currentChat.id)}
-                  className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
+                  className={`text-[11px] px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1 transition-colors ${
                     currentChat.isAiActive
                       ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
                       : 'bg-emerald-600 text-white hover:bg-emerald-700'
@@ -321,27 +334,30 @@ export default function WhatsAppInboxPage() {
                   {currentChat.isAiActive ? (
                     <>
                       <Headphones className="w-3.5 h-3.5" />
-                      Prendre la main (Stop Bot)
+                      <span className="hidden sm:inline">Prendre la main</span>
+                      <span className="sm:hidden">Stop Bot</span>
                     </>
                   ) : (
                     <>
                       <Bot className="w-3.5 h-3.5" />
-                      Réactiver l'IA Gemini
+                      <span className="hidden sm:inline">Réactiver l'IA</span>
+                      <span className="sm:hidden">IA</span>
                     </>
                   )}
                 </button>
 
                 <a
                   href={`tel:${currentChat.phoneNumber}`}
-                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg"
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors"
+                  title="Appeler le client"
                 >
-                  <Phone className="w-4 h-4" />
+                  <Phone className="w-3.5 h-3.5" />
                 </a>
               </div>
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 p-6 overflow-y-auto space-y-4">
+            <div className="flex-1 p-3 md:p-6 overflow-y-auto space-y-4">
               {/* AI Status Banner */}
               <div className="text-center">
                 <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium px-3 py-1 rounded-full">
@@ -365,7 +381,7 @@ export default function WhatsAppInboxPage() {
                       }`}
                     >
                       <div
-                        className={`rounded-2xl px-4 py-2 text-xs max-w-md shadow-xs ${
+                        className={`rounded-2xl px-3.5 py-2 text-xs max-w-[85%] sm:max-w-md shadow-xs ${
                           isCustomer
                             ? 'bg-white border border-slate-200 text-slate-900 rounded-tl-xs'
                             : isAgent
@@ -438,7 +454,7 @@ export default function WhatsAppInboxPage() {
             </div>
 
             {/* Darija Quick Canned Responses */}
-            <div className="px-6 py-2 bg-white border-t border-slate-200 flex items-center gap-2 overflow-x-auto text-[11px]">
+            <div className="px-3 md:px-6 py-2 bg-white border-t border-slate-200 flex items-center gap-2 overflow-x-auto no-scrollbar text-[11px]">
               <span className="text-slate-400 text-[10px] shrink-0 font-medium">
                 Réponses Rapides:
               </span>
@@ -448,7 +464,7 @@ export default function WhatsAppInboxPage() {
                     'مرحبا بك أخي، تم تأكيد طلبك وغادي توصلك الكولية غدا مع موزع Sendit.'
                   )
                 }
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
                 تأكيد الطلب ✓
               </button>
@@ -458,7 +474,7 @@ export default function WhatsAppInboxPage() {
                     'عفاك واش تقدر تشارك معنا الموقع ديالك بالخريطة (Localisation WhatsApp)؟'
                   )
                 }
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
                 طلب الـ Localisation 📍
               </button>
@@ -468,7 +484,7 @@ export default function WhatsAppInboxPage() {
                     'الموزع في الطريق لعندك اليوم، المرجو تجهيز المبلغ نقداً.'
                   )
                 }
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
                 تنبيه الموزع 🚚
               </button>
@@ -477,22 +493,22 @@ export default function WhatsAppInboxPage() {
             {/* Reply Form */}
             <form
               onSubmit={handleSend}
-              className="p-4 bg-white border-t border-slate-200 flex items-center gap-2"
+              className="p-3 md:p-4 bg-white border-t border-slate-200 flex items-center gap-2"
             >
               <input
                 type="text"
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="Écrire un message direct WhatsApp en Darija ou Français..."
+                placeholder="Écrire un message en Darija ou Français..."
                 className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
                 disabled={isSending || !inputMessage.trim()}
-                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all shadow-xs shrink-0"
               >
                 <Send className="w-4 h-4" />
-                {isSending ? 'Envoi...' : 'Envoyer'}
+                <span className="hidden sm:inline">{isSending ? 'Envoi...' : 'Envoyer'}</span>
               </button>
             </form>
           </div>

@@ -10,9 +10,9 @@ interface KpiCardsProps {
 
 export function KpiCards({ kpis }: KpiCardsProps) {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
       {/* 1. Total Dispatched */}
-      <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-xs hover:border-slate-300 transition-all">
+      <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 sm:p-4 shadow-app-card hover:border-slate-300 transition-all">
         <div className="flex items-center justify-between">
           <span className="text-xs font-medium uppercase tracking-wider text-slate-500">
             Total Expédiés

@@ -83,18 +83,18 @@ export default function PendingOrdersPage() {
       <OrderLifecycleTabs />
 
       {/* Main Content View */}
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
         
         {/* Header with Title, Counter and Tools */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
                 <ClipboardCheck className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2.5">
-                  <h1 className="text-xl font-black text-slate-900 tracking-tight">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
                     1. En attente de confirmation
                   </h1>
                   <span className="bg-amber-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs animate-pulse">
@@ -102,16 +102,16 @@ export default function PendingOrdersPage() {
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Vérification des numéros et adresses, appels rapides du centre d'appels et confirmation WhatsApp automatique avant expédition.
+                  Vérification des numéros et adresses, appels rapides et confirmation WhatsApp Darija automatique.
                 </p>
               </div>
             </div>
           </div>
 
           {/* Quick Filters */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             {/* Search Input */}
-            <div className="relative min-w-[240px]">
+            <div className="relative flex-1 sm:w-64">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -126,7 +126,7 @@ export default function PendingOrdersPage() {
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-amber-500 shrink-0"
             >
               <option value="ALL">Toutes les villes</option>
               {cities.map((city) => (
@@ -138,7 +138,7 @@ export default function PendingOrdersPage() {
           </div>
         </div>
 
-        {/* Data Table View */}
+        {/* Content Container (Mobile Cards + Desktop Table) */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           {pendingOrders.length === 0 ? (
             <div className="py-16 text-center text-slate-500">
@@ -149,181 +149,280 @@ export default function PendingOrdersPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-700">
-                <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <tr>
-                    <th className="py-3.5 px-4">N° Commande</th>
-                    <th className="py-3.5 px-4">Client & Coordonnées</th>
-                    <th className="py-3.5 px-4">Articles & Total (COD)</th>
-                    <th className="py-3.5 px-4">Vérification Risque IA</th>
-                    <th className="py-3.5 px-4 text-right">Actions & Transfert</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {pendingOrders.map((order) => (
-                    <tr
-                      key={order.id}
-                      className="hover:bg-slate-50/70 transition-colors group"
-                    >
-                      {/* 1. Order ID */}
-                      <td className="py-4 px-4 font-bold text-slate-900 whitespace-nowrap">
-                        <div className="flex flex-col">
-                          <span className="text-xs font-black text-slate-900">
-                            {order.orderNumber}
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
-                            {order.createdAt}
-                          </span>
-                        </div>
-                      </td>
+            <>
+              {/* 1. MOBILE CARDS VIEW (< MD) */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {pendingOrders.map((order) => (
+                  <div key={order.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                    {/* Header Row */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-900">{order.orderNumber}</span>
+                        <span className="text-[10px] text-slate-400 font-medium">{order.createdAt}</span>
+                      </div>
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                        {order.aiVerification?.status === 'CONFIRMED_BY_AI' ? '✓ IA Confirmé' : `Risque ${order.aiVerification?.riskScore || 10}%`}
+                      </span>
+                    </div>
 
-                      {/* 2. Customer Info (Name, Phone, Address) */}
-                      <td className="py-4 px-4">
-                        <div className="space-y-1">
-                          <div className="font-bold text-slate-900 flex items-center gap-1.5">
-                            <span>{order.customer.name}</span>
-                            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-semibold">
-                              {order.customer.city}
+                    {/* Customer & City */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-slate-900">{order.customer.name}</span>
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                          {order.customer.city}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">{order.customer.address}</p>
+                      {order.customer.notes && (
+                        <p className="text-[11px] text-amber-800 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200/60 font-medium">
+                          Note : {order.customer.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Quick Call & WhatsApp Buttons */}
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <a
+                        href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                          `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors active:scale-95"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>WhatsApp Darija</span>
+                      </a>
+
+                      <button
+                        onClick={() => setCallingOrder(order)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold transition-colors active:scale-95"
+                      >
+                        <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
+                        <span>Appel ({order.customer.phone})</span>
+                      </button>
+                    </div>
+
+                    {/* Product & COD amount */}
+                    <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <img
+                          src={order.items[0]?.thumbnail}
+                          alt=""
+                          className="w-10 h-10 rounded-lg object-cover border border-slate-200 shrink-0"
+                        />
+                        <div className="truncate">
+                          <p className="text-xs font-bold text-slate-900 truncate">{order.items[0]?.name}</p>
+                          <span className="text-[10px] text-slate-500">Qté : {order.items[0]?.quantity}</span>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0 pl-2">
+                        <span className="text-xs font-black text-slate-900 font-mono block">{order.payment.amount} MAD</span>
+                        <span className="text-[9px] font-bold text-amber-700 bg-amber-100/60 px-1.5 py-0.2 rounded">COD</span>
+                      </div>
+                    </div>
+
+                    {/* Card Actions Footer */}
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        onClick={() => confirmOrder(order.id)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-colors active:scale-95"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Confirmer ➔ Préparation</span>
+                      </button>
+                      <button
+                        onClick={() => setEditingOrder(order)}
+                        className="p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl border border-slate-200 transition-colors"
+                        title="Modifier"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => setCancellingOrder(order)}
+                        className="p-2.5 text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-200 transition-colors"
+                        title="Annuler"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 2. DESKTOP TABLE VIEW (MD & UP) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    <tr>
+                      <th className="py-3.5 px-4">N° Commande</th>
+                      <th className="py-3.5 px-4">Client & Coordonnées</th>
+                      <th className="py-3.5 px-4">Articles & Total (COD)</th>
+                      <th className="py-3.5 px-4">Vérification Risque IA</th>
+                      <th className="py-3.5 px-4 text-right">Actions & Transfert</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {pendingOrders.map((order) => (
+                      <tr
+                        key={order.id}
+                        className="hover:bg-slate-50/70 transition-colors group"
+                      >
+                        {/* 1. Order ID */}
+                        <td className="py-4 px-4 font-bold text-slate-900 whitespace-nowrap">
+                          <div className="flex flex-col">
+                            <span className="text-xs font-black text-slate-900">
+                              {order.orderNumber}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-medium">
+                              {order.createdAt}
                             </span>
                           </div>
+                        </td>
 
-                          {/* Phone + Action buttons: Call / WhatsApp */}
-                          <div className="flex items-center gap-2 text-[11px] font-medium">
-                            <span className="text-slate-800 font-semibold">{order.customer.phone}</span>
-                            
-                            {/* Direct WhatsApp Darija Confirmation Link */}
-                            <a
-                              href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
-                                `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
-                              )}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors"
-                            >
-                              <MessageSquare className="w-2.5 h-2.5" />
-                              WhatsApp Darija
-                            </a>
-
-                            {/* Call Logger Trigger */}
-                            <button
-                              onClick={() => setCallingOrder(order)}
-                              className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 text-[10px] bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
-                              title="Enregistrer le résultat de l'appel"
-                            >
-                              <PhoneCall className="w-2.5 h-2.5" />
-                              Appel
-                            </button>
-                          </div>
-
-                          <p className="text-[11px] text-slate-500 line-clamp-1 max-w-xs">
-                            {order.customer.address}
-                          </p>
-                          {order.customer.notes && (
-                            <p className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 max-w-xs">
-                              Note : {order.customer.notes}
-                            </p>
-                          )}
-                        </div>
-                      </td>
-
-                      {/* 3. Items / Total (Strictly COD) */}
-                      <td className="py-4 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <img
-                            src={order.items[0]?.thumbnail}
-                            alt=""
-                            className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
-                          />
-                          <div>
-                            <p className="font-bold text-slate-900 line-clamp-1 max-w-[180px]">
-                              {order.items[0]?.name}
-                            </p>
-                            <p className="text-[11px] text-slate-500">
-                              Qté : <strong className="text-slate-800">{order.items[0]?.quantity}</strong> • Total :{' '}
-                              <span className="font-black text-slate-900">
-                                {order.payment.amount} MAD
-                              </span>
-                            </p>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60 mt-0.5">
-                              <Banknote className="w-2.5 h-2.5" />
-                              Paiement à la livraison (COD)
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* 4. AI / Risk Verification */}
-                      <td className="py-4 px-4">
-                        {order.aiVerification ? (
+                        {/* 2. Customer Info (Name, Phone, Address) */}
+                        <td className="py-4 px-4">
                           <div className="space-y-1">
-                            <div className="flex items-center gap-1.5">
-                              {order.aiVerification.status === 'CONFIRMED_BY_AI' ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                                  Confirmé par IA
-                                </span>
-                              ) : order.aiVerification.status === 'VERIFIED' ? (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                  <Check className="w-2.5 h-2.5 text-blue-600" />
-                                  Coordonnées Validées
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                  <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
-                                  Appel Recommandé
-                                </span>
-                              )}
-                              <span className="text-[10px] font-semibold text-slate-400">
-                                Risque {order.aiVerification.riskScore}%
+                            <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                              <span>{order.customer.name}</span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-semibold">
+                                {order.customer.city}
                               </span>
                             </div>
-                            <p className="text-[10px] text-slate-500 line-clamp-1 max-w-xs">
-                              {order.aiVerification.notes}
+
+                            {/* Phone + Action buttons: Call / WhatsApp */}
+                            <div className="flex items-center gap-2 text-[11px] font-medium">
+                              <span className="text-slate-800 font-semibold">{order.customer.phone}</span>
+                              
+                              <a
+                                href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                                  `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors"
+                              >
+                                <MessageSquare className="w-2.5 h-2.5" />
+                                WhatsApp Darija
+                              </a>
+
+                              <button
+                                onClick={() => setCallingOrder(order)}
+                                className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 text-[10px] bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
+                                title="Enregistrer le résultat de l'appel"
+                              >
+                                <PhoneCall className="w-2.5 h-2.5" />
+                                Appel
+                              </button>
+                            </div>
+
+                            <p className="text-[11px] text-slate-500 line-clamp-1 max-w-xs">
+                              {order.customer.address}
                             </p>
+                            {order.customer.notes && (
+                              <p className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 max-w-xs">
+                                Note : {order.customer.notes}
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <span className="text-[11px] text-slate-400">Manuel</span>
-                        )}
-                      </td>
+                        </td>
 
-                      {/* 5. Actions (Confirm Order -> Moves to Processing, Edit, Cancel) */}
-                      <td className="py-4 px-4 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Confirm Order (Primary Workflow Trigger) */}
-                          <button
-                            onClick={() => confirmOrder(order.id)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
-                            title="Confirmer la commande et la transmettre en préparation"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Confirmer ➔ Préparation</span>
-                          </button>
+                        {/* 3. Items / Total (Strictly COD) */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <img
+                              src={order.items[0]?.thumbnail}
+                              alt=""
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-200 shrink-0"
+                            />
+                            <div>
+                              <p className="font-bold text-slate-900 line-clamp-1 max-w-[180px]">
+                                {order.items[0]?.name}
+                              </p>
+                              <p className="text-[11px] text-slate-500">
+                                Qté : <strong className="text-slate-800">{order.items[0]?.quantity}</strong> • Total :{' '}
+                                <span className="font-black text-slate-900">
+                                  {order.payment.amount} MAD
+                                </span>
+                              </p>
+                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60 mt-0.5">
+                                <Banknote className="w-2.5 h-2.5" />
+                                Paiement à la livraison (COD)
+                              </span>
+                            </div>
+                          </div>
+                        </td>
 
-                          {/* Edit Details */}
-                          <button
-                            onClick={() => setEditingOrder(order)}
-                            className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                            title="Modifier les coordonnées du client"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                          </button>
+                        {/* 4. AI / Risk Verification */}
+                        <td className="py-4 px-4">
+                          {order.aiVerification ? (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-1.5">
+                                {order.aiVerification.status === 'CONFIRMED_BY_AI' ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                    Confirmé par IA
+                                  </span>
+                                ) : order.aiVerification.status === 'VERIFIED' ? (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                    <Check className="w-2.5 h-2.5 text-blue-600" />
+                                    Coordonnées Validées
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                    <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
+                                    Appel Recommandé
+                                  </span>
+                                )}
+                                <span className="text-[10px] font-semibold text-slate-400">
+                                  Risque {order.aiVerification.riskScore}%
+                                </span>
+                              </div>
+                              <p className="text-[10px] text-slate-500 line-clamp-1 max-w-xs">
+                                {order.aiVerification.notes}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-[11px] text-slate-400">Manuel</span>
+                          )}
+                        </td>
 
-                          {/* Cancel Order */}
-                          <button
-                            onClick={() => setCancellingOrder(order)}
-                            className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
-                            title="Annuler la commande"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                        {/* 5. Actions */}
+                        <td className="py-4 px-4 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => confirmOrder(order.id)}
+                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
+                              title="Confirmer la commande et la transmettre en préparation"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Confirmer ➔ Préparation</span>
+                            </button>
+
+                            <button
+                              onClick={() => setEditingOrder(order)}
+                              className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
+                              title="Modifier les coordonnées du client"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => setCancellingOrder(order)}
+                              className="p-1.5 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                              title="Annuler la commande"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </div>
       </div>

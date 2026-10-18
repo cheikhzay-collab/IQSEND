@@ -329,20 +329,20 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800">
       
       {/* 1. Global Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 px-6 py-3.5 shadow-2xs">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3.5 shadow-2xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           
           {/* Title & Connectivity Telemetry */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-base font-bold text-slate-900 leading-tight">
+                <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
                   Suivi Logistique & Expéditions Sendit.ma
                 </h1>
-                <p className="text-xs text-slate-500">
+                <p className="text-[11px] sm:text-xs text-slate-500">
                   Pipeline COD en temps réel • Synchronisation Webhooks active
                 </p>
               </div>
@@ -362,39 +362,39 @@ export default function TrackingPage() {
           </div>
 
           {/* Quick Actions & Search */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             {/* Search Input */}
-            <div className="relative min-w-[260px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <div className="relative flex-1 sm:min-w-[240px]">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher (Client, Tél, Code Sendit, Ville)..."
-                className="w-full bg-slate-50 border border-slate-200/90 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                placeholder="Rechercher (Client, Tél, Code Sendit)..."
+                className="w-full bg-slate-50 border border-slate-200/90 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
               />
             </div>
 
             {/* City Filter */}
-            <div className="relative">
+            <div className="relative shrink-0">
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="appearance-none bg-white border border-slate-200/90 rounded-lg px-3 py-1.5 pr-8 text-xs font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+                className="appearance-none bg-white border border-slate-200/90 rounded-xl px-2.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
               >
-                <option value="ALL">Toutes les villes</option>
+                <option value="ALL">Villes</option>
                 {cities.map((city) => (
                   <option key={city} value={city}>
                     {city}
                   </option>
                 ))}
               </select>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
             <button
               onClick={() => {}}
-              className="p-2 border border-slate-200/90 rounded-lg bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors"
+              className="p-2 border border-slate-200/90 rounded-xl bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shrink-0"
               title="Exporter rapport de bord"
             >
               <FileSpreadsheet className="w-4 h-4" />
@@ -404,7 +404,7 @@ export default function TrackingPage() {
       </header>
 
       {/* Main Content Area */}
-      <main className="p-6 space-y-6 max-w-400 mx-auto">
+      <main className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-400 mx-auto pb-20 md:pb-6">
         
         {/* 2. Telemetry KPI Cards */}
         <KpiCards kpis={kpis} />

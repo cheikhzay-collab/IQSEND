@@ -15,7 +15,8 @@ import {
   ArrowRight,
   ShieldAlert,
   Navigation,
-  Sparkles
+  Sparkles,
+  User
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -77,7 +78,7 @@ export default function InTransitOrdersPage() {
       <OrderLifecycleTabs />
 
       {/* Main Content Area */}
-      <div className="p-6 max-w-7xl mx-auto space-y-6">
+      <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
 
         {rescueToast && (
           <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-2 animate-in fade-in">
@@ -89,12 +90,12 @@ export default function InTransitOrdersPage() {
         {/* Header with Title */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
               <Truck className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
+              <div className="flex items-center gap-2">
+                <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
                   3. En cours de livraison
                 </h1>
                 <span className="bg-indigo-100 text-indigo-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
@@ -102,14 +103,14 @@ export default function InTransitOrdersPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Suivi des livreurs en temps réel, sauvetage des colis injoignables via WhatsApp et reprogrammation jusqu'à encaissement du montant COD.
+                Suivi livreurs en direct, sauvetage WhatsApp et reprogrammation jusqu'à encaissement COD.
               </p>
             </div>
           </div>
 
           {/* Quick Filters */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <div className="relative min-w-[220px]">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="relative flex-1 sm:w-60">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -123,18 +124,18 @@ export default function InTransitOrdersPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
             >
-              <option value="ALL">Tous les statuts de livraison</option>
-              <option value="OUT_FOR_DELIVERY">En cours de distribution (Aujourd'hui)</option>
-              <option value="DISPATCHED">En transit hub régional</option>
-              <option value="FAILED_ATTEMPT">Injoignable / Tentative échouée</option>
+              <option value="ALL">Tous les statuts</option>
+              <option value="OUT_FOR_DELIVERY">En cours de distribution</option>
+              <option value="DISPATCHED">En transit hub</option>
+              <option value="FAILED_ATTEMPT">Injoignable / Échoué</option>
             </select>
 
             <select
               value={courierFilter}
               onChange={(e) => setCourierFilter(e.target.value)}
-              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-xs text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500 shrink-0"
             >
               <option value="ALL">Tous les transporteurs</option>
               <option value="Sendit.ma Express">Sendit.ma Express</option>
@@ -156,7 +157,105 @@ export default function InTransitOrdersPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <>
+              {/* 1. MOBILE CARDS VIEW (< MD) */}
+              <div className="md:hidden divide-y divide-slate-100">
+                {inTransitOrders.map((order) => (
+                  <div key={order.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="text-xs font-black text-slate-900 block">{order.orderNumber}</span>
+                        <span className="text-sm font-bold text-slate-900">{order.customer.name}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs font-black text-slate-900 font-mono block">{order.payment.amount} MAD</span>
+                        <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
+                          {order.customer.city}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {order.shipping?.liveStatus === 'OUT_FOR_DELIVERY' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-800 border border-blue-200">
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                          En tournée de livraison
+                        </span>
+                      ) : order.shipping?.liveStatus === 'FAILED_ATTEMPT' ? (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-800 border border-rose-200 animate-pulse">
+                          <AlertTriangle className="w-3 h-3 text-rose-600" />
+                          Client Injoignable
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700">
+                          En transit hub
+                        </span>
+                      )}
+
+                      <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-800 font-bold border border-slate-200">
+                        <span>{order.shipping?.courier} : {order.shipping?.trackingNumber}</span>
+                      </div>
+                    </div>
+
+                    {order.shipping?.driverName && (
+                      <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="font-semibold text-slate-800">Livreur : {order.shipping.driverName}</span>
+                        </div>
+                        {order.shipping.driverPhone && (
+                          <a
+                            href={`tel:${order.shipping.driverPhone}`}
+                            className="text-blue-700 font-bold flex items-center gap-1 text-[11px] bg-blue-50 px-2 py-0.5 rounded-lg border border-blue-200"
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>Appeler</span>
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {order.shipping?.liveStatus === 'FAILED_ATTEMPT' && (
+                      <button
+                        onClick={() => handleRescueWhatsApp(order)}
+                        className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-300 text-xs font-bold transition-colors"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-rose-600" />
+                        <span>🤖 Sauvetage WhatsApp Darija (Relancer)</span>
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button
+                        onClick={() => setTrackingModalOrder(order)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span>Suivi Sendit</span>
+                      </button>
+
+                      <button
+                        onClick={() => setReschedulingOrder(order)}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                        <span>Reprogrammer</span>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={() => markDelivered(order.id)}
+                      className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors active:scale-95"
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Livré & Encaissé ({order.payment.amount} MAD)</span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* 2. DESKTOP TABLE VIEW (MD & UP) */}
+              <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-left text-xs text-slate-700">
                 <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                   <tr>
@@ -328,6 +427,7 @@ export default function InTransitOrdersPage() {
                 </tbody>
               </table>
             </div>
+          </>
           )}
         </div>
       </div>

@@ -310,41 +310,43 @@ export function OrdersBoard() {
     addOrder(newLifecycle);
   };
 
+  const [selectedMobileStage, setSelectedMobileStage] = useState<LifecycleStage | 'ALL'>('ALL');
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-10">
       {/* TOP ACTION TOOLBAR */}
-      <div className="h-16 px-6 bg-white border-b border-slate-200/80 flex items-center justify-between relative z-10 shadow-2xs">
+      <div className="px-4 py-3 md:px-6 md:h-16 bg-white border-b border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative z-10 shadow-2xs">
         {/* Left: Back Arrow + Page Title + Setup Guide */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
             title="Retour"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-black text-slate-900 tracking-tight">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight truncate">
                 Vue Kanban des Commandes
               </h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white">
-                Cycle COD 4 Étapes
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white shrink-0">
+                4 Étapes COD
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">
+            <p className="text-[11px] text-slate-500 font-medium truncate hidden sm:block">
               Glissez et déposez les commandes entre les 4 étapes du cycle logistique
             </p>
           </div>
         </div>
 
         {/* Right Action Bar */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
           {/* New Order Button */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 transition-colors shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Nouvelle commande</span>
@@ -402,18 +404,18 @@ export function OrdersBoard() {
       </div>
 
       {/* MAIN CONTENT AREA */}
-      <div className="p-6">
+      <div className="p-3 md:p-6">
         {/* Search & Filter Bar */}
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
-          <div className="flex items-center gap-3 flex-1 min-w-[280px]">
+        <div className="mb-4 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 md:p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 flex-1 min-w-0">
             {/* Search Input */}
-            <div className="relative flex-1 max-w-md">
+            <div className="relative flex-1">
               <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher par N° commande, client, ville, téléphone, article..."
+                placeholder="Rechercher par N° commande, client, ville, tél..."
                 className="w-full pl-9 pr-3 py-1.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-teal-600 shadow-2xs font-medium transition-colors"
               />
             </div>
@@ -422,7 +424,7 @@ export function OrdersBoard() {
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="text-xs py-1.5 px-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold focus:outline-teal-600 shadow-2xs"
+              className="text-xs py-1.5 px-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold focus:outline-teal-600 shadow-2xs shrink-0"
             >
               <option value="ALL">Toutes les villes ({cities.length})</option>
               {cities.map((city) => (
@@ -434,23 +436,68 @@ export function OrdersBoard() {
           </div>
 
           {/* Real-time Metrics summary */}
-          <div className="flex items-center gap-3 text-xs font-semibold text-slate-600">
+          <div className="flex items-center justify-between sm:justify-end gap-2 text-xs font-semibold text-slate-600 shrink-0">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 border border-slate-200">
-              <span className="text-slate-500">Commandes actives:</span>
+              <span className="text-slate-500">Actives:</span>
               <strong className="text-slate-900">{filteredOrders.length}</strong>
             </div>
 
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800">
-              <span>Valeur pipeline:</span>
+              <span>Pipeline:</span>
               <strong className="font-mono">{totalAmount.toLocaleString()} MAD</strong>
             </div>
           </div>
         </div>
 
-        {/* ── KANBAN VIEW (4 MAIN STAGES FROM THE RED BOX) ── */}
+        {/* ── MOBILE STAGE SEGMENTED TABS (< MD) ── */}
+        <div className="md:hidden flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-3 mb-2">
+          <button
+            onClick={() => setSelectedMobileStage('ALL')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all ${
+              selectedMobileStage === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white text-slate-600 border border-slate-200'
+            }`}
+          >
+            Tous ({filteredOrders.length})
+          </button>
+          {COLUMNS_CONFIG.map((col) => {
+            const isSelected = selectedMobileStage === col.id;
+            const count = filteredOrders.filter((o) => o.status === col.id).length;
+            return (
+              <button
+                key={col.id}
+                onClick={() => setSelectedMobileStage(col.id)}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold shrink-0 transition-all border ${
+                  isSelected
+                    ? col.pillBg + ' ' + col.textColor + ' ' + col.pillBorder + ' shadow-xs ring-1 ring-slate-900/5'
+                    : 'bg-white text-slate-600 border-slate-200'
+                }`}
+              >
+                <span className={`w-4 h-4 rounded-md flex items-center justify-center text-[9px] font-black ${col.stepBg}`}>
+                  {col.step}
+                </span>
+                <span>
+                  {col.id === 'PENDING_CONFIRMATION'
+                    ? 'À vérifier'
+                    : col.id === 'PROCESSING'
+                    ? 'Préparation'
+                    : col.id === 'IN_TRANSIT'
+                    ? 'En livraison'
+                    : 'Livrées'}
+                </span>
+                <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${col.counterBg}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── KANBAN VIEW (4 MAIN STAGES) ── */}
         {activeView === 'kanban' && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start select-none">
-            {COLUMNS_CONFIG.map((col) => {
+            {COLUMNS_CONFIG.filter((col) => selectedMobileStage === 'ALL' || col.id === selectedMobileStage).map((col) => {
               const colOrders = filteredOrders.filter((o) => o.status === col.id);
               const colTotal = colOrders.reduce((sum, o) => sum + o.amount, 0);
               const isTarget = dragOverColumn === col.id;

@@ -15,12 +15,8 @@ import {
   Puzzle,
   Folder,
   Megaphone,
-  LayoutTemplate,
-  Tag,
-  Receipt,
   Settings,
   ChevronDown,
-  ChevronRight,
   Search,
   Sparkles,
   MessageSquare,
@@ -32,22 +28,28 @@ import {
   FileText,
   ShoppingCart,
   Star,
-  Check,
-  X
+  Menu,
+  X,
+  Compass,
+  ArrowRight
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [marketingOpen, setMarketingOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
   const {
     pendingCount,
     processingCount,
     inTransitCount,
     completedCount,
     toast,
-    clearToast
+    clearToast,
   } = useOrderLifecycle();
 
   const isOrdersActive =
@@ -55,27 +57,131 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/dashboard/orders') ||
     pathname === '/';
 
+  // Navigation Links Definition
+  const mainNavItems = [
+    {
+      label: 'Tableau de bord',
+      href: '/dashboard',
+      icon: Home,
+      exact: true,
+    },
+    {
+      label: 'Centres d\'appels',
+      href: '/dashboard/call-center',
+      icon: Headphones,
+    },
+    {
+      label: 'Produits & Stock',
+      href: '/dashboard/products',
+      icon: Package,
+    },
+    {
+      label: 'Clients',
+      href: '/dashboard/customers',
+      icon: Users,
+    },
+    {
+      label: 'Messagerie (WhatsApp)',
+      href: '/dashboard/inbox',
+      icon: Inbox,
+      badge: 4,
+      isWhatsapp: true,
+    },
+    {
+      label: 'Agents IA (Gemini)',
+      href: '/dashboard/ai-agents',
+      icon: Bot,
+      highlight: true,
+    },
+    {
+      label: 'Automatisations',
+      href: '/dashboard/automations',
+      icon: Zap,
+    },
+    {
+      label: 'Intégrations',
+      href: '/dashboard/integrations',
+      icon: Puzzle,
+    },
+    {
+      label: 'Suivi Chauffeurs Sendit',
+      href: '/dashboard/tracking',
+      icon: Truck,
+    },
+    {
+      label: 'Contenu & Templates',
+      href: '/dashboard/content',
+      icon: Folder,
+    },
+  ];
+
+  const orderStages = [
+    {
+      label: '1. En attente',
+      href: '/dashboard/orders/pending',
+      icon: ClipboardCheck,
+      count: pendingCount,
+      countClass: 'bg-amber-500 text-white animate-pulse',
+      activeClass: 'bg-amber-50 text-amber-900 font-bold',
+      iconColor: 'text-amber-600',
+    },
+    {
+      label: '2. En préparation',
+      href: '/dashboard/orders/processing',
+      icon: Package,
+      count: processingCount,
+      countClass: 'bg-blue-100 text-blue-700 font-bold',
+      activeClass: 'bg-blue-50 text-blue-900 font-bold',
+      iconColor: 'text-blue-600',
+    },
+    {
+      label: '3. En livraison',
+      href: '/dashboard/orders/in-transit',
+      icon: Truck,
+      count: inTransitCount,
+      countClass: 'bg-indigo-100 text-indigo-700 font-bold',
+      activeClass: 'bg-indigo-50 text-indigo-900 font-bold',
+      iconColor: 'text-indigo-600',
+    },
+    {
+      label: '4. Livrées & Encaissées',
+      href: '/dashboard/orders/completed',
+      icon: CheckCircle2,
+      count: completedCount,
+      countClass: 'bg-emerald-100 text-emerald-700 font-bold',
+      activeClass: 'bg-emerald-50 text-emerald-900 font-bold',
+      iconColor: 'text-emerald-600',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-800">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-800 antialiased selection:bg-teal-500 selection:text-white">
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 1. TOP GLOBAL NAVIGATION BAR (DESKTOP + MOBILE)              */}
+      {/* ───────────────────────────────────────────────────────────── */}
       
-      {/* 1. TOP GLOBAL NAVIGATION BAR (EGROW STYLE) */}
-      <header className="h-14 bg-white border-b border-slate-200/80 px-4 flex items-center justify-between sticky top-0 z-40">
-        
-        {/* Left: Brand Logo & Search */}
+      {/* 1A. DESKTOP HEADER (MD & UP) */}
+      <header className="hidden md:flex h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-5 items-center justify-between sticky top-0 z-40 transition-shadow duration-200 shadow-2xs">
+        {/* Left: Brand Logo & Global Search */}
         <div className="flex items-center gap-6">
-          {/* Logo */}
-          <Link href="/dashboard/orders" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+          <Link href="/dashboard/orders" className="flex items-center gap-2.5 group">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
               ◧
             </div>
-            <span className="font-black text-lg tracking-tight text-slate-900">
-              EGROW
-            </span>
+            <div className="flex flex-col">
+              <span className="font-black text-base tracking-tight text-slate-900 leading-none">
+                SENDIT <span className="text-teal-600 font-extrabold text-xs ml-0.5">COD</span>
+              </span>
+              <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                Logistique Maroc
+              </span>
+            </div>
           </Link>
 
           {/* Search bar with ⌘K & Scan icon */}
           <div
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all w-80 bg-slate-50/60 ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all w-80 bg-slate-50/70 ${
               searchFocused
                 ? 'border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-xs'
                 : 'border-slate-200 hover:border-slate-300'
@@ -84,13 +190,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <Search className="w-3.5 h-3.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Rechercher commandes, clients, colis..."
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               className="bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none flex-1 font-medium"
             />
             <div className="flex items-center gap-1">
-              <span className="text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200">
+              <span className="text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
                 ⌘ K
               </span>
               <Scan className="w-3.5 h-3.5 text-slate-400 cursor-pointer hover:text-slate-600" />
@@ -98,7 +204,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Right: Team Avatars, Balance, Icons, Workspace */}
+        {/* Right: Team, Balance, Assistant IA, Messages, Notifications, Workspace */}
         <div className="flex items-center gap-3">
           {/* Team Members Overlapping Avatars */}
           <div className="flex items-center -space-x-1.5">
@@ -121,31 +227,43 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
 
           {/* Balance Pill */}
-          <div className="px-2.5 py-1 rounded-full border border-amber-200 bg-amber-50/60 text-amber-700 text-xs font-bold">
+          <div className="px-3 py-1 rounded-full border border-amber-200 bg-amber-50/70 text-amber-800 text-xs font-black shadow-2xs flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
             240.00 MAD
           </div>
 
           {/* AI Sparkles */}
-          <button className="p-1.5 text-slate-400 hover:text-teal-600 transition-colors" title="Assistant IA">
+          <Link
+            href="/dashboard/ai-agents"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+            title="Assistant IA Gemini"
+          >
             <Sparkles className="w-4 h-4 text-slate-500 hover:text-teal-600" />
-          </button>
+          </Link>
 
           {/* Messages with notification dot */}
-          <button className="p-1.5 text-slate-500 hover:text-slate-800 relative transition-colors" title="Messagerie">
+          <Link
+            href="/dashboard/inbox"
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 relative transition-colors"
+            title="Messagerie WhatsApp"
+          >
             <MessageSquare className="w-4 h-4" />
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-1 right-1" />
-          </button>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1 right-1 ring-2 ring-white animate-pulse" />
+          </Link>
 
           {/* Bell Notifications with count badge (38) */}
-          <button className="p-1.5 text-slate-500 hover:text-slate-800 relative transition-colors" title="Notifications">
+          <button
+            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 relative transition-colors"
+            title="Notifications"
+          >
             <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black px-1 rounded-full">
+            <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full shadow-2xs">
               38
             </span>
           </button>
 
-          {/* Workspace Selector (ATLAS) */}
-          <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200 cursor-pointer">
+          {/* Workspace Selector */}
+          <div className="flex items-center gap-2 pl-3 border-l border-slate-200 cursor-pointer hover:opacity-80 transition-opacity">
             <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
               AT
             </div>
@@ -153,27 +271,306 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <ChevronDown className="w-3 h-3 text-slate-400" />
           </div>
         </div>
-
       </header>
 
-      {/* 2. BODY: SIDEBAR + MAIN CONTENT */}
-      <div className="flex-1 flex">
+      {/* 1B. MOBILE APP HEADER (< MD) */}
+      <header className="md:hidden h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 flex items-center justify-between sticky top-0 z-40 shadow-2xs">
+        {/* Left: Hamburger Button + Brand */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 -ml-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors active:scale-95"
+            aria-label="Ouvrir le menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+
+          <Link href="/dashboard" className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+              ◧
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="font-black text-sm tracking-tight text-slate-900">
+                SENDIT
+              </span>
+              <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-1.5 py-0.2 rounded">
+                COD
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Right: Quick Search, Balance Chip & Notification */}
+        <div className="flex items-center gap-2">
+          {/* Quick search button */}
+          <button
+            onClick={() => setMobileSearchOpen(true)}
+            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+            aria-label="Recherche rapide"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
+          {/* Mobile Balance Chip */}
+          <div className="px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 text-[10px] font-black">
+            240 DH
+          </div>
+
+          {/* Notifications bell */}
+          <Link
+            href="/dashboard/inbox"
+            className="p-1.5 text-slate-600 hover:text-slate-900 relative rounded-xl"
+          >
+            <Bell className="w-4 h-4" />
+            <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-1 ring-2 ring-white" />
+          </Link>
+        </div>
+      </header>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 2. MOBILE QUICK SEARCH OVERLAY                                 */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mobileSearchOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex flex-col p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 max-w-lg w-full mx-auto space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <div className="flex items-center gap-2">
+                <Search className="w-4 h-4 text-teal-600" />
+                <h3 className="font-bold text-xs text-slate-900">Recherche Mobile Rapide</h3>
+              </div>
+              <button
+                onClick={() => setMobileSearchOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="relative">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="N° commande, client, ville, téléphone..."
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-teal-600 focus:bg-white"
+              />
+            </div>
+
+            <div className="pt-1 flex flex-wrap gap-1.5">
+              <Link
+                href="/dashboard/orders/pending"
+                onClick={() => setMobileSearchOpen(false)}
+                className="text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg"
+              >
+                1. À confirmer ({pendingCount})
+              </Link>
+              <Link
+                href="/dashboard/orders/processing"
+                onClick={() => setMobileSearchOpen(false)}
+                className="text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg"
+              >
+                2. En préparation ({processingCount})
+              </Link>
+              <Link
+                href="/dashboard/orders/in-transit"
+                onClick={() => setMobileSearchOpen(false)}
+                className="text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-lg"
+              >
+                3. En livraison ({inTransitCount})
+              </Link>
+              <Link
+                href="/dashboard/inbox"
+                onClick={() => setMobileSearchOpen(false)}
+                className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg"
+              >
+                💬 WhatsApp Inbox
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 3. MOBILE SLIDE-OVER DRAWER MENU (< MD)                        */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity animate-in fade-in duration-200"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          {/* Drawer Body */}
+          <div className="fixed inset-y-0 left-0 max-w-[85vw] w-72 bg-white shadow-2xl flex flex-col justify-between z-50 animate-in slide-in-from-left duration-200">
+            {/* Drawer Header */}
+            <div>
+              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2"
+                >
+                  <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-xs">
+                    ◧
+                  </div>
+                  <div>
+                    <h2 className="font-black text-sm text-slate-900">SENDIT COD</h2>
+                    <p className="text-[10px] text-slate-400">Navigation Complète</p>
+                  </div>
+                </Link>
+
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
+                  aria-label="Fermer le menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Navigation Links Scrollable */}
+              <div className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+                {/* 1. Home */}
+                <Link
+                  href="/dashboard"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                    pathname === '/dashboard'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <Home className="w-4 h-4 shrink-0" />
+                  <span>Tableau de bord</span>
+                </Link>
+
+                {/* 2. Orders with sub-stages */}
+                <div className="pt-1">
+                  <Link
+                    href="/dashboard/orders"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                      isOrdersActive
+                        ? 'bg-teal-50 text-teal-950 font-black border border-teal-200/80'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <ShoppingBag className="w-4 h-4 text-teal-700 shrink-0" />
+                      <span>Toutes les Commandes</span>
+                    </div>
+                    {pendingCount > 0 && (
+                      <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* 4 Stages Submenu */}
+                  <div className="ml-4 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
+                    {orderStages.map((stage) => {
+                      const Icon = stage.icon;
+                      const isActive = pathname === stage.href;
+                      return (
+                        <Link
+                          key={stage.href}
+                          href={stage.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
+                            isActive
+                              ? stage.activeClass
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
+                            <span className="truncate">{stage.label}</span>
+                          </div>
+                          {stage.count > 0 && (
+                            <span
+                              className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${stage.countClass}`}
+                            >
+                              {stage.count}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Other Main Links */}
+                <div className="pt-2 border-t border-slate-100 space-y-1">
+                  {mainNavItems.slice(1).map((item) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                          isActive
+                            ? 'bg-slate-100 text-slate-900 font-bold'
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon className={`w-4 h-4 ${item.highlight ? 'text-teal-600' : 'text-slate-500'}`} />
+                          <span className={item.highlight ? 'font-bold text-teal-900' : ''}>
+                            {item.label}
+                          </span>
+                        </div>
+                        {item.badge && (
+                          <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Drawer Footer */}
+            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setMobileMenuOpen(false)}
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+              >
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Paramètres & Passerelles</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 4. DESKTOP SIDEBAR + MAIN CONTENT AREA                         */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <div className="flex-1 flex min-w-0">
         
-        {/* SIDEBAR (EGROW STYLE) */}
-        <aside className="w-56 bg-white border-r border-slate-200 flex flex-col justify-between shrink-0">
+        {/* DESKTOP SIDEBAR (MD & UP) */}
+        <aside className="hidden md:flex w-56 lg:w-60 bg-white border-r border-slate-200/90 flex-col justify-between shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] shadow-2xs">
           
-          <div className="p-3 space-y-1">
+          <div className="p-3 space-y-1 overflow-y-auto">
             
             {/* Home */}
             <Link
               href="/dashboard"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 pathname === '/dashboard'
-                  ? 'bg-slate-100 text-slate-900'
+                  ? 'bg-slate-900 text-white font-bold shadow-xs'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Home className="w-4 h-4 text-slate-500" />
+              <Home className="w-4 h-4" />
               <span>Tableau de bord</span>
             </Link>
 
@@ -183,12 +580,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 href="/dashboard/orders"
                 className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   isOrdersActive
-                    ? 'bg-[#edf2f7] text-slate-900 font-bold'
+                    ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200/60'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <ShoppingBag className="w-4 h-4 text-slate-700" />
+                  <ShoppingBag className="w-4 h-4 text-teal-700" />
                   <span>Commandes</span>
                 </div>
                 {pendingCount > 0 && (
@@ -198,117 +595,41 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 )}
               </Link>
 
-              {/* Submenu for Orders */}
+              {/* Submenu for Orders (Desktop) */}
               {isOrdersActive && (
                 <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
-                  {/* 1. Pending Confirmation */}
-                  <Link
-                    href="/dashboard/orders/pending"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/pending'
-                        ? 'bg-amber-50 text-amber-900 font-bold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <ClipboardCheck
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          pathname === '/dashboard/orders/pending'
-                            ? 'text-amber-600'
-                            : 'text-slate-400'
+                  {orderStages.map((stage) => {
+                    const Icon = stage.icon;
+                    const isActive = pathname === stage.href;
+                    return (
+                      <Link
+                        key={stage.href}
+                        href={stage.href}
+                        className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                          isActive
+                            ? stage.activeClass
+                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
                         }`}
-                      />
-                      <span className="truncate">1. En attente</span>
-                    </div>
-                    {pendingCount > 0 && (
-                      <span className="shrink-0 ml-1.5 bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs animate-pulse">
-                        {pendingCount}
-                      </span>
-                    )}
-                  </Link>
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
+                          <span className="truncate">{stage.label}</span>
+                        </div>
+                        {stage.count > 0 && (
+                          <span
+                            className={`shrink-0 ml-1.5 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs ${stage.countClass}`}
+                          >
+                            {stage.count}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
 
-                  {/* 2. Processing (قيد التجهيز) */}
-                  <Link
-                    href="/dashboard/orders/processing"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/processing'
-                        ? 'bg-blue-50 text-blue-900 font-bold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Package
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          pathname === '/dashboard/orders/processing'
-                            ? 'text-blue-600'
-                            : 'text-slate-400'
-                        }`}
-                      />
-                      <span className="truncate">2. En préparation</span>
-                    </div>
-                    {processingCount > 0 && (
-                      <span className="shrink-0 ml-1.5 text-slate-400 text-[10px] font-semibold">
-                        {processingCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {/* 3. In Transit */}
-                  <Link
-                    href="/dashboard/orders/in-transit"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/in-transit'
-                        ? 'bg-indigo-50 text-indigo-900 font-bold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Truck
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          pathname === '/dashboard/orders/in-transit'
-                            ? 'text-indigo-600'
-                            : 'text-slate-400'
-                        }`}
-                      />
-                      <span className="truncate">3. En livraison</span>
-                    </div>
-                    {inTransitCount > 0 && (
-                      <span className="shrink-0 ml-1.5 text-blue-600 text-[10px] font-semibold bg-blue-50 px-1.5 py-0.5 rounded-full">
-                        {inTransitCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {/* 4. Completed */}
-                  <Link
-                    href="/dashboard/orders/completed"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/completed'
-                        ? 'bg-emerald-50 text-emerald-900 font-bold'
-                        : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <CheckCircle2
-                        className={`w-3.5 h-3.5 shrink-0 ${
-                          pathname === '/dashboard/orders/completed'
-                            ? 'text-emerald-600'
-                            : 'text-slate-400'
-                        }`}
-                      />
-                      <span className="truncate">4. Livrées & Encaissées</span>
-                    </div>
-                    {completedCount > 0 && (
-                      <span className="shrink-0 ml-1.5 text-emerald-600 text-[10px] font-semibold bg-emerald-50 px-1.5 py-0.5 rounded-full">
-                        {completedCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {/* Divider separating lifecycle from secondary pages */}
+                  {/* Divider */}
                   <div className="my-1.5 border-t border-slate-200/70" />
 
-                  {/* 5. Drafts */}
+                  {/* Drafts */}
                   <Link
                     href="/dashboard/orders/drafts"
                     className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -321,7 +642,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     <span>Brouillons</span>
                   </Link>
 
-                  {/* 6. Abandoned Carts */}
+                  {/* Abandoned Carts */}
                   <Link
                     href="/dashboard/orders/abandoned"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -339,7 +660,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   </Link>
 
-                  {/* 7. Reviews */}
+                  {/* Reviews */}
                   <Link
                     href="/dashboard/orders/reviews"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -360,7 +681,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Centers */}
+            {/* Other Sidebar Links */}
             <Link
               href="/dashboard/call-center"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -373,7 +694,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Centres d'appels</span>
             </Link>
 
-            {/* Products */}
             <Link
               href="/dashboard/products"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -386,7 +706,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Produits & Stock</span>
             </Link>
 
-            {/* Customers */}
             <Link
               href="/dashboard/customers"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -399,17 +718,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Clients</span>
             </Link>
 
-            {/* Inbox with Clean Aligned WhatsApp Badge */}
+            {/* Inbox WhatsApp */}
             <Link
               href="/dashboard/inbox"
               className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 pathname === '/dashboard/inbox'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <div className="flex items-center gap-3">
-                <Inbox className="w-4 h-4 text-slate-500" />
+                <Inbox className="w-4 h-4 text-emerald-600" />
                 <span>Messagerie</span>
               </div>
               <div className="flex items-center gap-1.5">
@@ -427,15 +746,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               href="/dashboard/ai-agents"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 pathname === '/dashboard/ai-agents'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Bot className="w-4 h-4 text-slate-500" />
+              <Bot className="w-4 h-4 text-teal-600" />
               <span>Agents IA</span>
             </Link>
 
-            {/* Automations */}
             <Link
               href="/dashboard/automations"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -448,7 +766,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Automatisations</span>
             </Link>
 
-            {/* Integrations */}
             <Link
               href="/dashboard/integrations"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -461,17 +778,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Intégrations</span>
             </Link>
 
-            {/* Content */}
             <Link
-              href="/dashboard/content"
+              href="/dashboard/tracking"
               className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/content'
+                pathname === '/dashboard/tracking'
                   ? 'bg-slate-100 text-slate-900 font-bold'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Folder className="w-4 h-4 text-slate-500" />
-              <span>Contenu</span>
+              <Truck className="w-4 h-4 text-slate-500" />
+              <span>Suivi Chauffeurs</span>
             </Link>
 
             {/* Marketing (Collapsible) */}
@@ -511,9 +827,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Link href="/dashboard/content" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
                     Modèles de Vente
                   </Link>
-                  <Link href="/dashboard/ai-agents" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
-                    Promotions & Upsells
-                  </Link>
                   <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
                     Dépenses & ROI
                   </Link>
@@ -523,20 +836,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
           </div>
 
-          {/* Bottom Sidebar: Book a Setup Call Card & Settings */}
-          <div className="p-3 space-y-2 border-t border-slate-100">
-            {/* Book a Setup Call Card (Teal Banner) */}
+          {/* Bottom Sidebar: Dedicated Support Card & Settings */}
+          <div className="p-3 space-y-2 border-t border-slate-100 bg-slate-50/40">
             <div className="bg-[#135d54] text-white p-3.5 rounded-2xl shadow-sm">
               <h4 className="font-bold text-xs">Assistance & Support Dédié</h4>
               <p className="text-[10px] text-teal-100 mt-1 leading-tight">
-                Accompagnement expert pour votre logistique COD
+                Accompagnement expert pour votre logistique COD Maroc
               </p>
             </div>
 
-            {/* Settings */}
             <Link
               href="/dashboard/settings"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
             >
               <Settings className="w-4 h-4 text-slate-500" />
               <span>Paramètres</span>
@@ -545,21 +856,97 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         </aside>
 
-        {/* MAIN VIEW CONTENT */}
-        <main className="flex-1 overflow-x-auto">
+        {/* MAIN VIEW CONTENT CONTAINER */}
+        <main className="flex-1 min-w-0 overflow-x-auto pb-20 md:pb-6">
           {children}
         </main>
 
       </div>
 
-      {/* Floating Action Toast */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 5. NATIVE MOBILE APP BOTTOM NAVIGATION BAR (< MD)             */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-slate-200/90 shadow-app-bottom px-2 py-1.5 flex items-center justify-around pb-safe">
+        
+        {/* Tab 1: Home */}
+        <Link
+          href="/dashboard"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+            pathname === '/dashboard'
+              ? 'text-slate-950 font-bold scale-105'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Home className={`w-5 h-5 ${pathname === '/dashboard' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px]">Accueil</span>
+        </Link>
+
+        {/* Tab 2: Orders */}
+        <Link
+          href="/dashboard/orders"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
+            isOrdersActive
+              ? 'text-teal-700 font-bold scale-105'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <ShoppingBag className={`w-5 h-5 ${isOrdersActive ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px]">Commandes</span>
+          {pendingCount > 0 && (
+            <span className="absolute -top-0.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-pulse">
+              {pendingCount}
+            </span>
+          )}
+        </Link>
+
+        {/* Tab 3: WhatsApp Inbox */}
+        <Link
+          href="/dashboard/inbox"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
+            pathname === '/dashboard/inbox'
+              ? 'text-emerald-700 font-bold scale-105'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <MessageSquare className={`w-5 h-5 ${pathname === '/dashboard/inbox' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px]">Messages</span>
+          <span className="absolute -top-0.5 right-2 w-2 h-2 rounded-full bg-[#25D366] ring-2 ring-white" />
+        </Link>
+
+        {/* Tab 4: AI Agents */}
+        <Link
+          href="/dashboard/ai-agents"
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+            pathname === '/dashboard/ai-agents'
+              ? 'text-teal-700 font-bold scale-105'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Bot className={`w-5 h-5 ${pathname === '/dashboard/ai-agents' ? 'stroke-[2.5]' : ''}`} />
+          <span className="text-[10px]">Agents IA</span>
+        </Link>
+
+        {/* Tab 5: Menu / More */}
+        <button
+          onClick={() => setMobileMenuOpen(true)}
+          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl text-slate-500 hover:text-slate-800 active:scale-95 transition-all"
+        >
+          <Menu className="w-5 h-5" />
+          <span className="text-[10px]">Menu</span>
+        </button>
+
+      </nav>
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 6. FLOATING ACTION TOAST                                      */}
+      {/* ───────────────────────────────────────────────────────────── */}
       {toast && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-xl text-xs font-medium border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-          <span>{toast.message}</span>
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-2xl text-xs font-medium border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
+          <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
+          <span className="line-clamp-2">{toast.message}</span>
           <button
             onClick={clearToast}
-            className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors ml-2"
+            className="p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors ml-auto shrink-0"
           >
             <X className="w-3.5 h-3.5" />
           </button>
