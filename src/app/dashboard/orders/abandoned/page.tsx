@@ -85,7 +85,9 @@ export default function AbandonedCartsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      <OrderLifecycleTabs />
+      <div className="md:hidden">
+        <OrderLifecycleTabs />
+      </div>
 
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

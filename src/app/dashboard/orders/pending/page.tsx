@@ -76,11 +76,12 @@ export default function PendingOrdersPage() {
     }
     setCallingOrder(null);
   };
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      {/* Top Lifecycle Navigation Tabs */}
-      <OrderLifecycleTabs />
+      {/* Top Lifecycle Navigation Tabs (Mobile only - on desktop it is in the top header) */}
+      <div className="md:hidden">
+        <OrderLifecycleTabs />
+      </div>
 
       {/* Main Content View */}
       <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
