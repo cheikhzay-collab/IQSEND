@@ -222,123 +222,224 @@ export async function processCustomerWhatsAppMessage(
       requiresHumanHandover: true,
     };
   }
-  const systemInstruction = buildMoroccanSystemPrompt(context);
+  const apiKey = process.env.GEMINI_API_KEY;
+  const isKeyConfigured = apiKey && apiKey !== 'votre_cle_gemini_ici' && apiKey.length > 10;
 
-  const model = genAI.getGenerativeModel({
-    model: 'gemini-1.5-flash',
-    systemInstruction: systemInstruction,
-    generationConfig: {
-      temperature: 0.3,
-    },
-    tools: [
-      {
-        functionDeclarations: [
-          confirmOrderAndAddressDeclaration,
-          updateOrderDetailsDeclaration,
-          saveGpsLocationDeclaration,
-          cancelOrderDeclaration,
-          requestHumanHandoverDeclaration,
-        ],
-      },
-    ],
-  });
-
-  // Transform conversation history into Gemini format
-  const chatHistory = context.conversationHistory.map((msg) => ({
-    role: msg.sender === 'CUSTOMER' ? 'user' : 'model',
-    parts: [{ text: msg.body }],
-  }));
-
-  const chat = model.startChat({
-    history: chatHistory,
-  });
-
-  const response = await chat.sendMessage(incomingMessage);
-  const candidate = response.response.candidates?.[0];
-
-  let replyText = '';
-  try {
-    replyText = response.response.text();
-  } catch {
-    // text() may throw if model returned only functionCalls
+  if (!isKeyConfigured) {
+    console.log('[AI Agent] No valid GEMINI_API_KEY found, running Moroccan Darija Rules Engine.');
+    return await processWithRulesFallback(incomingMessage, context, databaseHandler);
   }
 
-  let toolCalled: string | undefined = undefined;
-  let requiresHumanHandover = false;
+  try {
+    const systemInstruction = buildMoroccanSystemPrompt(context);
 
-  // Handle function calls if triggered by Gemini
-  const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: systemInstruction,
+      generationConfig: {
+        temperature: 0.3,
+      },
+      tools: [
+        {
+          functionDeclarations: [
+            confirmOrderAndAddressDeclaration,
+            updateOrderDetailsDeclaration,
+            saveGpsLocationDeclaration,
+            cancelOrderDeclaration,
+            requestHumanHandoverDeclaration,
+          ],
+        },
+      ],
+    });
 
-  if (functionCalls && functionCalls.length > 0) {
-    const call = functionCalls[0];
-    if (call) {
-      toolCalled = call.name;
-      const args = (call.args || {}) as Record<string, any>;
+    // Transform conversation history into Gemini format
+    const chatHistory = context.conversationHistory.map((msg) => ({
+      role: msg.sender === 'CUSTOMER' ? 'user' : 'model',
+      parts: [{ text: msg.body }],
+    }));
 
-      switch (call.name) {
-        case 'confirm_order_and_address':
-          await databaseHandler.onConfirm({
-            orderId: context.orderId,
-            verifiedCity: args.verifiedCity || context.city,
-            verifiedAddress: args.verifiedAddress || context.address,
-            deliveryNotes: args.deliveryNotes,
-          });
-          if (!replyText) {
-            replyText = `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك تأكد وغادي نجهزو الكولية في أقرب وقت. الموزع ديال Sendit غيتواصل معاك فاش تكون الكولية قريبة لـ ${args.verifiedCity || context.city}. يومك سعيد! 📦✨`;
-          }
-          break;
+    const chat = model.startChat({
+      history: chatHistory,
+    });
 
-        case 'update_order_details':
-          await databaseHandler.onUpdateDetails({
-            orderId: context.orderId,
-            newSize: args.newSize,
-            newColor: args.newColor,
-            quantity: args.quantity,
-            updatedPrice: args.updatedPrice,
-            reason: args.reason,
-          });
-          if (!replyText) {
-            replyText = `تمام! قمنا بتعديل الطلب ديالك بنجاح${args.newSize ? ` (المقاس: ${args.newSize})` : ''}${args.updatedPrice ? `، والمجموع الجديد أصبح ${args.updatedPrice} درهم` : ''}. واش العنوان والمدينة هما هادوك نيت؟`;
-          }
-          break;
+    const response = await chat.sendMessage(incomingMessage);
+    const candidate = response.response.candidates?.[0];
 
-        case 'save_gps_location':
-          await databaseHandler.onSaveGps({
-            orderId: context.orderId,
-            googleMapsUrl: args.googleMapsUrl,
-          });
-          if (!replyText) {
-            replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة.';
-          }
-          break;
+    let replyText = '';
+    try {
+      replyText = response.response.text();
+    } catch {
+      // text() may throw if model returned only functionCalls
+    }
 
-        case 'cancel_order':
-          await databaseHandler.onCancel({
-            orderId: context.orderId,
-            reason: args.reason || 'Client cancellation via WhatsApp',
-          });
-          if (!replyText) {
-            replyText = 'مرحبا أخي، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله!';
-          }
-          break;
+    let toolCalled: string | undefined = undefined;
+    let requiresHumanHandover = false;
 
-        case 'request_human_handover':
-          requiresHumanHandover = true;
-          await databaseHandler.onHandover({
-            orderId: context.orderId,
-            reason: args.reason || 'Complex query / client request',
-          });
-          if (!replyText) {
-            replyText = 'لحظة واحدة أخي، غادي نحول المحادثة مباشرة لواحد من الفريق ديالنا وغيتواصل معاك دابا باش يجاوبك على كامل التفاصيل.';
-          }
-          break;
+    // Handle function calls if triggered by Gemini
+    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      if (call) {
+        toolCalled = call.name;
+        const args = (call.args || {}) as Record<string, any>;
+
+        switch (call.name) {
+          case 'confirm_order_and_address':
+            await databaseHandler.onConfirm({
+              orderId: context.orderId,
+              verifiedCity: args.verifiedCity || context.city,
+              verifiedAddress: args.verifiedAddress || context.address,
+              deliveryNotes: args.deliveryNotes,
+            });
+            if (!replyText) {
+              replyText = `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك تأكد وغادي نجهزو الكولية في أقرب وقت. الموزع ديال Sendit غيتواصل معاك فاش تكون الكولية قريبة لـ ${args.verifiedCity || context.city}. يومك سعيد! 📦✨`;
+            }
+            break;
+
+          case 'update_order_details':
+            await databaseHandler.onUpdateDetails({
+              orderId: context.orderId,
+              newSize: args.newSize,
+              newColor: args.newColor,
+              quantity: args.quantity,
+              updatedPrice: args.updatedPrice,
+              reason: args.reason,
+            });
+            if (!replyText) {
+              replyText = `تمام! قمنا بتعديل الطلب ديالك بنجاح${args.newSize ? ` (المقاس: ${args.newSize})` : ''}${args.updatedPrice ? `، والمجموع الجديد أصبح ${args.updatedPrice} درهم` : ''}. واش العنوان والمدينة هما هادوك نيت؟`;
+            }
+            break;
+
+          case 'save_gps_location':
+            await databaseHandler.onSaveGps({
+              orderId: context.orderId,
+              googleMapsUrl: args.googleMapsUrl,
+            });
+            if (!replyText) {
+              replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة.';
+            }
+            break;
+
+          case 'cancel_order':
+            await databaseHandler.onCancel({
+              orderId: context.orderId,
+              reason: args.reason || 'Client cancellation via WhatsApp',
+            });
+            if (!replyText) {
+              replyText = 'مرحبا أخي، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله!';
+            }
+            break;
+
+          case 'request_human_handover':
+            requiresHumanHandover = true;
+            await databaseHandler.onHandover({
+              orderId: context.orderId,
+              reason: args.reason || 'Complex query / client request',
+            });
+            if (!replyText) {
+              replyText = 'لحظة واحدة أخي، غادي نحول المحادثة مباشرة لواحد من الفريق ديالنا وغيتواصل معاك دابا باش يجاوبك على كامل التفاصيل.';
+            }
+            break;
+        }
       }
     }
+
+    if (!replyText) {
+      return await processWithRulesFallback(incomingMessage, context, databaseHandler);
+    }
+
+    return {
+      replyText,
+      toolCalled,
+      requiresHumanHandover,
+    };
+  } catch (err: any) {
+    console.warn('[AI Agent] Gemini call failed or quota exceeded, falling back to Rules Engine:', err.message);
+    return await processWithRulesFallback(incomingMessage, context, databaseHandler);
+  }
+}
+
+/**
+ * Moroccan Darija Rule-Based Engine (Fallback when Gemini API is unavailable or unconfigured)
+ */
+async function processWithRulesFallback(
+  incomingMessage: string,
+  context: OrderContext,
+  databaseHandler: {
+    onConfirm: (args: { orderId: string; verifiedCity: string; verifiedAddress: string; deliveryNotes?: string }) => Promise<void>;
+    onUpdateDetails: (args: { orderId: string; newSize?: string; newColor?: string; quantity?: number; updatedPrice?: number; reason?: string }) => Promise<void>;
+    onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
+    onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
+    onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
+  }
+): Promise<{ replyText: string; toolCalled?: string; requiresHumanHandover: boolean }> {
+  const text = incomingMessage.toLowerCase().trim();
+
+  // 1. Confirmations
+  const confirmWords = [
+    'نعم', 'اه', 'أه', 'واخا', 'مزيان', 'تمام', 'أكد', 'اكد', 'تأكيد', 'صيفط', 'صيفطوها', 
+    'مرحبا', 'جيبوها', 'سيفط', 'صافي', 'oui', 'ok', 'daccord', "d'accord", "c'est bon", 
+    'c bon', 'confirmer', 'valider', 'exact', 'parfait'
+  ];
+  if (confirmWords.some((w) => text.includes(w))) {
+    await databaseHandler.onConfirm({
+      orderId: context.orderId,
+      verifiedCity: context.city,
+      verifiedAddress: context.address,
+    });
+    return {
+      replyText: `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك (${context.orderNumber}) تأكد بنجاح وغادي يدوز دابا للتجهيز والتغليف. 📦✨\nباش يوصل الموزع لعندك دغيا وبلا أي تعطل، عفاك شارك معنا اللوكاسيون ديالك (Location Pin 📍) عبر هاد المحادثة.`,
+      toolCalled: 'confirm_order_and_address',
+      requiresHumanHandover: false,
+    };
   }
 
+  // 2. Cancellations
+  const cancelWords = [
+    'لا', 'إلغاء', 'الغاء', 'بلاش', 'مابقاتش', 'مابغيتش', 'سمحليا', 'سمحو ليا', 'حبسوها',
+    'non', 'annuler', 'annule', 'pas interessé', 'laissez tomber'
+  ];
+  if (cancelWords.some((w) => text.includes(w))) {
+    await databaseHandler.onCancel({
+      orderId: context.orderId,
+      reason: 'Annulation demandée par le client via WhatsApp',
+    });
+    return {
+      replyText: `مرحبا أخي ${context.customerName}، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏`,
+      toolCalled: 'cancel_order',
+      requiresHumanHandover: false,
+    };
+  }
+
+  // 3. Timing / Scheduling / Address
+  const scheduleWords = [
+    'مورا', 'العشية', 'الصباح', 'الخدمة', 'الدار', 'الزنقة', 'السبت', 'الأحد', 'غدا', 'غداً', 
+    'demain', 'soir', 'matin', 'apres midi', 'travail', 'bureau'
+  ];
+  if (scheduleWords.some((w) => text.includes(w))) {
+    await databaseHandler.onUpdateDetails({
+      orderId: context.orderId,
+      reason: `Consigne livraison: ${incomingMessage}`,
+    });
+    return {
+      replyText: `تمام أخي، سجلنا الملاحظة والتوقيت المناسب ديالك وغادي نعلموا موزع Sendit باش يتواصل معاك في الوقت المحدد بالضبط. نهارك مبروك! 🚚`,
+      toolCalled: 'update_order_details',
+      requiresHumanHandover: false,
+    };
+  }
+
+  // 4. Greetings / Question about price, COD
+  if (text.includes('سلام') || text.includes('bonjour') || text.includes('salut')) {
+    return {
+      replyText: `وعليكم السلام أخي الكريم! بخصوص طلبيتك (${context.items[0]?.name || 'المنتج'} - ثمن: ${context.totalAmount} درهم والدفع عند الاستلام مع الفحص قبل الأداء). واش تأكد لينا الطلب والعنوان باش نجهزو ليك الكولية؟ 📦`,
+      requiresHumanHandover: false,
+    };
+  }
+
+  // 5. Default polite response asking for confirmation
   return {
-    replyText,
-    toolCalled,
-    requiresHumanHandover,
+    replyText: `مرحبا بك أخي! تم التوصل برسالتك. واش تأكد لينا طلبك (${context.orderNumber}) باش نرسلوه ليك مع موزع Sendit؟ (جاوب بـ "نعم" للتأكيد أو شارك معنا اللوكاسيون 📍)`,
+    requiresHumanHandover: false,
   };
 }

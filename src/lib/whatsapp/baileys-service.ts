@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import QRCode from 'qrcode';
 import { processCustomerWhatsAppMessage, OrderContext } from '@/lib/gemini-agent';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
+import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
 
 export type WhatsAppStatus = 'INITIALIZING' | 'SCAN_QR' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
 
@@ -202,19 +203,34 @@ export async function startBaileysService(): Promise<void> {
           const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
           console.log(`[Baileys In-Process] 📍 GPS location received: ${mapsUrl}`);
 
+          let order: any = null;
           try {
             const orders = getInboundOrders();
             const cleanedPhone = cleanMoroccanPhone(rawPhone);
-            const order = orders.find((o) => cleanMoroccanPhone(o.customer?.phone) === cleanedPhone);
+            order = orders.find((o) => cleanMoroccanPhone(o.customer?.phone) === cleanedPhone);
             if (order) {
               order.gpsLocationUrl = mapsUrl;
             }
           } catch (e) {}
 
-          await sendWhatsAppDirectMessage(
-            rawPhone,
-            'شكراً جزيلاً! تسجل موقع التوصيل الجغرافي ديالك بنجاح وغادي نمرروه مباشرة لموزع Sendit باش يوصل بدون أي تعثر. نهارك سعيد! 📍✅'
-          );
+          const gpsReply = 'شكراً جزيلاً! تسجل موقع التوصيل الجغرافي ديالك بنجاح وغادي نمرروه مباشرة لموزع Sendit باش يوصل بدون أي تعثر. نهارك سعيد! 📍✅';
+
+          recordInboundMessage({
+            phone: rawPhone,
+            locationUrl: mapsUrl,
+            customerName: order?.customer?.name,
+            orderNumber: order?.orderNumber,
+            city: order?.customer?.city,
+            totalAmount: order?.payment?.amount,
+          });
+
+          recordOutboundMessage({
+            phone: rawPhone,
+            text: gpsReply,
+            sender: 'AI_BOT',
+          });
+
+          await sendWhatsAppDirectMessage(rawPhone, gpsReply);
           continue;
         }
 
@@ -229,6 +245,22 @@ export async function startBaileysService(): Promise<void> {
               o.customer?.phone?.includes(cleanedPhone) ||
               cleanedPhone.includes(cleanMoroccanPhone(o.customer?.phone))
           );
+
+          // 1. Record inbound message in Inbox Store
+          const { isAiActive } = recordInboundMessage({
+            phone: rawPhone,
+            text: incomingText,
+            customerName: order?.customer?.name,
+            orderNumber: order?.orderNumber,
+            city: order?.customer?.city,
+            totalAmount: order?.payment?.amount,
+          });
+
+          // If merchant has paused AI for this conversation, do not auto-reply
+          if (!isAiActive) {
+            console.log(`[Baileys In-Process] 👤 AI Bot paused for +${rawPhone} (Human takeover active)`);
+            continue;
+          }
 
           const orderContext: OrderContext = {
             orderId: order?.id || 'lead_temp',
@@ -288,6 +320,13 @@ export async function startBaileysService(): Promise<void> {
           });
 
           if (aiResult?.replyText) {
+            // 2. Record outbound AI reply in Inbox Store
+            recordOutboundMessage({
+              phone: rawPhone,
+              text: aiResult.replyText,
+              sender: 'AI_BOT',
+            });
+
             // Anti-Ban delay: wait 2.5s before answering to simulate natural human typing
             await new Promise((r) => setTimeout(r, 2500));
             await sendWhatsAppDirectMessage(rawPhone, aiResult.replyText);

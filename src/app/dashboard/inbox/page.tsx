@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   MessageSquare,
   Search,
@@ -12,98 +12,129 @@ import {
   MapPin,
   Mic,
   Play,
-  Pause,
   Clock,
-  ShieldAlert,
   Sparkles,
-  Paperclip,
-  CheckCheck
+  CheckCheck,
+  RefreshCw,
+  ExternalLink
 } from 'lucide-react';
-
-interface ChatConversation {
-  id: string;
-  orderNumber: string;
-  customerName: string;
-  phoneNumber: string;
-  city: string;
-  totalAmount: number;
-  lastMessage: string;
-  lastTime: string;
-  unreadCount: number;
-  isAiActive: boolean;
-  needsHumanTakeover: boolean;
-  takeoverReason?: string;
-  hasVoiceNote?: boolean;
-}
-
-const INITIAL_CONVERSATIONS: ChatConversation[] = [
-  {
-    id: 'c1',
-    orderNumber: 'MA-20492',
-    customerName: 'Khadija El Amrani',
-    phoneNumber: '0655819033',
-    city: 'Marrakech',
-    totalAmount: 249,
-    lastMessage: 'كنت فالحمام ماسمعتش، عفاك صيفطوها مورا الـ 3',
-    lastTime: '09:20',
-    unreadCount: 1,
-    isAiActive: true,
-    needsHumanTakeover: false,
-    hasVoiceNote: true,
-  },
-  {
-    id: 'c2',
-    orderNumber: 'MA-20495',
-    customerName: 'Othmane Jabri',
-    phoneNumber: '0612398471',
-    city: 'Tanger',
-    totalAmount: 320,
-    lastMessage: 'مرحبا، راني كنسكن فمالاباطا، يتصل بيا الموزع',
-    lastTime: '18:45',
-    unreadCount: 0,
-    isAiActive: false,
-    needsHumanTakeover: true,
-    takeoverReason: 'Risque élevé de retour & Demande contact humain',
-  },
-  {
-    id: 'c3',
-    orderNumber: 'MA-20491',
-    customerName: 'Yassine Benkirane',
-    phoneNumber: '0661294821',
-    city: 'Casablanca',
-    totalAmount: 399,
-    lastMessage: 'وعليكم السلام، نعم المقاس مزيان والعنوان هو هذاك',
-    lastTime: '14:22',
-    unreadCount: 0,
-    isAiActive: true,
-    needsHumanTakeover: false,
-  },
-];
+import { ChatConversation, ChatMessage } from '@/lib/inbox-store';
 
 export default function WhatsAppInboxPage() {
-  const [conversations, setConversations] = useState<ChatConversation[]>(INITIAL_CONVERSATIONS);
-  const [selectedChatId, setSelectedChatId] = useState<string>('c1');
+  const [conversations, setConversations] = useState<ChatConversation[]>([]);
+  const [selectedChatId, setSelectedChatId] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'ai' | 'human'>('all');
   const [inputMessage, setInputMessage] = useState('');
+  const [isSending, setIsSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const currentChat = conversations.find((c) => c.id === selectedChatId) || conversations[0];
-
-  const handleToggleTakeover = (chatId: string) => {
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === chatId ? { ...c, isAiActive: !c.isAiActive, needsHumanTakeover: false } : c
-      )
-    );
+  // Fetch live conversations from API
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/whatsapp/inbox');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conversations && Array.isArray(data.conversations)) {
+          setConversations(data.conversations);
+          if (!selectedChatId && data.conversations.length > 0) {
+            setSelectedChatId(data.conversations[0].id);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching conversations:', e);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim()) return;
-    setInputMessage('');
-    // Auto turn off AI when human sends message
+  useEffect(() => {
+    fetchConversations();
+    // Poll every 3.5s for live incoming messages from WhatsApp
+    const timer = setInterval(fetchConversations, 3500);
+    return () => clearInterval(timer);
+  }, [selectedChatId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [conversations, selectedChatId]);
+
+  const currentChat =
+    conversations.find((c) => c.id === selectedChatId) || conversations[0];
+
+  const handleToggleTakeover = async (chatId: string) => {
+    if (!currentChat) return;
+    const newAiState = !currentChat.isAiActive;
+
+    // Optimistic UI update
     setConversations((prev) =>
-      prev.map((c) => (c.id === selectedChatId ? { ...c, isAiActive: false } : c))
+      prev.map((c) =>
+        c.id === chatId
+          ? { ...c, isAiActive: newAiState, needsHumanTakeover: false }
+          : c
+      )
     );
+
+    try {
+      await fetch('/api/whatsapp/inbox', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatId, isAiActive: newAiState }),
+      });
+    } catch (e) {
+      console.error('Failed to toggle AI state on server:', e);
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputMessage.trim() || !currentChat || isSending) return;
+
+    const messageText = inputMessage.trim();
+    setInputMessage('');
+    setIsSending(true);
+
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+    const optimisticMsg: ChatMessage = {
+      id: 'msg-' + Date.now(),
+      sender: 'AGENT',
+      text: messageText,
+      timestamp: timeStr,
+    };
+
+    // Optimistic UI update
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === currentChat.id
+          ? {
+              ...c,
+              isAiActive: false,
+              needsHumanTakeover: false,
+              lastMessage: messageText,
+              lastTime: timeStr,
+              messages: [...(c.messages || []), optimisticMsg],
+            }
+          : c
+      )
+    );
+
+    try {
+      await fetch('/api/whatsapp/inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: currentChat.phoneNumber,
+          text: messageText,
+        }),
+      });
+    } catch (e) {
+      console.error('Failed to send direct WhatsApp message:', e);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const insertCannedText = (text: string) => {
@@ -129,15 +160,22 @@ export default function WhatsAppInboxPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-semibold border border-emerald-200">
-            Passerelle: Evolution API (WhatsApp Connecté)
+          <span className="text-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full font-semibold border border-emerald-200 flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            Passerelle: WhatsApp Connecté (Direct Baileys)
           </span>
+          <button
+            onClick={fetchConversations}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+            title="Actualiser les messages"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
         </div>
       </div>
 
       {/* Main Inbox Body: Split View */}
       <div className="flex-1 flex overflow-hidden">
-        
         {/* Left Column: Chat List */}
         <div className="w-80 border-r border-slate-200 flex flex-col bg-slate-50/50 shrink-0">
           {/* Search & Filter */}
@@ -154,7 +192,9 @@ export default function WhatsAppInboxPage() {
               <button
                 onClick={() => setFilter('all')}
                 className={`flex-1 py-1 rounded-md font-medium text-center ${
-                  filter === 'all' ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  filter === 'all'
+                    ? 'bg-slate-800 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 Tous
@@ -162,7 +202,9 @@ export default function WhatsAppInboxPage() {
               <button
                 onClick={() => setFilter('ai')}
                 className={`flex-1 py-1 rounded-md font-medium text-center ${
-                  filter === 'ai' ? 'bg-blue-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  filter === 'ai'
+                    ? 'bg-blue-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 IA Bot
@@ -170,7 +212,9 @@ export default function WhatsAppInboxPage() {
               <button
                 onClick={() => setFilter('human')}
                 className={`flex-1 py-1 rounded-md font-medium text-center ${
-                  filter === 'human' ? 'bg-rose-600 text-white' : 'text-slate-600 hover:bg-slate-100'
+                  filter === 'human'
+                    ? 'bg-rose-600 text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
                 }`}
               >
                 À Traiter
@@ -191,16 +235,24 @@ export default function WhatsAppInboxPage() {
                   key={chat.id}
                   onClick={() => setSelectedChatId(chat.id)}
                   className={`p-3 cursor-pointer transition-colors ${
-                    selectedChatId === chat.id ? 'bg-blue-50/80 border-l-4 border-blue-600' : 'hover:bg-slate-100/60'
+                    (currentChat && currentChat.id === chat.id)
+                      ? 'bg-blue-50/80 border-l-4 border-blue-600'
+                      : 'hover:bg-slate-100/60'
                   }`}
                 >
                   <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold text-slate-900 truncate">{chat.customerName}</span>
+                    <span className="font-bold text-slate-900 truncate">
+                      {chat.customerName}
+                    </span>
                     <span className="text-[10px] text-slate-400">{chat.lastTime}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                    <span className="font-mono">{chat.city} • {chat.orderNumber}</span>
-                    <span className="font-bold text-emerald-600">{chat.totalAmount} MAD</span>
+                    <span className="font-mono">
+                      {chat.city} • {chat.orderNumber}
+                    </span>
+                    <span className="font-bold text-emerald-600">
+                      {chat.totalAmount} MAD
+                    </span>
                   </div>
                   <p className="text-[11px] text-slate-600 truncate mt-1">
                     {chat.lastMessage}
@@ -223,6 +275,11 @@ export default function WhatsAppInboxPage() {
                         </span>
                       )}
                     </div>
+                    {chat.unreadCount > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-emerald-600 text-white text-[9px] font-bold flex items-center justify-center">
+                        {chat.unreadCount}
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -230,137 +287,220 @@ export default function WhatsAppInboxPage() {
         </div>
 
         {/* Right Column: Chat Conversation Thread */}
-        <div className="flex-1 flex flex-col bg-slate-50/30">
-          
-          {/* Thread Header */}
-          <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold text-slate-900">{currentChat.customerName}</h2>
-                <span className="font-mono text-[11px] text-slate-400">({currentChat.phoneNumber})</span>
-                <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                  {currentChat.city}
+        {currentChat ? (
+          <div className="flex-1 flex flex-col bg-slate-50/30">
+            {/* Thread Header */}
+            <div className="h-14 border-b border-slate-200 bg-white px-6 flex items-center justify-between shrink-0">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-slate-900">
+                    {currentChat.customerName}
+                  </h2>
+                  <span className="font-mono text-[11px] text-slate-400">
+                    ({currentChat.phoneNumber})
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                    {currentChat.city}
+                  </span>
+                </div>
+                <p className="text-[10px] text-slate-400">
+                  Commande {currentChat.orderNumber} • Montant: {currentChat.totalAmount} MAD
+                </p>
+              </div>
+
+              {/* AI Takeover Switch */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => handleToggleTakeover(currentChat.id)}
+                  className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
+                    currentChat.isAiActive
+                      ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {currentChat.isAiActive ? (
+                    <>
+                      <Headphones className="w-3.5 h-3.5" />
+                      Prendre la main (Stop Bot)
+                    </>
+                  ) : (
+                    <>
+                      <Bot className="w-3.5 h-3.5" />
+                      Réactiver l'IA Gemini
+                    </>
+                  )}
+                </button>
+
+                <a
+                  href={`tel:${currentChat.phoneNumber}`}
+                  className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg"
+                >
+                  <Phone className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+
+            {/* Messages Area */}
+            <div className="flex-1 p-6 overflow-y-auto space-y-4">
+              {/* AI Status Banner */}
+              <div className="text-center">
+                <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium px-3 py-1 rounded-full">
+                  {currentChat.isAiActive
+                    ? '🤖 Agent IA (Darija Maroc) gère automatiquement cette conversation'
+                    : '👤 Mode manuel: Un agent humain répond actuellement via WhatsApp'}
                 </span>
               </div>
-              <p className="text-[10px] text-slate-400">
-                Commande {currentChat.orderNumber} • Montant: {currentChat.totalAmount} MAD
-              </p>
+
+              {/* Dynamic Conversation Messages */}
+              {currentChat.messages && currentChat.messages.length > 0 ? (
+                currentChat.messages.map((msg) => {
+                  const isCustomer = msg.sender === 'CUSTOMER';
+                  const isAgent = msg.sender === 'AGENT';
+
+                  return (
+                    <div
+                      key={msg.id}
+                      className={`flex flex-col ${
+                        isCustomer ? 'items-start' : 'items-end'
+                      }`}
+                    >
+                      <div
+                        className={`rounded-2xl px-4 py-2 text-xs max-w-md shadow-xs ${
+                          isCustomer
+                            ? 'bg-white border border-slate-200 text-slate-900 rounded-tl-xs'
+                            : isAgent
+                            ? 'bg-emerald-600 text-white rounded-tr-xs'
+                            : 'bg-blue-600 text-white rounded-tr-xs'
+                        }`}
+                      >
+                        {msg.isLocation && msg.locationUrl ? (
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-1.5 font-bold text-rose-500">
+                              <MapPin className="w-4 h-4" />
+                              <span>Localisation GPS Reçue</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600">
+                              Le client a partagé son emplacement WhatsApp précis:
+                            </p>
+                            <a
+                              href={msg.locationUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] bg-slate-100 hover:bg-slate-200 text-blue-600 font-bold px-2 py-1 rounded-md"
+                            >
+                              Ouvrir dans Google Maps
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          </div>
+                        ) : msg.isVoice ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl text-slate-800">
+                              <button className="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center">
+                                <Play className="w-3 h-3 fill-current" />
+                              </button>
+                              <div className="flex-1">
+                                <div className="h-1 bg-slate-300 rounded-full w-24" />
+                                <span className="text-[9px] text-slate-400 mt-1 block">
+                                  Note Vocale WhatsApp
+                                </span>
+                              </div>
+                            </div>
+                            {msg.voiceTranscription && (
+                              <div className="bg-emerald-50 text-emerald-800 text-[11px] p-2 rounded-lg border border-emerald-100">
+                                <span className="font-bold block text-[10px] text-emerald-900">
+                                  📝 Transcription Whisper:
+                                </span>
+                                "{msg.voiceTranscription}"
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <p className="whitespace-pre-wrap leading-relaxed">{msg.text}</p>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 mt-1 flex items-center gap-1">
+                        {msg.timestamp} •{' '}
+                        {isCustomer
+                          ? currentChat.customerName
+                          : isAgent
+                          ? 'Agent Humain'
+                          : 'IA Bot (Darija)'}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center text-xs text-slate-400 py-10">
+                  Aucun message échangé pour le moment.
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
 
-            {/* AI Takeover Switch */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => handleToggleTakeover(currentChat.id)}
-                className={`text-xs px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition-colors ${
-                  currentChat.isAiActive
-                    ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              >
-                {currentChat.isAiActive ? (
-                  <>
-                    <Headphones className="w-3.5 h-3.5" />
-                    Prendre la main (Stop Bot)
-                  </>
-                ) : (
-                  <>
-                    <Bot className="w-3.5 h-3.5" />
-                    Réactiver l'IA Gemini
-                  </>
-                )}
-              </button>
-
-              <a
-                href={`tel:${currentChat.phoneNumber}`}
-                className="p-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg"
-              >
-                <Phone className="w-4 h-4" />
-              </a>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-4">
-            
-            {/* AI Status Banner */}
-            <div className="text-center">
-              <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium px-3 py-1 rounded-full">
-                {currentChat.isAiActive
-                  ? '🤖 Gemini 1.5 Flash gère automatiquement cette conversation en Darija'
-                  : '👤 Mode manuel: Un agent humain répond actuellement'}
+            {/* Darija Quick Canned Responses */}
+            <div className="px-6 py-2 bg-white border-t border-slate-200 flex items-center gap-2 overflow-x-auto text-[11px]">
+              <span className="text-slate-400 text-[10px] shrink-0 font-medium">
+                Réponses Rapides:
               </span>
+              <button
+                onClick={() =>
+                  insertCannedText(
+                    'مرحبا بك أخي، تم تأكيد طلبك وغادي توصلك الكولية غدا مع موزع Sendit.'
+                  )
+                }
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+              >
+                تأكيد الطلب ✓
+              </button>
+              <button
+                onClick={() =>
+                  insertCannedText(
+                    'عفاك واش تقدر تشارك معنا الموقع ديالك بالخريطة (Localisation WhatsApp)؟'
+                  )
+                }
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+              >
+                طلب الـ Localisation 📍
+              </button>
+              <button
+                onClick={() =>
+                  insertCannedText(
+                    'الموزع في الطريق لعندك اليوم، المرجو تجهيز المبلغ نقداً.'
+                  )
+                }
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
+              >
+                تنبيه الموزع 🚚
+              </button>
             </div>
 
-            {/* Sample Messages */}
-            <div className="flex flex-col items-end">
-              <div className="bg-blue-600 text-white rounded-2xl rounded-tr-xs px-4 py-2 text-xs max-w-md shadow-xs">
-                أهلاً لالة خديجة، حاول موزع Sendit يتواصل معاك قبل قليل ولكن تعذر الوصول ليك. واش تحبي نبرمجوا التوصيل لغداً في نفس الوقت؟
-              </div>
-              <span className="text-[10px] text-slate-400 mt-1">09:16 • Gemini Bot</span>
-            </div>
-
-            {/* Voice Note Simulation */}
-            <div className="flex flex-col items-start">
-              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-xs p-3 text-xs max-w-md shadow-xs space-y-2">
-                <div className="flex items-center gap-3 bg-slate-50 p-2 rounded-xl">
-                  <button className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                    <Play className="w-3.5 h-3.5 fill-current" />
-                  </button>
-                  <div className="flex-1">
-                    <div className="h-1 bg-slate-300 rounded-full w-32" />
-                    <span className="text-[10px] text-slate-400 mt-1 block">0:14 • Note Vocale WhatsApp</span>
-                  </div>
-                </div>
-                <div className="bg-emerald-50 text-emerald-800 text-[11px] p-2 rounded-lg border border-emerald-100">
-                  <span className="font-bold block text-[10px] text-emerald-900">📝 نص الرسالة الصوتية (Whisper):</span>
-                  "كنت فالحمام ماسمعتش التيليفون، عفاك صيفطوه ليا مورا 3 دالعشية راني فدار"
-                </div>
-              </div>
-              <span className="text-[10px] text-slate-400 mt-1">09:20 • الزبونة</span>
-            </div>
+            {/* Reply Form */}
+            <form
+              onSubmit={handleSend}
+              className="p-4 bg-white border-t border-slate-200 flex items-center gap-2"
+            >
+              <input
+                type="text"
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                placeholder="Écrire un message direct WhatsApp en Darija ou Français..."
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                disabled={isSending || !inputMessage.trim()}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+              >
+                <Send className="w-4 h-4" />
+                {isSending ? 'Envoi...' : 'Envoyer'}
+              </button>
+            </form>
           </div>
-
-          {/* Darija Quick Canned Responses */}
-          <div className="px-6 py-2 bg-white border-t border-slate-200 flex items-center gap-2 overflow-x-auto text-[11px]">
-            <span className="text-slate-400 text-[10px] shrink-0 font-medium">Réponses Rapides:</span>
-            <button
-              onClick={() => insertCannedText('مرحبا بك أخي، تم تأكيد طلبك وغادي توصلك الكولية غدا مع موزع Sendit.')}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
-            >
-              تأكيد الطلب ✓
-            </button>
-            <button
-              onClick={() => insertCannedText('عفاك واش تقدر تشارك معنا الموقع ديالك بالخريطة (Localisation WhatsApp)؟')}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
-            >
-              طلب الـ Localisation 📍
-            </button>
-            <button
-              onClick={() => insertCannedText('الموزع في الطريق لعندك اليوم، المرجو تجهيز المبلغ نقداً.')}
-              className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-full whitespace-nowrap"
-            >
-              تنبيه الموزع 🚚
-            </button>
+        ) : (
+          <div className="flex-1 flex items-center justify-center text-xs text-slate-400">
+            Sélectionnez une conversation pour afficher les messages.
           </div>
-
-          {/* Reply Form */}
-          <form onSubmit={handleSend} className="p-4 bg-white border-t border-slate-200 flex items-center gap-2">
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder="Écrire un message en Darija ou Français..."
-              className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              type="submit"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
-            >
-              <Send className="w-4 h-4" />
-              Envoyer
-            </button>
-          </form>
-        </div>
+        )}
       </div>
     </div>
   );
