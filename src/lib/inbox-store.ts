@@ -151,7 +151,11 @@ export function getInboxConversations(): ChatConversation[] {
 }
 
 export function cleanPhone(raw: string): string {
-  let cleaned = raw.replace(/[^\d]/g, '');
+  if (!raw) return '';
+  let str = raw;
+  if (str.includes('@')) str = str.split('@')[0];
+  if (str.includes(':')) str = str.split(':')[0];
+  let cleaned = str.replace(/[^\d]/g, '');
   if (cleaned.startsWith('212')) {
     cleaned = '0' + cleaned.slice(3);
   }

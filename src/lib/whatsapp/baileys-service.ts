@@ -184,24 +184,42 @@ export async function startBaileysService(): Promise<void> {
     });
 
     currentSocket.ev.on('messages.upsert', async (m: any) => {
-      if (m.type !== 'notify') return;
+      if (!m.messages || m.messages.length === 0) return;
+
+      const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
+
       for (const msg of m.messages) {
         if (!msg.message || msg.key.fromMe) continue;
-        const fromJid = msg.key.remoteJid || '';
-        const rawPhone = fromJid.split('@')[0] || '';
-        const incomingText =
-          msg.message.conversation ||
-          msg.message.extendedTextMessage?.text ||
-          '';
 
-        console.log(`[Baileys In-Process] 💬 Inbound from +${rawPhone}: "${incomingText}"`);
+        const fromJid = msg.key.remoteJid || '';
+        // Skip groups, status broadcast, etc.
+        if (
+          !fromJid ||
+          fromJid.endsWith('@g.us') ||
+          fromJid.endsWith('@broadcast') ||
+          fromJid === 'status@broadcast'
+        ) {
+          continue;
+        }
+
+        const normalizedJid = jidNormalizedUser(fromJid);
+        const rawPhone = normalizedJid.split('@')[0];
+
+        // Safe unwrap of message content across all WhatsApp message types
+        const unwrap =
+          msg.message.ephemeralMessage?.message ||
+          msg.message.viewOnceMessage?.message ||
+          msg.message.viewOnceMessageV2?.message ||
+          msg.message.documentWithCaptionMessage?.message ||
+          msg.message;
 
         // Check if message contains GPS location
-        if (msg.message.locationMessage) {
-          const lat = msg.message.locationMessage.degreesLatitude;
-          const lng = msg.message.locationMessage.degreesLongitude;
+        if (unwrap.locationMessage || unwrap.liveLocationMessage) {
+          const loc = unwrap.locationMessage || unwrap.liveLocationMessage;
+          const lat = loc.degreesLatitude;
+          const lng = loc.degreesLongitude;
           const mapsUrl = `https://maps.google.com/?q=${lat},${lng}`;
-          console.log(`[Baileys In-Process] 📍 GPS location received: ${mapsUrl}`);
+          console.log(`[Baileys In-Process] 📍 GPS location received from ${normalizedJid}: ${mapsUrl}`);
 
           let order: any = null;
           try {
@@ -224,17 +242,34 @@ export async function startBaileysService(): Promise<void> {
             totalAmount: order?.payment?.amount,
           });
 
-          recordOutboundMessage({
-            phone: rawPhone,
-            text: gpsReply,
-            sender: 'AI_BOT',
-          });
-
-          await sendWhatsAppDirectMessage(rawPhone, gpsReply);
+          const directRes = await sendWhatsAppDirectMessage(normalizedJid, gpsReply);
+          if (directRes.success) {
+            recordOutboundMessage({
+              phone: rawPhone,
+              text: gpsReply,
+              sender: 'AI_BOT',
+            });
+          }
           continue;
         }
 
-        if (!incomingText.trim()) continue;
+        const incomingText = (
+          unwrap.conversation ||
+          unwrap.extendedTextMessage?.text ||
+          unwrap.buttonsResponseMessage?.selectedDisplayText ||
+          unwrap.buttonsResponseMessage?.selectedButtonId ||
+          unwrap.templateButtonReplyMessage?.selectedDisplayText ||
+          unwrap.templateButtonReplyMessage?.selectedId ||
+          unwrap.listResponseMessage?.singleSelectReply?.selectedRowId ||
+          unwrap.listResponseMessage?.title ||
+          unwrap.imageMessage?.caption ||
+          unwrap.videoMessage?.caption ||
+          ''
+        ).trim();
+
+        if (!incomingText) continue;
+
+        console.log(`[Baileys In-Process] 💬 Inbound message from ${normalizedJid} (+${rawPhone}): "${incomingText}"`);
 
         try {
           const orders = getInboundOrders();
@@ -247,7 +282,7 @@ export async function startBaileysService(): Promise<void> {
           );
 
           // 1. Record inbound message in Inbox Store
-          const { isAiActive } = recordInboundMessage({
+          const { conversation, isAiActive } = recordInboundMessage({
             phone: rawPhone,
             text: incomingText,
             customerName: order?.customer?.name,
@@ -261,6 +296,15 @@ export async function startBaileysService(): Promise<void> {
             console.log(`[Baileys In-Process] 👤 AI Bot paused for +${rawPhone} (Human takeover active)`);
             continue;
           }
+
+          // Build context including recent conversation history
+          const recentHistory = (conversation?.messages || [])
+            .slice(-7, -1)
+            .map((m) => ({
+              sender: m.sender,
+              body: m.text,
+              timestamp: new Date(),
+            }));
 
           const orderContext: OrderContext = {
             orderId: order?.id || 'lead_temp',
@@ -276,7 +320,7 @@ export async function startBaileysService(): Promise<void> {
               quantity: it.quantity,
               price: it.price,
             })),
-            conversationHistory: [],
+            conversationHistory: recentHistory,
           };
 
           const aiResult = await processCustomerWhatsAppMessage(incomingText, orderContext, {
@@ -320,16 +364,22 @@ export async function startBaileysService(): Promise<void> {
           });
 
           if (aiResult?.replyText) {
-            // 2. Record outbound AI reply in Inbox Store
-            recordOutboundMessage({
-              phone: rawPhone,
-              text: aiResult.replyText,
-              sender: 'AI_BOT',
-            });
+            // Anti-Ban delay: wait 1.5s before answering to simulate natural human typing
+            await new Promise((r) => setTimeout(r, 1500));
 
-            // Anti-Ban delay: wait 2.5s before answering to simulate natural human typing
-            await new Promise((r) => setTimeout(r, 2500));
-            await sendWhatsAppDirectMessage(rawPhone, aiResult.replyText);
+            // Deliver directly to customer's canonical WhatsApp JID
+            const directRes = await sendWhatsAppDirectMessage(normalizedJid, aiResult.replyText);
+
+            if (directRes.success) {
+              console.log(`[Baileys In-Process] ✅ AI response successfully delivered to customer ${normalizedJid}, msgId: ${directRes.msgId}`);
+              recordOutboundMessage({
+                phone: rawPhone,
+                text: aiResult.replyText,
+                sender: 'AI_BOT',
+              });
+            } else {
+              console.error(`[Baileys In-Process] ❌ Failed to deliver AI message to ${normalizedJid}:`, directRes.error);
+            }
           }
         } catch (err: any) {
           console.error('[Baileys In-Process] AI processing error:', err.message);
@@ -343,6 +393,10 @@ export async function startBaileysService(): Promise<void> {
   } finally {
     waHolder.isStarting = false;
   }
+}
+
+export function getWhatsAppDirectStatus(): WhatsAppBridgeState {
+  return waHolder.state;
 }
 
 export async function getWhatsAppStatus(): Promise<WhatsAppBridgeState> {
@@ -400,19 +454,38 @@ export async function disconnectWhatsAppSession(): Promise<WhatsAppBridgeState> 
 export async function sendWhatsAppDirectMessage(
   to: string,
   message: string
-): Promise<{ success: boolean; recipient?: string; error?: string }> {
+): Promise<{ success: boolean; recipient?: string; error?: string; msgId?: string }> {
   if (!waHolder.sock || waHolder.state.status !== 'CONNECTED') {
+    console.warn(`[Baileys In-Process] ⚠️ WhatsApp socket not connected (state: ${waHolder.state.status})`);
     return { success: false, error: 'WhatsApp not connected' };
   }
   try {
-    let cleaned = (to || '').replace(/[^\d]/g, '');
-    if (cleaned.startsWith('0')) cleaned = '212' + cleaned.slice(1);
-    else if (!cleaned.startsWith('212')) cleaned = '212' + cleaned;
+    const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
+    let jid = '';
 
-    const jid = `${cleaned}@s.whatsapp.net`;
-    await waHolder.sock.sendMessage(jid, { text: message });
-    return { success: true, recipient: cleaned };
+    if (to.includes('@')) {
+      jid = jidNormalizedUser(to);
+    } else {
+      let digits = to.replace(/[^\d]/g, '');
+      if (digits.startsWith('0') && digits.length === 10) {
+        digits = '212' + digits.slice(1);
+      } else if (!digits.startsWith('212') && digits.length === 9) {
+        digits = '212' + digits;
+      }
+      jid = jidNormalizedUser(`${digits}@s.whatsapp.net`);
+    }
+
+    if (!jid || !jid.includes('@')) {
+      console.error(`[Baileys In-Process] ❌ Invalid destination JID from "${to}"`);
+      return { success: false, error: 'Invalid destination JID' };
+    }
+
+    console.log(`[Baileys In-Process] 📤 Sending live WhatsApp message to ${jid}: "${message.slice(0, 60)}..."`);
+    const sent = await waHolder.sock.sendMessage(jid, { text: message });
+    console.log(`[Baileys In-Process] ✅ Message DELIVERED to WhatsApp servers for ${jid}, msgId: ${sent?.key?.id}`);
+    return { success: true, recipient: jid, msgId: sent?.key?.id };
   } catch (err: any) {
-    return { success: false, error: err.message };
+    console.error(`[Baileys In-Process] ❌ Exception in sendMessage to ${to}:`, err);
+    return { success: false, error: err.message || String(err) };
   }
 }

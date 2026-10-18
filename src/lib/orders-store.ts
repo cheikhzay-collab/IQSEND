@@ -94,7 +94,10 @@ export function addInboundOrder(order: IngestedOrder) {
 
 export function cleanMoroccanPhone(rawPhone: string): string {
   if (!rawPhone) return '';
-  let cleaned = rawPhone.replace(/[^\d+]/g, '');
+  let str = rawPhone;
+  if (str.includes('@')) str = str.split('@')[0];
+  if (str.includes(':')) str = str.split(':')[0];
+  let cleaned = str.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('+212')) {
     cleaned = '0' + cleaned.slice(4);
   } else if (cleaned.startsWith('212')) {

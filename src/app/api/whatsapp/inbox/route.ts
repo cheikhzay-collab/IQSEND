@@ -42,6 +42,18 @@ export async function POST(request: Request) {
     // 1. Send message via Baileys direct WhatsApp session
     const sendResult = await sendWhatsAppDirectMessage(phone, text);
 
+    if (!sendResult.success) {
+      console.warn(`[Inbox API] ⚠️ Message could not be sent to WhatsApp servers: ${sendResult.error}`);
+      return NextResponse.json(
+        {
+          success: false,
+          error: sendResult.error || 'WhatsApp not connected or delivery failed',
+          sendResult,
+        },
+        { status: 400 }
+      );
+    }
+
     // 2. Record outbound human message in store & turn off AI for this customer
     const updatedConv = recordOutboundMessage({
       phone,

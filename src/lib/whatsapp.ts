@@ -54,7 +54,10 @@ export interface WhatsAppButton {
  */
 export function formatMoroccanPhoneForWhatsApp(phone: string): string {
   if (!phone) return '';
-  let cleaned = phone.replace(/[^\d+]/g, '');
+  let raw = phone;
+  if (raw.includes('@')) raw = raw.split('@')[0];
+  if (raw.includes(':')) raw = raw.split(':')[0];
+  let cleaned = raw.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('0')) {
     cleaned = '212' + cleaned.slice(1);
   } else if (cleaned.startsWith('+212')) {
@@ -71,6 +74,21 @@ export function formatMoroccanPhoneForWhatsApp(phone: string): string {
 export async function sendWhatsAppMessage(to: string, message: string) {
   const formattedPhone = formatMoroccanPhoneForWhatsApp(to);
   const { provider, meta, evolution } = runtimeWhatsAppConfig;
+
+  // PRIORITY: Check if live in-process Baileys direct WhatsApp session is CONNECTED
+  try {
+    const { getWhatsAppDirectStatus, sendWhatsAppDirectMessage } = await import('@/lib/whatsapp/baileys-service');
+    const directStatus = getWhatsAppDirectStatus();
+    if (directStatus.status === 'CONNECTED') {
+      const directRes = await sendWhatsAppDirectMessage(formattedPhone, message);
+      if (directRes.success) {
+        return directRes;
+      }
+      console.warn(`[Baileys Direct Send Notice] Live send returned: ${directRes.error}. Falling back to configured provider.`);
+    }
+  } catch (e) {
+    // Continue to provider logic
+  }
 
   // 1. Meta Cloud API (Official)
   if (provider === 'META_CLOUD_API') {
