@@ -691,6 +691,36 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
   const [orders, setOrders] = useState<LifecycleOrder[]>(INITIAL_LIFECYCLE_ORDERS);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
+  // Sync stage to MySQL Database
+  const syncStageToDb = (orderId: string, stage: LifecycleStage) => {
+    try {
+      fetch('/api/orders', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, stage }),
+      }).catch((e) => console.warn('[OrderLifecycle] DB patch error:', e));
+    } catch {}
+  };
+
+  // Fetch persisted orders from Hostinger MySQL Database on mount
+  useEffect(() => {
+    let isMounted = true;
+    const fetchDbOrders = async () => {
+      try {
+        const res = await fetch('/api/orders');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.success && Array.isArray(data.orders) && data.orders.length > 0 && isMounted) {
+          setOrders(data.orders);
+        }
+      } catch (err) {
+        console.warn('[OrderLifecycleContext] DB fetch fallback to local:', err);
+      }
+    };
+
+    fetchDbOrders();
+  }, []);
+
   const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -718,6 +748,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 1. Confirm Order (Moves to Processing)
   const confirmOrder = (orderId: string) => {
+    syncStageToDb(orderId, 'PROCESSING');
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
@@ -746,6 +777,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 2. Cancel Order
   const cancelOrder = (orderId: string, reason?: string) => {
+    syncStageToDb(orderId, 'CANCELED');
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
@@ -796,6 +828,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 5. Mark Ready for Pickup / Shipped (Moves to In Transit)
   const markReadyForPickup = (orderId: string) => {
+    syncStageToDb(orderId, 'IN_TRANSIT');
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
@@ -851,6 +884,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 7. Mark Delivered (Moves to Completed)
   const markDelivered = (orderId: string) => {
+    syncStageToDb(orderId, 'COMPLETED');
     const nowStr = new Date().toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: 'short',
@@ -945,6 +979,16 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       }
       return [newOrder, ...prev];
     });
+
+    // Persist to MySQL Database
+    try {
+      fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newOrder),
+      }).catch((e) => console.warn('[OrderLifecycle] DB insert error:', e));
+    } catch {}
+
     showToast(`📦 طلب جديد سقط في مرحلة التأكيد: ${newOrder.orderNumber} (${newOrder.customer.name})`, 'success');
   };
 

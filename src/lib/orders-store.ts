@@ -287,6 +287,18 @@ export function addInboundOrder(order: IngestedOrder) {
   if (!exists) {
     global.__inboundOrders.unshift(order);
   }
+
+  // Persist to Hostinger MySQL Database
+  try {
+    import('./db-service').then(({ saveOrderToDb }) => {
+      saveOrderToDb(order).catch((err) =>
+        console.warn('[orders-store] Background DB save error:', err)
+      );
+    });
+  } catch (e) {
+    // ignore
+  }
+
   return order;
 }
 
