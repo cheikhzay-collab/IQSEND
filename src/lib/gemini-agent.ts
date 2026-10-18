@@ -237,6 +237,79 @@ export const requestHumanHandoverDeclaration: FunctionDeclaration = {
 };
 
 /**
+ * Strips any internal thoughts, chain-of-thought, or English planning prefixes (e.g. "Plan: ...", "The user is from Fez...")
+ * and ensures ONLY the customer-facing Moroccan Darija text is returned.
+ */
+export function cleanGeminiReply(raw: string): string {
+  if (!raw) return '';
+  let text = raw.trim();
+
+  // Strip any explicit thinking or thought tags
+  text = text.replace(/<(thought|thinking)>[\s\S]*?<\/(thought|thinking)>/gi, '');
+  text = text.replace(/```(?:thought|thinking)[\s\S]*?```/gi, '');
+
+  const lines = text.split('\n');
+  const cleaned: string[] = [];
+  let messageStarted = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      if (messageStarted) cleaned.push('');
+      continue;
+    }
+
+    if (!messageStarted) {
+      // Check if line is clearly English planning/meta text
+      const isEnglishMeta =
+        /^(?:the user|the closest|looking at|plan:|analysis:|thought:|note:|here is|output:)/i.test(line) ||
+        /^[-*•]\s+.*(?:\d+\s*MAD|\d+\s*درهم)/i.test(line);
+
+      if (isEnglishMeta) {
+        continue;
+      }
+
+      // Check for numbered plan steps like "1. Acknowledge...", "5. Remind them..."
+      const isNumberedStep = /^\d+[\.\)]\s+[A-Za-z]/.test(line);
+      if (isNumberedStep) {
+        // Does this numbered step end with a customer-facing Arabic reply?
+        // e.g. "5. Remind them about the payment method (COD)! مرحبا بك وبناس فاس..."
+        const arabicGreetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي)/);
+        if (arabicGreetingMatch !== -1) {
+          const cut = line.slice(arabicGreetingMatch).trim();
+          if (cut.length > 5) {
+            cleaned.push(cut);
+            messageStarted = true;
+          }
+        }
+        continue;
+      }
+
+      // Check if line starts with Arabic characters
+      const firstChar = line.charAt(0);
+      if (/[\u0600-\u06FF]/.test(firstChar)) {
+        cleaned.push(line);
+        messageStarted = true;
+        continue;
+      }
+
+      // If line contains an Arabic greeting
+      const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي)/);
+      if (greetingMatch !== -1) {
+        cleaned.push(line.slice(greetingMatch).trim());
+        messageStarted = true;
+        continue;
+      }
+    } else {
+      cleaned.push(line);
+    }
+  }
+
+  const result = cleaned.join('\n').trim();
+  return result || text;
+}
+
+/**
  * 2. Moroccan Darija System Prompt Builder
  */
 export function buildMoroccanSystemPrompt(context: OrderContext): string {
@@ -266,9 +339,11 @@ ${productsList}
 5. **إلغاء الطلب:** استدعاء \`cancel_order\` باحترام عند رفض الزبون.
 6. **التحويل لمسؤول بشري:** استدعاء \`request_human_handover\` عند الغضب أو الشكاوى المعقدة.
 
-### ⚠️ أسلوب الحوار:
-- دارجة مغربية حقيقية بالحروف العربية، رسائل قصيرة وواضحة تناسب الواتساب.
-- طمأنة الزبون دوماً: "الدفع كيكون حتى كتوصلك الكولية للدار وتفحصها عاد كتخلص الموزع".
+### ⛔ قـاعـدة حـاسـمـة وصـارمـة جـداً (CRITICAL - STRICT DIRECT WHATSAPP REPLY):
+- لا تكتبي نهائياً أي تفكير داخلي أو تخطيط أو خطوات خطة أو تحليل بالإنجليزية أو العربية (ممنوع منعاً باتاً كتابة: "Plan:", "The user is...", "Looking at...", "Step 1:").
+- ردي **مباشرة وفوراً** بنص الرسالة الوحيد بالدارجة المغربية الموجه للزبون، كأنك إنسان حقيقي يكتب في تطبيق الواتساب.
+- لا تضعي أي علامات تنصيص أو مقدمات أو شروحات. كل حرف تكتبينه سيصل للزبون في هاتفه مباشرة على الواتساب.
+- أسلوب الحوار: دارجة مغربية حقيقية بالحروف العربية، رسائل قصيرة وواضحة تناسب الواتساب، طمأنة الزبون دوماً بخصوص الدفع عند الاستلام بعد المعاينة والفحص.
 `.trim();
 }
 
@@ -466,8 +541,10 @@ export async function processCustomerWhatsAppMessage(
       return await processWithRulesFallback(incomingMessage, context, databaseHandler);
     }
 
+    const cleanedText = cleanGeminiReply(replyText);
+
     return {
-      replyText,
+      replyText: cleanedText,
       toolCalled,
       requiresHumanHandover,
     };

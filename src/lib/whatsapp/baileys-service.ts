@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import QRCode from 'qrcode';
-import { processCustomerWhatsAppMessage, OrderContext } from '@/lib/gemini-agent';
+import { processCustomerWhatsAppMessage, cleanGeminiReply, OrderContext } from '@/lib/gemini-agent';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
 import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
 
@@ -364,17 +364,19 @@ export async function startBaileysService(): Promise<void> {
           });
 
           if (aiResult?.replyText) {
+            const cleanText = cleanGeminiReply(aiResult.replyText);
+
             // Anti-Ban delay: wait 1.5s before answering to simulate natural human typing
             await new Promise((r) => setTimeout(r, 1500));
 
             // Deliver directly to customer's canonical WhatsApp JID
-            const directRes = await sendWhatsAppDirectMessage(normalizedJid, aiResult.replyText);
+            const directRes = await sendWhatsAppDirectMessage(normalizedJid, cleanText);
 
             if (directRes.success) {
               console.log(`[Baileys In-Process] ✅ AI response successfully delivered to customer ${normalizedJid}, msgId: ${directRes.msgId}`);
               recordOutboundMessage({
                 phone: rawPhone,
-                text: aiResult.replyText,
+                text: cleanText,
                 sender: 'AI_BOT',
               });
             } else {

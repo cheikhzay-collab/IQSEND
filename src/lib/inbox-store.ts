@@ -1,3 +1,5 @@
+import { cleanGeminiReply } from './gemini-agent';
+
 // In-memory Omnichannel WhatsApp Inbox Store
 // Keeps live WhatsApp customer conversations in sync across in-process Baileys, AI Agent & Dashboard
 
@@ -147,6 +149,17 @@ export function getInboxConversations(): ChatConversation[] {
   if (!globalForInbox.__senditInboxConversations) {
     globalForInbox.__senditInboxConversations = [...DEFAULT_CONVERSATIONS];
   }
+  // Retroactively clean any AI_BOT messages in memory that might have thinking traces
+  for (const c of globalForInbox.__senditInboxConversations) {
+    for (const m of c.messages) {
+      if (m.sender === 'AI_BOT' && m.text) {
+        m.text = cleanGeminiReply(m.text);
+      }
+    }
+    if (c.lastMessage) {
+      c.lastMessage = cleanGeminiReply(c.lastMessage);
+    }
+  }
   return globalForInbox.__senditInboxConversations;
 }
 
@@ -230,15 +243,16 @@ export function recordOutboundMessage(params: {
 
   const now = new Date();
   const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  const cleanText = params.sender === 'AI_BOT' ? cleanGeminiReply(params.text) : params.text;
 
   conv.messages.push({
     id: 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
     sender: params.sender,
-    text: params.text,
+    text: cleanText,
     timestamp: timeStr,
   });
 
-  conv.lastMessage = params.text;
+  conv.lastMessage = cleanText;
   conv.lastTime = timeStr;
   conv.unreadCount = 0;
 
