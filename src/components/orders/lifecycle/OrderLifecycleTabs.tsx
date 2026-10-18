@@ -11,8 +11,7 @@ import {
   FileText,
   ShoppingCart,
   Star,
-  Kanban,
-  Plus
+  Kanban
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
@@ -26,22 +25,20 @@ export function OrderLifecycleTabs() {
       href: '/dashboard/orders/pending',
       step: '1',
       label: 'En attente de confirmation',
-      shortLabel: '1. À confirmer',
+      shortLabel: '1. Confirmation',
       icon: ClipboardCheck,
       badge: pendingCount,
-      badgeColor: 'bg-amber-500 text-white animate-pulse',
-      activeColor: 'bg-amber-50 text-amber-900 border-amber-300 font-bold',
+      badgeColor: 'bg-[#F59E0B] text-white',
     },
     {
       id: 'processing',
       href: '/dashboard/orders/processing',
       step: '2',
       label: 'En préparation',
-      shortLabel: '2. En préparation',
+      shortLabel: '2. Préparation',
       icon: Package,
       badge: processingCount,
-      badgeColor: 'bg-blue-100 text-blue-700 font-bold',
-      activeColor: 'bg-blue-50 text-blue-900 border-blue-300 font-bold',
+      badgeColor: 'bg-[#3B82F6] text-white',
     },
     {
       id: 'in-transit',
@@ -51,8 +48,7 @@ export function OrderLifecycleTabs() {
       shortLabel: '3. En livraison',
       icon: Truck,
       badge: inTransitCount,
-      badgeColor: 'bg-indigo-100 text-indigo-700 font-bold',
-      activeColor: 'bg-indigo-50 text-indigo-900 border-indigo-300 font-bold',
+      badgeColor: 'bg-[#6366F1] text-white',
     },
     {
       id: 'completed',
@@ -62,8 +58,7 @@ export function OrderLifecycleTabs() {
       shortLabel: '4. Livrées',
       icon: CheckCircle2,
       badge: completedCount,
-      badgeColor: 'bg-emerald-100 text-emerald-700 font-bold',
-      activeColor: 'bg-emerald-50 text-emerald-900 border-emerald-300 font-bold',
+      badgeColor: 'bg-[#10B981] text-white',
     },
   ];
 
@@ -80,7 +75,7 @@ export function OrderLifecycleTabs() {
       label: 'Paniers abandonnés',
       icon: ShoppingCart,
       badge: 3,
-      badgeColor: 'bg-rose-100 text-rose-700',
+      badgeColor: 'bg-rose-500 text-white',
     },
     {
       id: 'reviews',
@@ -92,120 +87,110 @@ export function OrderLifecycleTabs() {
   ];
 
   return (
-    <div className="bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3 md:px-6 py-2 md:py-2.5 flex items-center justify-between gap-3 overflow-x-auto no-scrollbar shadow-2xs sticky top-14 z-30">
-      {/* Left: Tab pills */}
+    <div className="bg-white border-b border-slate-200/90 px-3 md:px-6 py-2 md:py-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar shadow-2xs sticky top-14 z-30">
+      {/* 1. Vue Kanban Pill */}
+      <Link
+        href="/dashboard/orders"
+        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs transition-all shrink-0 ${
+          pathname === '/dashboard/orders'
+            ? 'bg-[#0F172A] text-white font-bold shadow-xs'
+            : 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-200/90 font-bold'
+        }`}
+      >
+        <Kanban className="w-3.5 h-3.5 text-current" />
+        <span className="font-bold">Vue Kanban</span>
+      </Link>
+
+      {/* Divider */}
+      <div className="w-px h-5 bg-slate-200 mx-1 shrink-0" />
+
+      {/* 2. 4 COD Lifecycle Stages Stepper */}
       <div className="flex items-center gap-1.5 shrink-0">
-        {/* Kanban Board overview */}
-        <Link
-          href="/dashboard/orders"
-          className={`flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 rounded-xl text-xs transition-all border shrink-0 ${
-            pathname === '/dashboard/orders'
-              ? 'bg-slate-900 text-white border-slate-900 font-bold shadow-xs'
-              : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-          }`}
-        >
-          <Kanban className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline font-bold">Vue Kanban</span>
-          <span className="sm:hidden font-bold">Kanban</span>
-        </Link>
+        {tabs.map((tab, idx) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
 
-        <div className="w-px h-5 bg-slate-200 mx-0.5 shrink-0" />
-
-        {/* Fulfillment Lifecycle Stepper */}
-        <div className="flex items-center gap-1 shrink-0">
-          {tabs.map((tab, idx) => {
-            const Icon = tab.icon;
-            const isActive = pathname === tab.href;
-
-            return (
-              <React.Fragment key={tab.id}>
-                <Link
-                  href={tab.href}
-                  className={`group flex items-center gap-1.5 md:gap-2 px-2.5 md:px-3 py-1.5 rounded-xl text-xs transition-all border shrink-0 ${
-                    isActive
-                      ? tab.activeColor + ' shadow-xs ring-1 ring-slate-900/5'
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 hover:border-slate-300'
-                  }`}
-                >
-                  <div
-                    className={`w-5 h-5 rounded-lg flex items-center justify-center text-[10px] font-black shrink-0 transition-colors ${
-                      isActive
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-600 group-hover:bg-slate-200'
-                    }`}
-                  >
-                    {tab.step}
-                  </div>
-                  <Icon className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-current' : 'text-slate-400 group-hover:text-slate-600'}`} />
-                  <span className="font-bold tracking-tight hidden md:inline">{tab.label}</span>
-                  <span className="font-bold tracking-tight md:hidden">{tab.shortLabel}</span>
-                  {typeof tab.badge === 'number' && tab.badge > 0 && (
-                    <span
-                      className={`text-[10px] font-black px-1.5 py-0.2 rounded-full shrink-0 ${tab.badgeColor}`}
-                    >
-                      {tab.badge}
-                    </span>
-                  )}
-                </Link>
-
-                {/* Arrow connector between stages */}
-                {idx < tabs.length - 1 && (
-                  <div className="hidden lg:block text-slate-300 mx-0.5 shrink-0 select-none">
-                    <span className="text-xs font-bold text-slate-300">→</span>
-                  </div>
-                )}
-              </React.Fragment>
-            );
-          })}
-        </div>
-
-        <div className="w-px h-5 bg-slate-200 mx-1 shrink-0 hidden md:block" />
-
-        {/* Secondary Pages (Drafts, Abandoned, Reviews) */}
-        <div className="hidden md:flex items-center gap-1 shrink-0">
-          {secondaryTabs.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = pathname === tab.href;
-
-            return (
+          return (
+            <React.Fragment key={tab.id}>
               <Link
-                key={tab.id}
                 href={tab.href}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs transition-all border shrink-0 ${
+                className={`group flex items-center gap-2 px-3 py-1.5 rounded-2xl text-xs transition-all border shrink-0 ${
                   isActive
-                    ? 'bg-slate-200 text-slate-900 font-bold border-slate-300 shadow-xs'
-                    : 'bg-white hover:bg-slate-50 text-slate-600 border-slate-200'
+                    ? 'bg-white border-slate-900/40 text-slate-900 shadow-xs ring-1 ring-slate-900/10'
+                    : 'bg-white hover:bg-slate-50 text-slate-800 border-slate-200/90 hover:border-slate-300'
                 }`}
               >
-                <Icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span>{tab.label}</span>
-                {tab.badge && (
+                {/* Step Number Circle */}
+                <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center text-[11px] font-bold shrink-0">
+                  {tab.step}
+                </div>
+
+                {/* Step Icon */}
+                <Icon className="w-4 h-4 text-slate-400 group-hover:text-slate-600 shrink-0" />
+
+                {/* Step Label */}
+                <span className="font-bold tracking-tight hidden md:inline">{tab.label}</span>
+                <span className="font-bold tracking-tight md:hidden">{tab.shortLabel}</span>
+
+                {/* Step Counter Badge */}
+                {typeof tab.badge === 'number' && (
                   <span
-                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${tab.badgeColor}`}
+                    className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${tab.badgeColor}`}
                   >
                     {tab.badge}
                   </span>
                 )}
-                {tab.badgeText && (
-                  <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 rounded">
-                    {tab.badgeText}
-                  </span>
-                )}
               </Link>
-            );
-          })}
-        </div>
+
+              {/* Arrow Connector */}
+              {idx < tabs.length - 1 && (
+                <span className="text-slate-300 text-xs font-bold mx-0.5 shrink-0 select-none">
+                  →
+                </span>
+              )}
+            </React.Fragment>
+          );
+        })}
       </div>
 
-      {/* Right: Quick CTA */}
-      <Link
-        href="/dashboard/orders/new"
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shrink-0 shadow-xs transition-colors active:scale-95"
-      >
-        <Plus className="w-3.5 h-3.5" />
-        <span className="hidden sm:inline">Nouvelle Commande</span>
-        <span className="sm:hidden">Créer</span>
-      </Link>
+      {/* Divider */}
+      <div className="w-px h-5 bg-slate-200 mx-1 shrink-0" />
+
+      {/* 3. Secondary Tabs (Brouillons, etc.) */}
+      <div className="flex items-center gap-1.5 shrink-0">
+        {secondaryTabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = pathname === tab.href;
+
+          return (
+            <Link
+              key={tab.id}
+              href={tab.href}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-2xl text-xs transition-all border shrink-0 ${
+                isActive
+                  ? 'bg-slate-100 text-slate-900 font-bold border-slate-300 shadow-xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200/90 hover:border-slate-300'
+              }`}
+            >
+              <Icon className="w-4 h-4 text-slate-400 shrink-0" />
+              <span className="font-bold">{tab.label}</span>
+              {typeof tab.badge === 'number' && (
+                <span
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${tab.badgeColor}`}
+                >
+                  {tab.badge}
+                </span>
+              )}
+              {tab.badgeText && (
+                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">
+                  {tab.badgeText}
+                </span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
     </div>
   );
 }
+

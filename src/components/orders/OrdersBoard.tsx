@@ -315,51 +315,51 @@ export function OrdersBoard() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-10">
       {/* TOP ACTION TOOLBAR */}
-      <div className="px-4 py-3 md:px-6 md:h-16 bg-white border-b border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative z-10 shadow-2xs">
-        {/* Left: Back Arrow + Page Title + Setup Guide */}
+      <div className="px-4 md:px-6 py-3.5 bg-white border-b border-slate-200/80 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 relative z-10 shadow-2xs">
+        {/* Left: Back Arrow + Page Title + Cycle COD 4 Étapes Badge + Subtitle */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => window.history.back()}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
+            className="p-1 -ml-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
             title="Retour"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight truncate">
                 Vue Kanban des Commandes
               </h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-900 text-white shrink-0">
-                4 Étapes COD
+              <span className="bg-[#0F172A] text-white text-[11px] font-bold px-3 py-0.5 rounded-full shrink-0 shadow-2xs">
+                Cycle COD 4 Étapes
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium truncate hidden sm:block">
+            <p className="text-xs text-slate-500 font-normal mt-0.5 truncate hidden sm:block">
               Glissez et déposez les commandes entre les 4 étapes du cycle logistique
             </p>
           </div>
         </div>
 
         {/* Right Action Bar */}
-        <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0">
+        <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
           {/* New Order Button */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-700 transition-colors shadow-xs active:scale-95"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#0F172A] hover:bg-slate-800 transition-colors shadow-sm active:scale-95"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Nouvelle commande</span>
           </button>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center bg-slate-100/90 p-0.5 rounded-xl border border-slate-200/80">
+          <div className="flex items-center bg-white p-1 rounded-xl border border-slate-200 shadow-2xs gap-0.5">
             <button
               onClick={() => setActiveView('kanban')}
               className={`p-1.5 rounded-lg transition-colors ${
                 activeView === 'kanban'
-                  ? 'bg-white text-slate-800 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-400 hover:text-slate-700'
               }`}
               title="Vue Kanban (4 Colonnes)"
             >
@@ -369,8 +369,8 @@ export function OrdersBoard() {
               onClick={() => setActiveView('list')}
               className={`p-1.5 rounded-lg transition-colors ${
                 activeView === 'list'
-                  ? 'bg-white text-slate-800 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-400 hover:text-slate-700'
               }`}
               title="Vue Liste"
             >
@@ -380,8 +380,8 @@ export function OrdersBoard() {
               onClick={() => setActiveView('columns')}
               className={`p-1.5 rounded-lg transition-colors ${
                 activeView === 'columns'
-                  ? 'bg-white text-slate-800 shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-400 hover:text-slate-700'
               }`}
               title="Colonnes condensées"
             >
@@ -395,10 +395,10 @@ export function OrdersBoard() {
               refreshInboundOrders();
               showToast('Synchronisation avec la base de données effectuée!', 'info');
             }}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 border border-slate-200 transition-colors"
+            className="p-2 rounded-xl text-slate-500 hover:text-slate-800 bg-white hover:bg-slate-50 border border-slate-200 shadow-2xs transition-colors"
             title="Rafraîchir"
           >
-            <RotateCw className="w-3.5 h-3.5" />
+            <RotateCw className="w-4 h-4" />
           </button>
         </div>
       </div>
