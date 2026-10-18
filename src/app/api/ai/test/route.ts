@@ -67,6 +67,7 @@ export async function POST(req: NextRequest) {
       isLiveApiActive,
       replyText: aiResult.replyText,
       toolCalled: aiResult.toolCalled || toolExecuted,
+      toolDetails: aiResult.toolDetails,
       requiresHumanHandover: aiResult.requiresHumanHandover,
       model: isLiveApiActive
         ? `Google Gemini (${getEffectiveGeminiModel()}) - Live API`

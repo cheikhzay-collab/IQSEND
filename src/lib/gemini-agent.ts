@@ -97,6 +97,20 @@ export interface AgentPermissionsConfig {
   humanEscalationKeywords: string[];
 }
 
+export interface AgentToolDetails {
+  name: string;
+  args: Record<string, any>;
+  resultDescription?: string;
+  executionStatus?: 'success' | 'failed' | 'executed';
+}
+
+export interface AgentProcessResult {
+  replyText: string;
+  toolCalled?: string;
+  toolDetails?: AgentToolDetails;
+  requiresHumanHandover: boolean;
+}
+
 export const DEFAULT_AGENT_PERMISSIONS: AgentPermissionsConfig = {
   canConfirmOrders: true,
   canOfferUpsell: true,
@@ -401,7 +415,7 @@ export async function processCustomerWhatsAppMessage(
     onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
   },
   permissions: AgentPermissionsConfig = DEFAULT_AGENT_PERMISSIONS
-): Promise<{ replyText: string; toolCalled?: string; requiresHumanHandover: boolean }> {
+): Promise<AgentProcessResult> {
   // ─────────────────────────────────────────────────────────────
   // 1. Guardrail Check: Direct Escalation Keywords
   // ─────────────────────────────────────────────────────────────
@@ -417,6 +431,11 @@ export async function processCustomerWhatsAppMessage(
     return {
       replyText: `مرحبا بك أخي/أختي الكريمة. حنا هنا باش نساعدوك، تم تحويل المحادثة لمسؤول خدمة العملاء ديالنا وغادي يتواصل معاك مباشرة دابا للإجابة على كامل تساؤلاتك 📞✨`,
       toolCalled: 'request_human_handover',
+      toolDetails: {
+        name: 'request_human_handover',
+        args: { orderId: context.orderId, reason: matchedKeyword },
+        resultDescription: `Escalade déclenchée par mot-clé sensible: "${matchedKeyword}"`,
+      },
       requiresHumanHandover: true,
     };
   }
@@ -477,6 +496,7 @@ export async function processCustomerWhatsAppMessage(
     }
 
     let toolCalled: string | undefined = undefined;
+    let toolDetails: AgentToolDetails | undefined = undefined;
     let requiresHumanHandover = false;
 
     const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
@@ -486,6 +506,10 @@ export async function processCustomerWhatsAppMessage(
       if (call) {
         toolCalled = call.name;
         const args = (call.args || {}) as Record<string, any>;
+        toolDetails = {
+          name: call.name,
+          args: args,
+        };
 
         switch (call.name) {
           case 'send_product_images': {
@@ -509,6 +533,7 @@ export async function processCustomerWhatsAppMessage(
               });
             }
 
+            toolDetails.resultDescription = `Photo produit envoyée: ${foundProd?.nameAr || queryName}`;
             if (!replyText) {
               replyText = caption;
             }
@@ -517,6 +542,7 @@ export async function processCustomerWhatsAppMessage(
 
           case 'get_product_catalog':
             replyText = formatProductListForWhatsApp();
+            toolDetails.resultDescription = 'Catalogue complet des produits envoyé au client';
             break;
 
           case 'check_order_status': {
@@ -526,8 +552,10 @@ export async function processCustomerWhatsAppMessage(
             const found = byNum || orders[0];
             if (found) {
               replyText = formatOrderStatusForWhatsApp(found);
+              toolDetails.resultDescription = `Trouvé: ${found.orderNumber} (${found.customer.name}) - Statut: ${found.stage}`;
             } else {
               replyText = `مرحبا بك أخي! قلبنا برقمك (${queryTarget}) وما لقينا حتى طلبية مسجلة بهاد الرقم حالياً.\nواش تحب تشوف كتالوج المنتجات ديالنا ونسجلوا ليك طلبية جديدة دابا؟ ✨🛍️`;
+              toolDetails.resultDescription = `Aucune commande trouvée pour ${queryTarget}`;
             }
             break;
           }
@@ -542,6 +570,7 @@ export async function processCustomerWhatsAppMessage(
               quantity: args.quantity || 1,
             });
             replyText = `ألف مبروك أخي ${newOrd.customer.name}! 🎉 تم تسجيل الطلب ديالك بنجاح برقم *${newOrd.orderNumber}* لمدينة *${newOrd.customer.city}*.\n📦 السلعة: ${newOrd.items[0]?.name}\n💰 المبلغ المطلوب عند الاستلام: *${newOrd.payment.amount} درهم* (COD بعد الفحص والمعاينة).\nالموزع ديال Sendit غادي يتصل بيك للتسليم. نهارك مبروك! 🚚✨`;
+            toolDetails.resultDescription = `Nouvelle commande créée: ${newOrd.orderNumber} (${newOrd.payment.amount} درهم)`;
             break;
           }
 
@@ -552,6 +581,7 @@ export async function processCustomerWhatsAppMessage(
               verifiedAddress: args.verifiedAddress || context.address,
               deliveryNotes: args.deliveryNotes,
             });
+            toolDetails.resultDescription = `Confirmation validée pour ${args.verifiedCity || context.city}`;
             if (!replyText) {
               replyText = `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك تأكد وغادي نجهزو الكولية في أقرب وقت لـ ${args.verifiedCity || context.city}. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
             }
@@ -566,6 +596,7 @@ export async function processCustomerWhatsAppMessage(
               updatedPrice: args.updatedPrice,
               reason: args.reason,
             });
+            toolDetails.resultDescription = `Détails modifiés (Taille: ${args.newSize || 'inchangée'})`;
             if (!replyText) {
               replyText = `تمام! قمنا بتعديل الطلب ديالك بنجاح${args.newSize ? ` (المقاس: ${args.newSize})` : ''}${args.updatedPrice ? `، والمجموع الجديد أصبح ${args.updatedPrice} درهم` : ''}. واش العنوان والمدينة هما هادوك نيت؟`;
             }
@@ -576,6 +607,7 @@ export async function processCustomerWhatsAppMessage(
               orderId: context.orderId,
               googleMapsUrl: args.googleMapsUrl,
             });
+            toolDetails.resultDescription = `Position GPS enregistrée: ${args.googleMapsUrl}`;
             if (!replyText) {
               replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة 📍✅';
             }
@@ -586,6 +618,7 @@ export async function processCustomerWhatsAppMessage(
               orderId: context.orderId,
               reason: args.reason || 'Client cancellation via WhatsApp',
             });
+            toolDetails.resultDescription = `Commande annulée: ${args.reason || 'Demande client'}`;
             if (!replyText) {
               replyText = 'مرحبا أخي، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏';
             }
@@ -597,6 +630,7 @@ export async function processCustomerWhatsAppMessage(
               orderId: context.orderId,
               reason: args.reason || 'Complex query / client request',
             });
+            toolDetails.resultDescription = `Transfert conseiller: ${args.reason || 'Demande client'}`;
             if (!replyText) {
               replyText = 'لحظة واحدة أخي، غادي نحول المحادثة مباشرة لواحد من الفريق ديالنا وغيتواصل معاك دابا باش يجاوبك على كامل التفاصيل 📞✨';
             }
@@ -614,6 +648,7 @@ export async function processCustomerWhatsAppMessage(
     return {
       replyText: cleanedText,
       toolCalled,
+      toolDetails,
       requiresHumanHandover,
     };
   } catch (err: any) {
@@ -637,7 +672,7 @@ async function processWithRulesFallback(
     onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
     onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
   }
-): Promise<{ replyText: string; toolCalled?: string; requiresHumanHandover: boolean }> {
+): Promise<AgentProcessResult> {
   const text = incomingMessage.toLowerCase().trim();
 
   // ─────────────────────────────────────────────────────────────
@@ -711,6 +746,17 @@ async function processWithRulesFallback(
     return {
       replyText: `ألف مبروك أخي ${newOrder.customer.name}! 🎉 تم تسجيل الطلب ديالك بنجاح في النظام:\n\n📋 *رقم الطلب:* *${newOrder.orderNumber}*\n📦 *المنتج:* ${targetProduct.nameAr}\n📍 *مدينة التوصيل:* ${newOrder.customer.city}\n💰 *المبلغ الإجمالي عند الاستلام:* *${newOrder.payment.amount} درهم* (COD)\n\nغادي يتم تجهيز وتغليف الكولية ديالك فوراً في المستودع وبرمجتها مع موزع Sendit Express. نهارك مبروك! 🚚✨`,
       toolCalled: 'create_new_order',
+      toolDetails: {
+        name: 'create_new_order',
+        args: {
+          customerName: newOrder.customer.name,
+          phone: newOrder.customer.phone,
+          city: newOrder.customer.city,
+          productName: targetProduct.name,
+          quantity: 1,
+        },
+        resultDescription: `Commande enregistrée: ${newOrder.orderNumber} (${newOrder.payment.amount} درهم)`,
+      },
       requiresHumanHandover: false,
     };
   }
@@ -725,7 +771,8 @@ async function processWithRulesFallback(
   ];
 
   const mentionsOrderNumber = text.match(/#?(?:at|ma)[\s\-]?\d+/i);
-  const wantsTracking = trackingWords.some((kw) => text.includes(kw)) || Boolean(mentionsOrderNumber);
+  const phoneMatchInText = incomingMessage.match(/(?:(?:\+|00)?212|0)[\s\-\.]?([567])(?:[\s\-\.]?\d){8}\b/);
+  const wantsTracking = trackingWords.some((kw) => text.includes(kw)) || Boolean(mentionsOrderNumber) || (Boolean(phoneMatchInText) && trackingWords.some((kw) => text.includes(kw)));
 
   if (wantsTracking) {
     let orderToTrack: IngestedOrder | undefined;
@@ -735,9 +782,10 @@ async function processWithRulesFallback(
       orderToTrack = findOrderByNumber(mentionsOrderNumber[0]);
     }
 
-    // Check by customer phone number
-    if (!orderToTrack) {
-      const orders = findOrdersByPhone(context.phoneNumber);
+    // Check by extracted phone number from text
+    const queryPhone = phoneMatchInText ? phoneMatchInText[0].replace(/[^\d+]/g, '') : context.phoneNumber;
+    if (!orderToTrack && queryPhone) {
+      const orders = findOrdersByPhone(queryPhone);
       orderToTrack = orders[0];
     }
 
@@ -746,16 +794,29 @@ async function processWithRulesFallback(
       orderToTrack = findOrderByNumber(context.orderNumber);
     }
 
+    const queryDisplay = mentionsOrderNumber?.[0] || queryPhone || context.phoneNumber;
+
     if (orderToTrack) {
       return {
         replyText: formatOrderStatusForWhatsApp(orderToTrack),
         toolCalled: 'check_order_status',
+        toolDetails: {
+          name: 'check_order_status',
+          args: { phoneOrOrderNumber: queryDisplay },
+          resultDescription: `Trouvé: ${orderToTrack.orderNumber} (${orderToTrack.customer.name}) - Statut: ${orderToTrack.stage}`,
+        },
         requiresHumanHandover: false,
       };
     }
 
     return {
-      replyText: `أهلاً بك أخي الكريم! 👋\nقلبنا في النظام برقم هاتفك (*${context.phoneNumber}*) وما لقينا حتى طلبية مسجلة بهاد الرقم حالياً.\n\n• إذا كنتي طلبتي برقم هاتف آخر، عفاك عطينا رقم الطلب (#AT... أو #MA...).\n• أو واش تحب تشوف *كتالوج المنتجات المتوفرة* ونسجلوا ليك طلبية جديدة دابا؟ ✨🛍️`,
+      replyText: `أهلاً بك أخي الكريم! 👋\nقلبنا في النظام برقم هاتفك (*${queryDisplay}*) وما لقينا حتى طلبية مسجلة بهاد الرقم حالياً.\n\n• إذا كنتي طلبتي برقم هاتف آخر، عفاك عطينا رقم الطلب (#AT... أو #MA...).\n• أو واش تحب تشوف *كتالوج المنتجات المتوفرة* ونسجلوا ليك طلبية جديدة دابا؟ ✨🛍️`,
+      toolCalled: 'check_order_status',
+      toolDetails: {
+        name: 'check_order_status',
+        args: { phoneOrOrderNumber: queryDisplay },
+        resultDescription: `Aucune commande trouvée pour ${queryDisplay}`,
+      },
       requiresHumanHandover: false,
     };
   }
@@ -776,6 +837,11 @@ async function processWithRulesFallback(
       return {
         replyText: `مرحبا بك أخي! بخصوص *${matchedProduct.nameAr}*:\n\n💰 *الثمن:* *${matchedProduct.sellingPrice} درهم* (${stockBadge})\n📝 *المواصفات:* ${matchedProduct.descriptionAr}\n🚚 *التوصيل:* بالمجان وسريع لكامل مدن المغرب والدفع عند الاستلام مع فحص السلعة.\n\n👉 واش تحب نبرمجوا ليك الطلب ديالها دابا؟ كتب لينا غير مدينتك واسمك وغادي نسجلوها ليك في الحين! 📦✨`,
         toolCalled: 'get_product_catalog',
+        toolDetails: {
+          name: 'get_product_catalog',
+          args: { category: matchedProduct.name },
+          resultDescription: `Fiche produit: ${matchedProduct.nameAr} (${matchedProduct.sellingPrice} MAD)`,
+        },
         requiresHumanHandover: false,
       };
     }
@@ -783,6 +849,11 @@ async function processWithRulesFallback(
     return {
       replyText: formatProductListForWhatsApp(),
       toolCalled: 'get_product_catalog',
+      toolDetails: {
+        name: 'get_product_catalog',
+        args: {},
+        resultDescription: 'Catalogue complet des produits envoyé',
+      },
       requiresHumanHandover: false,
     };
   }
@@ -805,6 +876,11 @@ async function processWithRulesFallback(
     return {
       replyText: `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك (${context.orderNumber}) تأكد بنجاح وغادي يدوز دابا للتجهيز والتغليف. 📦✨\nباش يوصل الموزع لعندك دغيا وبلا أي تعطل، عفاك شارك معنا اللوكاسيون ديالك (Location Pin 📍) عبر هاد المحادثة.`,
       toolCalled: 'confirm_order_and_address',
+      toolDetails: {
+        name: 'confirm_order_and_address',
+        args: { orderId: context.orderId, verifiedCity: context.city, verifiedAddress: context.address },
+        resultDescription: `Confirmation enregistrée pour ${context.city}`,
+      },
       requiresHumanHandover: false,
     };
   }
@@ -825,6 +901,11 @@ async function processWithRulesFallback(
     return {
       replyText: `مرحبا أخي ${context.customerName}، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏`,
       toolCalled: 'cancel_order',
+      toolDetails: {
+        name: 'cancel_order',
+        args: { orderId: context.orderId, reason: 'Annulation demandée par le client via WhatsApp' },
+        resultDescription: 'Commande annulée sur demande du client',
+      },
       requiresHumanHandover: false,
     };
   }
@@ -845,6 +926,11 @@ async function processWithRulesFallback(
     return {
       replyText: `تمام أخي، سجلنا الملاحظة والتوقيت المناسب ديالك وغادي نعلموا موزع Sendit باش يتواصل معاك في الوقت المحدد بالضبط. نهارك مبروك! 🚚`,
       toolCalled: 'update_order_details',
+      toolDetails: {
+        name: 'update_order_details',
+        args: { orderId: context.orderId, reason: incomingMessage },
+        resultDescription: `Consigne enregistrée: ${incomingMessage}`,
+      },
       requiresHumanHandover: false,
     };
   }
@@ -865,12 +951,23 @@ async function processWithRulesFallback(
       return {
         replyText: `أهلاً بك أخي ${o.customer.name}! 👋\nلقينا طلبيتك رقم *${o.orderNumber}* (${o.items[0]?.name || 'السلعة'} بقيمة ${o.payment.amount} درهم لمدينة ${o.customer.city}).\n\nواش نأكدو ليك الإرسال دابا؟ الدفع نقداً عند الاستلام بعد المعاينة 📦✨`,
         toolCalled: 'check_order_status',
+        toolDetails: {
+          name: 'check_order_status',
+          args: { phoneOrOrderNumber: cleanSubmitted },
+          resultDescription: `Trouvé: ${o.orderNumber} (${o.customer.name}) - ${o.stage}`,
+        },
         requiresHumanHandover: false,
       };
     }
 
     return {
       replyText: `شكراً جزيلاً أخي! تم تسجيل رقم هاتفك الفعلي (*${cleanSubmitted}*) بنجاح في النظام 📱✅.\nكيفاش نقدر نعاونك اليوم؟ واش تحب تشوف قائمة المنتجات والأسعار أو نسجلوا ليك طلبية جديدة دابا؟ 🛍️`,
+      toolCalled: 'check_order_status',
+      toolDetails: {
+        name: 'check_order_status',
+        args: { phoneOrOrderNumber: cleanSubmitted },
+        resultDescription: `Numéro enregistré: ${cleanSubmitted}`,
+      },
       requiresHumanHandover: false,
     };
   }

@@ -79,6 +79,46 @@ export interface IngestedOrder {
 
 const INITIAL_BASE_ORDERS: IngestedOrder[] = [
   {
+    id: 'ord-1048-sim',
+    orderNumber: '#AT1048',
+    stage: 'IN_TRANSIT',
+    createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'محمد الإدريسي',
+      phone: '0670114455',
+      city: 'الدار البيضاء',
+      address: 'المعاريف، شارع الزرقطوني، إقامة الأمل',
+    },
+    items: [
+      {
+        id: 'item-sim-1',
+        name: 'Pack 2x Chemises Lin Premium Italien',
+        sku: 'SKU-LIN-01',
+        thumbnail: 'https://images.unsplash.com/photo-1602810318383-e386cc2a3ccf?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 399,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 399,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    tracking: {
+      carrier: 'Sendit Express',
+      trackingNumber: 'SND-CAS-99410',
+      dispatchNoticeSent: true,
+      morningReminderSent: true,
+    },
+    aiVerification: {
+      status: 'VERIFIED',
+      riskScore: 0,
+      notes: 'الكولي في طور التوصيل مع موزع Sendit Express، التوصيل اليوم نقداً عند الاستلام',
+    },
+  },
+  {
     id: 'ord-1044',
     orderNumber: '#AT1044',
     stage: 'NEW_ORDERS',
