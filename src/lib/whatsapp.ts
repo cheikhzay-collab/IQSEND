@@ -111,17 +111,11 @@ export async function sendWhatsAppMessage(to: string, message: string) {
 
   // 2. Evolution API / Baileys (Alternative QR-Code Session)
   if (provider === 'EVOLUTION_API_QR') {
-    // If local Baileys bridge on port 5050 is connected, send directly through live WhatsApp socket!
+    // Send directly through live in-process WhatsApp Baileys socket if connected
     try {
-      const bridgeRes = await fetch('http://localhost:5050/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ to: formattedPhone, message }),
-      });
-      if (bridgeRes.ok) {
-        const data = await bridgeRes.json();
-        if (data.success) return data;
-      }
+      const { sendWhatsAppDirectMessage } = await import('@/lib/whatsapp/baileys-service');
+      const directRes = await sendWhatsAppDirectMessage(formattedPhone, message);
+      if (directRes.success) return directRes;
     } catch (e) {
       // continue to Evolution API fallback
     }
