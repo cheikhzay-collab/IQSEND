@@ -1,6 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { addInboundOrder, IngestedOrder } from '@/lib/orders-store';
+import { addInboundOrder, getInboundOrders, IngestedOrder } from '@/lib/orders-store';
 import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * GET /api/webhooks/orders
+ * Retrieve all active orders including leads captured live by WhatsApp AI Agent
+ */
+export async function GET() {
+  const orders = getInboundOrders();
+  return NextResponse.json({
+    success: true,
+    orders,
+    count: orders.length,
+  });
+}
 
 /**
  * POST /api/webhooks/orders

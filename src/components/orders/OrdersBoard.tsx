@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -256,6 +256,55 @@ export function OrdersBoard() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
   };
+
+  // Sync live orders recorded by WhatsApp AI Agent or Webhooks
+  useEffect(() => {
+    let isMounted = true;
+    const fetchLiveOrders = async () => {
+      try {
+        const res = await fetch('/api/webhooks/orders');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.orders) && data.orders.length > 0 && isMounted) {
+          const mapped: OrderItem[] = data.orders.map((o: any) => ({
+            id: o.id,
+            orderNumber: o.orderNumber,
+            status: o.stage === 'CONFIRMED' ? 'CONFIRMED' : o.stage === 'PACKING' ? 'PACKING' : o.stage === 'IN_TRANSIT' ? 'SHIPPED' : 'NEW_ORDERS',
+            badgeType: 'COD PENDING',
+            amount: o.payment?.amount || 299,
+            currency: o.payment?.currency || 'MAD',
+            productName: o.items?.[0]?.name || 'Article E-commerce',
+            productThumbnail: o.items?.[0]?.thumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+            customerName: o.customer?.name || 'Client',
+            city: o.customer?.city || 'Maroc',
+            countryCode: 'MA',
+            phone: o.customer?.phone || '',
+            timeAgo: '• LIVE',
+            address: o.customer?.address || '',
+            assignedAgent: { type: 'initial', value: 'IA', bgClass: 'bg-emerald-600' },
+            hasWhatsapp: true,
+          }));
+
+          setOrders((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id));
+            const newOnes = mapped.filter((m: OrderItem) => !existingIds.has(m.id));
+            if (newOnes.length > 0) {
+              return [...newOnes, ...prev];
+            }
+            return prev;
+          });
+        }
+      } catch (e) {
+        // ignore polling error
+      }
+    };
+
+    fetchLiveOrders();
+    const interval = setInterval(fetchLiveOrders, 8000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   // Filtered orders
   const filteredOrders = useMemo(() => {

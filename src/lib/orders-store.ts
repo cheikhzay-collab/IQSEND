@@ -1,12 +1,25 @@
 // In-memory shared order store for Google Sheets & Webhook integration
-// Keeps newly ingested orders accessible to both API routes and client polling
+// Keeps newly ingested orders accessible to both API routes, client polling, and WhatsApp AI Agent
+
+import { findProductByNameOrKeyword } from './products-store';
+
+export type OrderStage = 
+  | 'PENDING_CONFIRMATION' 
+  | 'NEW_ORDERS' 
+  | 'CONFIRMED' 
+  | 'PACKING' 
+  | 'DISPATCHED' 
+  | 'IN_TRANSIT' 
+  | 'DELIVERED' 
+  | 'CANCELLED' 
+  | 'NEEDS_ATTENTION';
 
 export interface IngestedOrder {
   id: string;
   orderNumber: string;
-  stage: 'PENDING_CONFIRMATION';
+  stage: OrderStage;
   createdAt: string;
-  source: 'GOOGLE_SHEETS' | 'STOREFRONT_WEBHOOK' | 'MANUAL';
+  source: 'GOOGLE_SHEETS' | 'STOREFRONT_WEBHOOK' | 'MANUAL' | 'WHATSAPP_AI';
   customer: {
     name: string;
     phone: string;
@@ -26,7 +39,7 @@ export interface IngestedOrder {
     method: 'COD' | 'PREPAID';
     amount: number;
     currency: string;
-    status: 'PENDING';
+    status: 'PENDING' | 'PAID';
   };
   aiVerification?: {
     status: 'CONFIRMED_BY_AI' | 'NEEDS_REVIEW' | 'VERIFIED';
@@ -64,32 +77,182 @@ export interface IngestedOrder {
   };
 }
 
+const INITIAL_BASE_ORDERS: IngestedOrder[] = [
+  {
+    id: 'ord-1044',
+    orderNumber: '#AT1044',
+    stage: 'NEW_ORDERS',
+    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'Omar E.',
+      phone: '0661223344',
+      city: 'Tanger',
+      address: 'Boulevard Pasteur, Tanger Centre',
+    },
+    items: [
+      {
+        id: 'item-1',
+        name: 'Smart Watch Ultra Pro S2',
+        sku: 'SW2-AMOLED-BLK',
+        thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 349,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 349,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    aiVerification: {
+      status: 'NEEDS_REVIEW',
+      riskScore: 20,
+      notes: 'Nouvelle commande reçue via Storefront',
+    },
+  },
+  {
+    id: 'ord-1046',
+    orderNumber: '#AT1046',
+    stage: 'CONFIRMED',
+    createdAt: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
+    source: 'MANUAL',
+    customer: {
+      name: 'Salma R.',
+      phone: '0654998877',
+      city: 'Marrakech',
+      address: 'Gueliz, Rue Tarik Ibn Ziad',
+    },
+    items: [
+      {
+        id: 'item-2',
+        name: 'Smart Watch Ultra Pro S2 (x2 Pack Duo)',
+        sku: 'SW2-DUO',
+        thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+        quantity: 2,
+        price: 599,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 599,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    aiVerification: {
+      status: 'CONFIRMED_BY_AI',
+      riskScore: 5,
+      notes: 'Confirmé avec succès par le bot IA',
+    },
+  },
+  {
+    id: 'ord-1041-conf',
+    orderNumber: '#AT1041',
+    stage: 'CONFIRMED',
+    createdAt: new Date(Date.now() - 1 * 3600 * 1000).toISOString(),
+    source: 'GOOGLE_SHEETS',
+    customer: {
+      name: 'Rachid E.',
+      phone: '0671882233',
+      city: 'Meknès',
+      address: 'Hamria, Av. des FAR',
+    },
+    items: [
+      {
+        id: 'item-3',
+        name: 'Baggy Denim Jeans Vintage Brut',
+        sku: 'JNS-VNTG-BLU',
+        thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 249,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 249,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    aiVerification: {
+      status: 'CONFIRMED_BY_AI',
+      riskScore: 10,
+      notes: 'Confirmé automatiquement',
+    },
+  },
+  {
+    id: 'ord-1042',
+    orderNumber: '#AT1042',
+    stage: 'IN_TRANSIT',
+    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'Karim L.',
+      phone: '0663445566',
+      city: 'Fès',
+      address: 'Route d’Immouzer, Résidence Atlas',
+    },
+    items: [
+      {
+        id: 'item-4',
+        name: 'Baggy Denim Jeans Coupe Vintage Brut',
+        sku: 'JNS-VNTG-BLU',
+        thumbnail: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 249,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 249,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    tracking: {
+      carrier: 'Sendit Express',
+      trackingNumber: 'SND-FEZ-84920',
+      dispatchNoticeSent: true,
+    },
+  },
+  {
+    id: 'ord-1045',
+    orderNumber: '#AT1045',
+    stage: 'PACKING',
+    createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'Yassine B.',
+      phone: '0661294821',
+      city: 'Casablanca',
+      address: 'Maârif, Rue du Jura',
+    },
+    items: [
+      {
+        id: 'item-5',
+        name: 'Sneakers Cuir Minimalistes Blanc',
+        sku: 'SNK-WHT-LTHR',
+        thumbnail: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 399,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 399,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+  },
+];
+
 // Global reference across serverless warm invokes
 declare global {
   // eslint-disable-next-line no-var
   var __inboundOrders: IngestedOrder[] | undefined;
 }
 
-if (!global.__inboundOrders) {
-  global.__inboundOrders = [];
-}
-
-export function getInboundOrders(): IngestedOrder[] {
-  return global.__inboundOrders || [];
-}
-
-export function addInboundOrder(order: IngestedOrder) {
-  if (!global.__inboundOrders) {
-    global.__inboundOrders = [];
-  }
-  // Check duplicate by phone number or id
-  const exists = global.__inboundOrders.some(
-    (o) => o.id === order.id || (o.customer.phone === order.customer.phone && o.customer.name === order.customer.name)
-  );
-  if (!exists) {
-    global.__inboundOrders.unshift(order);
-  }
-  return order;
+if (!global.__inboundOrders || global.__inboundOrders.length === 0) {
+  global.__inboundOrders = [...INITIAL_BASE_ORDERS];
 }
 
 export function cleanMoroccanPhone(rawPhone: string): string {
@@ -104,4 +267,137 @@ export function cleanMoroccanPhone(rawPhone: string): string {
     cleaned = '0' + cleaned.slice(3);
   }
   return cleaned;
+}
+
+export function getInboundOrders(): IngestedOrder[] {
+  if (!global.__inboundOrders) {
+    global.__inboundOrders = [...INITIAL_BASE_ORDERS];
+  }
+  return global.__inboundOrders;
+}
+
+export function addInboundOrder(order: IngestedOrder) {
+  if (!global.__inboundOrders) {
+    global.__inboundOrders = [...INITIAL_BASE_ORDERS];
+  }
+  // Check duplicate by phone number or id
+  const exists = global.__inboundOrders.some(
+    (o) => o.id === order.id || (o.customer.phone === order.customer.phone && o.customer.name === order.customer.name)
+  );
+  if (!exists) {
+    global.__inboundOrders.unshift(order);
+  }
+  return order;
+}
+
+/**
+ * Find orders by customer phone number
+ */
+export function findOrdersByPhone(phone: string): IngestedOrder[] {
+  const cleanTarget = cleanMoroccanPhone(phone);
+  if (!cleanTarget) return [];
+  const orders = getInboundOrders();
+  return orders.filter((o) => {
+    const cPhone = cleanMoroccanPhone(o.customer?.phone);
+    return cPhone === cleanTarget || cPhone.includes(cleanTarget) || cleanTarget.includes(cPhone);
+  });
+}
+
+/**
+ * Find order by order number (e.g. #AT1044 or MA-29384)
+ */
+export function findOrderByNumber(orderNumber: string): IngestedOrder | undefined {
+  if (!orderNumber) return undefined;
+  const target = orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const orders = getInboundOrders();
+  return orders.find((o) => {
+    const num = o.orderNumber.toLowerCase().replace(/[^a-z0-9]/g, '');
+    return num === target || num.includes(target) || target.includes(num);
+  });
+}
+
+/**
+ * Take and record a new order directly from WhatsApp conversation
+ */
+export function createDirectCustomerOrder(params: {
+  customerName: string;
+  phone: string;
+  city: string;
+  address?: string;
+  productName?: string;
+  quantity?: number;
+  notes?: string;
+}): IngestedOrder {
+  const cleanP = cleanMoroccanPhone(params.phone);
+  const matchedProd = params.productName ? findProductByNameOrKeyword(params.productName) : undefined;
+  const qty = params.quantity && params.quantity > 0 ? params.quantity : 1;
+  const price = matchedProd ? matchedProd.sellingPrice : 299;
+  const totalAmount = price * qty;
+  const prodName = matchedProd ? matchedProd.nameAr : (params.productName || 'Smart Watch Ultra Pro S2');
+  const sku = matchedProd ? matchedProd.sku : 'PROD-WA-NEW';
+  const thumbnail = matchedProd ? matchedProd.image : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80';
+
+  const orderNum = `#MA-${Math.floor(10000 + Math.random() * 90000)}`;
+
+  const newOrder: IngestedOrder = {
+    id: `ord-wa-${Date.now()}`,
+    orderNumber: orderNum,
+    stage: 'CONFIRMED',
+    createdAt: new Date().toISOString(),
+    source: 'WHATSAPP_AI',
+    customer: {
+      name: params.customerName || 'زبون واتساب',
+      phone: cleanP || params.phone,
+      address: params.address || 'العنوان عبر واتساب',
+      city: params.city || 'الدار البيضاء',
+      notes: params.notes || 'طلب مسجل مباشرة عبر محادثة واتساب مع وكيل الذكاء الاصطناعي',
+    },
+    items: [
+      {
+        id: `item-${Date.now()}`,
+        name: prodName,
+        sku,
+        thumbnail,
+        quantity: qty,
+        price,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: totalAmount,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    aiVerification: {
+      status: 'CONFIRMED_BY_AI',
+      riskScore: 5,
+      notes: `تم مسك الطلب وتأكيده مباشرة عبر وكيل الذكاء الاصطناعي في واتساب لمدينة ${params.city}`,
+    },
+  };
+
+  addInboundOrder(newOrder);
+  return newOrder;
+}
+
+/**
+ * Format human-friendly order status in Moroccan Darija
+ */
+export function formatOrderStatusForWhatsApp(order: IngestedOrder): string {
+  const stageMap: Record<string, string> = {
+    PENDING_CONFIRMATION: '⏳ في مرحلة التأكيد والمراجعة (بانتظار موافقتك النهائية)',
+    NEW_ORDERS: '📝 طلب جديد تسجل بنجاح وقيد المراجعة',
+    CONFIRMED: '✅ طلب مؤكد رسمياً وجاهز للإرسال لمستودع التغليف',
+    PACKING: '📦 في مستودع Sendit: قيد التغليف والتجهيز مع البوليصة',
+    DISPATCHED: '🚚 تم تسليم الطرد لشركة التوصيل Sendit وهو في طريقه لمدينتك',
+    IN_TRANSIT: '🏍️ الطرد ديالك حالياً مع موزع Sendit للتسليم في مدينتك',
+    DELIVERED: '🎉 تم تسليم الطلبية بنجاح والدفع عند الاستلام',
+    CANCELLED: '❌ تم إلغاء هذا الطلب بناءً على طلبك',
+    NEEDS_ATTENTION: '⚠️ بانتظار توضيح العنوان أو التوقيت المناسب',
+  };
+
+  const statusText = stageMap[order.stage] || '🔄 قيد المعالجة السريعة';
+  const itemsText = (order.items || []).map((it) => `• ${it.name} (الكمية: ${it.quantity} | الثمن: ${it.price} درهم)`).join('\n');
+  const trackingText = order.tracking?.trackingNumber ? `\n🏷️ رقم التتبع في Sendit: *${order.tracking.trackingNumber}*` : '';
+
+  return `أهلاً بك أخي ${order.customer.name}! 👋\nها هي تفاصيل وحالة الطلب ديالك:\n\n📋 *رقم الطلب:* ${order.orderNumber}\n📍 *المدينة:* ${order.customer.city}\n📌 *الحالة الحالية:* ${statusText}\n\n📦 *المنتجات:*\n${itemsText}\n💰 *المجموع المطلوب عند الاستلام:* *${order.payment.amount} درهم* (COD)${trackingText}\n\nواش عندك أي استفسار آخر أو تحب تضيف شي تعديل على العنوان؟ 😊`;
 }
