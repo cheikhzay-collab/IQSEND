@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { processCustomerWhatsAppMessage, OrderContext, getEffectiveGeminiKey } from '@/lib/gemini-agent';
+import {
+  processCustomerWhatsAppMessage,
+  OrderContext,
+  getEffectiveGeminiKey,
+  getEffectiveGeminiModel,
+} from '@/lib/gemini-agent';
 import { getInboundOrders } from '@/lib/orders-store';
 
 export const dynamic = 'force-dynamic';
@@ -63,7 +68,9 @@ export async function POST(req: NextRequest) {
       replyText: aiResult.replyText,
       toolCalled: aiResult.toolCalled || toolExecuted,
       requiresHumanHandover: aiResult.requiresHumanHandover,
-      model: isLiveApiActive ? 'Google Gemini 1.5 Flash (Live API)' : 'Moteur de Règles Darija (Clé manquante)',
+      model: isLiveApiActive
+        ? `Google Gemini (${getEffectiveGeminiModel()}) - Live API`
+        : 'Moteur de Règles Darija (Clé manquante)',
     });
   } catch (err: any) {
     return NextResponse.json(

@@ -31,6 +31,7 @@ export function getEffectiveGeminiKey(): string {
       if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15) {
         const cleaned = data.apiKey.trim();
         process.env.GEMINI_API_KEY = cleaned;
+        if (data.model) process.env.GEMINI_MODEL_NAME = data.model;
         return cleaned;
       }
     }
@@ -39,6 +40,24 @@ export function getEffectiveGeminiKey(): string {
   }
 
   return '';
+}
+
+export function getEffectiveGeminiModel(): string {
+  if (process.env.GEMINI_MODEL_NAME) {
+    return process.env.GEMINI_MODEL_NAME;
+  }
+  try {
+    const configPath = path.join(process.cwd(), 'ai_config.json');
+    if (fs.existsSync(configPath)) {
+      const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (data.model) {
+        process.env.GEMINI_MODEL_NAME = data.model;
+        return data.model;
+      }
+    }
+  } catch (e) {}
+
+  return 'gemini-1.5-flash-latest';
 }
 
 /**
@@ -299,8 +318,9 @@ export async function processCustomerWhatsAppMessage(
     const systemInstruction = buildMoroccanSystemPrompt(context);
     const genAI = new GoogleGenerativeAI(apiKey);
 
+    const activeModelName = getEffectiveGeminiModel();
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: activeModelName,
       systemInstruction: systemInstruction,
       generationConfig: {
         temperature: 0.3,

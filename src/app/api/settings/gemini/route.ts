@@ -7,14 +7,117 @@ export const dynamic = 'force-dynamic';
 
 const CONFIG_PATH = path.join(process.cwd(), 'ai_config.json');
 
+/**
+ * Automatically discovers which Gemini models are available and active for this API key
+ */
+async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
+  const preferredPriority = [
+    'gemini-2.0-flash',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-flash-002',
+    'gemini-2.5-flash',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+    'gemini-pro',
+  ];
+
+  // 1. Ask Google ModelService directly for the list of authorized models
+  let availableModelNames: string[] = [];
+  try {
+    const listRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`,
+      { cache: 'no-store' }
+    );
+
+    if (listRes.ok) {
+      const data = await listRes.json();
+      const modelsList: Array<{ name: string; supportedGenerationMethods?: string[] }> =
+        data.models || [];
+      availableModelNames = modelsList
+        .filter((m) => m.supportedGenerationMethods?.includes('generateContent'))
+        .map((m) => m.name.replace(/^models\//, ''));
+    } else {
+      const errData = await listRes.json().catch(() => ({}));
+      if (errData?.error?.message) {
+        throw new Error(errData.error.message);
+      }
+    }
+  } catch (apiErr: any) {
+    if (
+      apiErr.message &&
+      (apiErr.message.includes('API_KEY_INVALID') ||
+        apiErr.message.includes('API key not valid') ||
+        apiErr.message.includes('403'))
+    ) {
+      throw apiErr;
+    }
+  }
+
+  // Combine preferred models that exist in availableModelNames, or use fallback list
+  const candidatesToTry: string[] = [];
+
+  for (const pref of preferredPriority) {
+    if (availableModelNames.includes(pref) && !candidatesToTry.includes(pref)) {
+      candidatesToTry.push(pref);
+    }
+  }
+
+  for (const avail of availableModelNames) {
+    if (!candidatesToTry.includes(avail)) {
+      candidatesToTry.push(avail);
+    }
+  }
+
+  // Fallback defaults if list API didn't return
+  if (candidatesToTry.length === 0) {
+    candidatesToTry.push(...preferredPriority);
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  let lastError: any = null;
+
+  for (const candidate of candidatesToTry) {
+    try {
+      const model = genAI.getGenerativeModel({ model: candidate });
+      const testRes = await model.generateContent('مرحبا');
+      const text = testRes?.response?.text();
+      if (text) {
+        console.log(`[Gemini Auth] Successfully validated key with model: ${candidate}`);
+        return candidate;
+      }
+    } catch (testErr: any) {
+      lastError = testErr;
+      if (
+        testErr.message &&
+        (testErr.message.includes('API_KEY_INVALID') ||
+          testErr.message.includes('API key not valid') ||
+          testErr.message.includes('quota') ||
+          testErr.message.includes('RESOURCE_EXHAUSTED'))
+      ) {
+        throw testErr;
+      }
+      // If 404 on this model, continue to next candidate
+    }
+  }
+
+  throw (
+    lastError ||
+    new Error('Aucun modèle Gemini compatible generateContent trouvé pour cette clé API.')
+  );
+}
+
 export async function GET() {
   let savedKey = process.env.GEMINI_API_KEY || '';
   if (savedKey === 'votre_cle_gemini_ici') savedKey = '';
+  let modelName = 'gemini-1.5-flash';
 
   try {
     if (fs.existsSync(CONFIG_PATH)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
       if (data.apiKey) savedKey = data.apiKey;
+      if (data.model) modelName = data.model;
     }
   } catch (e) {}
 
@@ -25,7 +128,7 @@ export async function GET() {
     success: true,
     isConfigured,
     maskedKey,
-    model: 'gemini-1.5-flash',
+    model: modelName,
   });
 }
 
@@ -43,31 +146,27 @@ export async function POST(req: NextRequest) {
 
     const cleanKey = apiKey.trim();
 
-    // Test the API key with a fast ping to Gemini
+    // 1. Resolve and validate available model dynamically
+    let workingModel = 'gemini-1.5-flash';
     try {
-      const genAI = new GoogleGenerativeAI(cleanKey);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-      const testRes = await model.generateContent('مرحبا');
-      const text = testRes.response.text();
-      if (!text) {
-        throw new Error('Réponse vide du modèle');
-      }
-    } catch (testErr: any) {
+      workingModel = await resolveWorkingGeminiModel(cleanKey);
+    } catch (err: any) {
       return NextResponse.json(
         {
           success: false,
-          error: `Échec de validation de la clé Gemini: ${testErr.message || 'Clé invalide ou quota dépassé'}`,
+          error: `Échec de validation de la clé Gemini: ${err.message || 'Clé non valide'}`,
         },
         { status: 400 }
       );
     }
 
-    // Save key to ai_config.json
+    // 2. Save key & working model to ai_config.json
     fs.writeFileSync(
       CONFIG_PATH,
       JSON.stringify(
         {
           apiKey: cleanKey,
+          model: workingModel,
           updatedAt: new Date().toISOString(),
         },
         null,
@@ -75,13 +174,15 @@ export async function POST(req: NextRequest) {
       )
     );
 
-    // Also update process.env in running memory
+    // 3. Update in-memory environment variables
     process.env.GEMINI_API_KEY = cleanKey;
+    process.env.GEMINI_MODEL_NAME = workingModel;
 
     return NextResponse.json({
       success: true,
-      message: 'Clé API Gemini validée et activée avec succès ! Le bot utilise désormais le modèle LLM en direct.',
+      message: `Clé API Gemini validée avec succès ! Le bot utilise le modèle [${workingModel}] en direct.`,
       maskedKey: `${cleanKey.slice(0, 7)}...${cleanKey.slice(-4)}`,
+      model: workingModel,
     });
   } catch (err: any) {
     return NextResponse.json(
