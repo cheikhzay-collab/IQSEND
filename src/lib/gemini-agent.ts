@@ -850,6 +850,32 @@ async function processWithRulesFallback(
   }
 
   // ─────────────────────────────────────────────────────────────
+  // F.2 INTENT: PHONE NUMBER SUBMISSION (إرسال رقم الهاتف الفعلي للزبون)
+  // ─────────────────────────────────────────────────────────────
+  const moroccanPhoneMatch = incomingMessage.match(/(?:(?:\+|00)?212|0)[\s\-\.]?([567])(?:[\s\-\.]?\d){8}\b/);
+  if (moroccanPhoneMatch) {
+    let cleanSubmitted = moroccanPhoneMatch[0].replace(/[^\d+]/g, '');
+    if (cleanSubmitted.startsWith('00212')) cleanSubmitted = '0' + cleanSubmitted.slice(5);
+    else if (cleanSubmitted.startsWith('+212')) cleanSubmitted = '0' + cleanSubmitted.slice(4);
+    else if (cleanSubmitted.startsWith('212')) cleanSubmitted = '0' + cleanSubmitted.slice(3);
+
+    const matchedOrders = findOrdersByPhone(cleanSubmitted);
+    if (matchedOrders.length > 0) {
+      const o = matchedOrders[0];
+      return {
+        replyText: `أهلاً بك أخي ${o.customer.name}! 👋\nلقينا طلبيتك رقم *${o.orderNumber}* (${o.items[0]?.name || 'السلعة'} بقيمة ${o.payment.amount} درهم لمدينة ${o.customer.city}).\n\nواش نأكدو ليك الإرسال دابا؟ الدفع نقداً عند الاستلام بعد المعاينة 📦✨`,
+        toolCalled: 'check_order_status',
+        requiresHumanHandover: false,
+      };
+    }
+
+    return {
+      replyText: `شكراً جزيلاً أخي! تم تسجيل رقم هاتفك الفعلي (*${cleanSubmitted}*) بنجاح في النظام 📱✅.\nكيفاش نقدر نعاونك اليوم؟ واش تحب تشوف قائمة المنتجات والأسعار أو نسجلوا ليك طلبية جديدة دابا؟ 🛍️`,
+      requiresHumanHandover: false,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
   // G. INTENT: GREETINGS & INTRO (الترحيب والتعريف)
   // ─────────────────────────────────────────────────────────────
   if (text.includes('سلام') || text.includes('bonjour') || text.includes('salut') || text.includes('مرحبا') || text === 'hi' || text === 'salam') {

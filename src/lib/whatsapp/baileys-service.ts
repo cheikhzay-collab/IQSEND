@@ -203,7 +203,36 @@ export async function startBaileysService(): Promise<void> {
         }
 
         const normalizedJid = jidNormalizedUser(fromJid);
-        const rawPhone = normalizedJid.split('@')[0];
+        const pushName = msg.pushName || '';
+        let rawPhone = normalizedJid.split('@')[0];
+        let realPhone: string | undefined = undefined;
+        const isLid = fromJid.endsWith('@lid') || (rawPhone.length >= 14 && rawPhone.startsWith('1'));
+
+        // 1. Try Baileys reverse LID mapping if socket has it
+        if (isLid && currentSocket?.signalRepository?.lidMapping?.getPNForLID) {
+          try {
+            const pnJid = await currentSocket.signalRepository.lidMapping.getPNForLID(fromJid);
+            if (pnJid) {
+              const extracted = pnJid.split('@')[0].split(':')[0];
+              if (extracted && extracted.length >= 9) {
+                realPhone = extracted;
+                rawPhone = extracted;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. Check msg.key.participant
+        if (isLid && !realPhone && msg.key?.participant) {
+          const p = msg.key.participant;
+          if (!p.endsWith('@lid')) {
+            const extracted = p.split('@')[0].split(':')[0];
+            if (extracted && extracted.length >= 9) {
+              realPhone = extracted;
+              rawPhone = extracted;
+            }
+          }
+        }
 
         // Safe unwrap of message content across all WhatsApp message types
         const unwrap =
@@ -284,8 +313,10 @@ export async function startBaileysService(): Promise<void> {
           // 1. Record inbound message in Inbox Store
           const { conversation, isAiActive } = recordInboundMessage({
             phone: rawPhone,
+            realPhone,
+            pushName,
             text: incomingText,
-            customerName: order?.customer?.name,
+            customerName: order?.customer?.name || pushName,
             orderNumber: order?.orderNumber,
             city: order?.customer?.city,
             totalAmount: order?.payment?.amount,

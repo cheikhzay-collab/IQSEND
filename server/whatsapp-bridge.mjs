@@ -163,7 +163,37 @@ async function startBaileys() {
       for (const msg of m.messages) {
         if (!msg.message || msg.key.fromMe) continue;
         const fromJid = msg.key.remoteJid || '';
-        const rawPhone = fromJid.split('@')[0] || '';
+        const pushName = msg.pushName || '';
+        let rawPhone = fromJid.split('@')[0] || '';
+        let realPhone = null;
+        const isLid = fromJid.endsWith('@lid') || (rawPhone.length >= 14 && rawPhone.startsWith('1'));
+
+        // 1. Try Baileys reverse LID mapping if socket has it
+        if (isLid && currentSocket?.signalRepository?.lidMapping?.getPNForLID) {
+          try {
+            const pnJid = await currentSocket.signalRepository.lidMapping.getPNForLID(fromJid);
+            if (pnJid) {
+              const extracted = pnJid.split('@')[0].split(':')[0];
+              if (extracted && extracted.length >= 9) {
+                realPhone = extracted;
+                rawPhone = extracted;
+              }
+            }
+          } catch (e) {}
+        }
+
+        // 2. Check msg.key.participant
+        if (isLid && !realPhone && msg.key?.participant) {
+          const p = msg.key.participant;
+          if (!p.endsWith('@lid')) {
+            const extracted = p.split('@')[0].split(':')[0];
+            if (extracted && extracted.length >= 9) {
+              realPhone = extracted;
+              rawPhone = extracted;
+            }
+          }
+        }
+
         const text =
           msg.message.conversation ||
           msg.message.extendedTextMessage?.text ||
@@ -195,7 +225,7 @@ async function startBaileys() {
           }
         }
 
-        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone}: "${text}" (Audio: ${isAudio}, Location: ${isLocation})`);
+        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone} (${pushName || 'Client'}): "${text}" (Audio: ${isAudio}, Location: ${isLocation})`);
 
         // Forward inbound message directly to Next.js webhook to trigger AI Agent
         try {
@@ -212,6 +242,9 @@ async function startBaileys() {
                         messages: [
                           {
                             from: rawPhone,
+                            senderName: pushName,
+                            realPhone: realPhone || undefined,
+                            isLid: isLid && !realPhone,
                             id: msg.key.id,
                             type: isAudio ? 'audio' : isLocation ? 'location' : 'text',
                             audio: audioPayload,

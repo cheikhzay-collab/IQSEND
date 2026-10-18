@@ -4,6 +4,7 @@ import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
 import { processCustomerWhatsAppMessage, processCustomerVoiceNote, OrderContext } from '@/lib/gemini-agent';
 import { getMysqlPool } from '@/lib/db';
 import { logWhatsAppMessageToDb, addTimelineEventToDb } from '@/lib/db-service';
+import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
 
 // GET: verification challenge (Facebook/Meta webhook verification)
 export async function GET(request: Request) {
@@ -316,6 +317,20 @@ export async function POST(request: Request) {
           body: incomingText,
         });
 
+        // Record in live Inbox Store
+        try {
+          recordInboundMessage({
+            phone: rawFrom,
+            realPhone: order?.customer?.phone || msg.realPhone,
+            pushName: msg.senderName,
+            text: incomingText,
+            customerName: order?.customer?.name || msg.senderName,
+            orderNumber: order?.orderNumber,
+            city: order?.customer?.city,
+            totalAmount: order?.payment?.amount,
+          });
+        } catch (inboxErr) {}
+
         const aiResult = await processCustomerWhatsAppMessage(incomingText, orderContext, {
           onConfirm: async (args) => {
             if (order) {
@@ -436,6 +451,14 @@ export async function POST(request: Request) {
           });
 
           await sendWhatsAppMessage(rawFrom, aiResult.replyText);
+
+          try {
+            recordOutboundMessage({
+              phone: rawFrom,
+              text: aiResult.replyText,
+              sender: 'AI_BOT',
+            });
+          } catch (e) {}
         }
       } catch (geminiError: any) {
         console.error('Error invoking Gemini conversational agent:', geminiError.message);

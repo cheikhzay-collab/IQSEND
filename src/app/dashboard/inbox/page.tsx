@@ -17,7 +17,10 @@ import {
   CheckCheck,
   RefreshCw,
   ExternalLink,
-  ChevronLeft
+  ChevronLeft,
+  Pencil,
+  Check,
+  X,
 } from 'lucide-react';
 import { ChatConversation, ChatMessage } from '@/lib/inbox-store';
 
@@ -29,7 +32,30 @@ export default function WhatsAppInboxPage() {
   const [isSending, setIsSending] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [isEditingPhone, setIsEditingPhone] = useState(false);
+  const [editPhoneInput, setEditPhoneInput] = useState('');
+  const [savingPhone, setSavingPhone] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const isLidNumber = (phone?: string) => {
+    if (!phone) return false;
+    const digits = phone.replace(/[^\d]/g, '');
+    return phone.includes('@lid') || (digits.length >= 14 && (digits.startsWith('1') || !digits.startsWith('212')));
+  };
+
+  const formatDisplayPhone = (phone?: string, realPhone?: string) => {
+    const target = realPhone || phone;
+    if (!target) return '';
+    if (isLidNumber(target) && !realPhone) {
+      return `LID: ${target.slice(0, 4)}...${target.slice(-4)}`;
+    }
+    let p = target.replace(/[^\d]/g, '');
+    if (p.startsWith('212')) p = '0' + p.slice(3);
+    if (p.length === 10 && (p.startsWith('06') || p.startsWith('07') || p.startsWith('05'))) {
+      return `${p.slice(0, 2)} ${p.slice(2, 4)} ${p.slice(4, 6)} ${p.slice(6, 8)} ${p.slice(8, 10)}`;
+    }
+    return target;
+  };
 
   // Fetch live conversations from API
   const fetchConversations = async () => {
@@ -86,6 +112,34 @@ export default function WhatsAppInboxPage() {
       });
     } catch (e) {
       console.error('Failed to toggle AI state on server:', e);
+    }
+  };
+
+  const handleSaveRealPhone = async () => {
+    if (!editPhoneInput.trim() || !currentChat) return;
+    setSavingPhone(true);
+    try {
+      const res = await fetch('/api/whatsapp/inbox', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: currentChat.id,
+          realPhone: editPhoneInput.trim(),
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.conversation) {
+          setConversations((prev) =>
+            prev.map((c) => (c.id === data.conversation.id ? data.conversation : c))
+          );
+        }
+        setIsEditingPhone(false);
+      }
+    } catch (err) {
+      console.error('Failed to save real customer phone:', err);
+    } finally {
+      setSavingPhone(false);
     }
   };
 
@@ -247,15 +301,24 @@ export default function WhatsAppInboxPage() {
                 >
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-900 truncate">
-                      {chat.customerName}
+                      {chat.customerName.includes('Client (+19') || chat.customerName.includes('Client (+')
+                        ? (chat.realPhoneNumber ? `زبون (${formatDisplayPhone(chat.realPhoneNumber)})` : chat.pushName || 'زبون واتساب جديد')
+                        : chat.customerName}
                     </span>
                     <span className="text-[10px] text-slate-400">{chat.lastTime}</span>
                   </div>
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mt-0.5">
-                    <span className="font-mono text-[10px]">
-                      {chat.city} • {chat.orderNumber}
+                    <span className="font-mono text-[10px] flex items-center gap-1.5 truncate">
+                      <span>{chat.city}</span>
+                      <span>•</span>
+                      <span className={chat.realPhoneNumber ? 'text-emerald-700 font-bold' : isLidNumber(chat.phoneNumber) ? 'text-amber-700 font-semibold' : ''}>
+                        {formatDisplayPhone(chat.phoneNumber, chat.realPhoneNumber)}
+                      </span>
+                      {isLidNumber(chat.phoneNumber) && !chat.realPhoneNumber && (
+                        <span className="text-[8px] bg-amber-100 text-amber-800 px-1 py-0.2 rounded font-sans font-bold">LID</span>
+                      )}
                     </span>
-                    <span className="font-bold text-emerald-600">
+                    <span className="font-bold text-emerald-600 shrink-0">
                       {chat.totalAmount} MAD
                     </span>
                   </div>
@@ -309,15 +372,67 @@ export default function WhatsAppInboxPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h2 className="text-xs font-bold text-slate-900 truncate">
-                      {currentChat.customerName}
+                      {currentChat.customerName.includes('Client (+19') || currentChat.customerName.includes('Client (+')
+                        ? (currentChat.realPhoneNumber ? `زبون (${formatDisplayPhone(currentChat.realPhoneNumber)})` : currentChat.pushName || 'زبون واتساب جديد')
+                        : currentChat.customerName}
                     </h2>
                     <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
                       {currentChat.city}
                     </span>
                   </div>
-                  <p className="text-[10px] text-slate-400 truncate">
-                    {currentChat.phoneNumber} • {currentChat.orderNumber} ({currentChat.totalAmount} MAD)
-                  </p>
+
+                  {isEditingPhone ? (
+                    <div className="flex items-center gap-1.5 mt-1 bg-amber-50 p-1 rounded-lg border border-amber-200">
+                      <input
+                        type="text"
+                        value={editPhoneInput}
+                        onChange={(e) => setEditPhoneInput(e.target.value)}
+                        placeholder="الرقم الفعلي للزبون (مثال: 0612345678)"
+                        className="text-xs px-2 py-0.5 rounded bg-white border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 font-mono"
+                        autoFocus
+                      />
+                      <button
+                        onClick={handleSaveRealPhone}
+                        disabled={savingPhone || !editPhoneInput.trim()}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-0.5 transition-colors cursor-pointer"
+                      >
+                        <Check className="w-3 h-3" />
+                        <span>{savingPhone ? '...' : 'حفظ'}</span>
+                      </button>
+                      <button
+                        onClick={() => setIsEditingPhone(false)}
+                        className="text-slate-500 hover:text-slate-700 p-1 cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 text-[10px] mt-0.5">
+                      <span className={`font-mono font-bold ${currentChat.realPhoneNumber ? 'text-emerald-700' : isLidNumber(currentChat.phoneNumber) ? 'text-amber-800' : 'text-slate-700'}`}>
+                        {formatDisplayPhone(currentChat.phoneNumber, currentChat.realPhoneNumber)}
+                      </span>
+                      {isLidNumber(currentChat.phoneNumber) && !currentChat.realPhoneNumber && (
+                        <span className="bg-amber-100 text-amber-800 text-[8px] font-bold px-1.5 py-0.5 rounded">
+                          WhatsApp LID
+                        </span>
+                      )}
+                      <button
+                        onClick={() => {
+                          setEditPhoneInput(currentChat.realPhoneNumber || (!isLidNumber(currentChat.phoneNumber) ? currentChat.phoneNumber : ''));
+                          setIsEditingPhone(true);
+                        }}
+                        className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 hover:underline font-semibold ml-1 cursor-pointer"
+                        title="تعديل أو إدخال الرقم الفعلي للزبون"
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                        <span>{isLidNumber(currentChat.phoneNumber) && !currentChat.realPhoneNumber ? 'تحديد الرقم الفعلي' : 'تعديل الرقم'}</span>
+                      </button>
+                      <span className="text-slate-300">•</span>
+                      <span className="text-slate-400 font-mono">
+                        {currentChat.orderNumber} ({currentChat.totalAmount} MAD)
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -347,7 +462,7 @@ export default function WhatsAppInboxPage() {
                 </button>
 
                 <a
-                  href={`tel:${currentChat.phoneNumber}`}
+                  href={`tel:${currentChat.realPhoneNumber || currentChat.phoneNumber}`}
                   className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition-colors"
                   title="Appeler le client"
                 >
@@ -358,6 +473,28 @@ export default function WhatsAppInboxPage() {
 
             {/* Messages Area */}
             <div className="flex-1 p-3 md:p-6 overflow-y-auto space-y-4">
+              {/* Alert Banner for LID without confirmed real phone */}
+              {isLidNumber(currentChat.phoneNumber) && !currentChat.realPhoneNumber && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between gap-3 text-xs text-amber-900 shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📱</span>
+                    <div>
+                      <span className="font-bold">معرّف واتساب (WhatsApp LID):</span>
+                      <span className="mr-1">هذه المحادثة واردة عبر معرف واتساب المؤقت (+{currentChat.phoneNumber}). أدخل الرقم الفعلي للزبون (06... / 07...) لربطها بطلبيته في النظام.</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setEditPhoneInput('');
+                      setIsEditingPhone(true);
+                    }}
+                    className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shrink-0 transition-colors cursor-pointer"
+                  >
+                    إدخال الرقم الفعلي
+                  </button>
+                </div>
+              )}
+
               {/* AI Status Banner */}
               <div className="text-center">
                 <span className="inline-block bg-blue-50 text-blue-700 border border-blue-200 text-[10px] font-medium px-3 py-1 rounded-full">

@@ -3,8 +3,10 @@ import {
   getInboxConversations,
   recordOutboundMessage,
   toggleAiActive,
+  updateConversationCustomer,
 } from '@/lib/inbox-store';
 import { sendWhatsAppDirectMessage } from '@/lib/whatsapp/baileys-service';
+import { getMysqlPool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -75,11 +77,57 @@ export async function POST(request: Request) {
   }
 }
 
-// PATCH: Update takeover status
+// PATCH: Update takeover status or set the real customer phone number
 export async function PATCH(request: Request) {
   try {
     const body = await request.json();
-    const { chatId, isAiActive } = body;
+    const { chatId, isAiActive, realPhone, customerName, orderNumber } = body;
+
+    if (realPhone) {
+      let finalName = customerName;
+      let finalOrderNumber = orderNumber;
+      let finalCity = undefined;
+      let finalAmount = undefined;
+
+      // Try looking up real lead from Hostinger MySQL
+      try {
+        const pool = getMysqlPool();
+        const digits = realPhone.replace(/[^\d]/g, '');
+        const queryPhone = digits.startsWith('212') ? '0' + digits.slice(3) : digits;
+
+        const [rows]: any = await pool.execute(
+          `SELECT customer_name, order_number, city, total_amount 
+           FROM order_leads 
+           WHERE phone_number LIKE ? OR ? LIKE CONCAT('%', phone_number, '%')
+           ORDER BY created_at DESC LIMIT 1`,
+          [`%${queryPhone.slice(-9)}%`, queryPhone]
+        );
+
+        if (Array.isArray(rows) && rows.length > 0) {
+          const lead = rows[0];
+          finalName = lead.customer_name;
+          finalOrderNumber = lead.order_number;
+          finalCity = lead.city;
+          finalAmount = Number(lead.total_amount);
+        }
+      } catch (dbErr) {
+        console.warn('[Inbox API] MySQL lead lookup notice:', dbErr);
+      }
+
+      const updated = updateConversationCustomer(chatId, {
+        realPhone,
+        customerName: finalName,
+        orderNumber: finalOrderNumber,
+        city: finalCity,
+        totalAmount: finalAmount,
+      });
+
+      return NextResponse.json({
+        success: true,
+        conversation: updated,
+      });
+    }
+
     const updated = toggleAiActive(chatId, isAiActive);
     return NextResponse.json({
       success: true,
