@@ -322,21 +322,70 @@ export async function getProductsFromDb(): Promise<ProductItem[]> {
       return [];
     }
 
-    return rows.map((r: any): ProductItem => ({
-      id: r.id,
-      name: r.name,
-      nameAr: r.name_ar,
-      sku: r.sku,
-      category: r.category || 'General',
-      image: r.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300',
-      sellingPrice: Number(r.base_price),
-      costPrice: Number(r.cost_price),
-      deliveryFee: 35,
-      totalStock: r.stock_quantity || 0,
-      status: r.stock_quantity > 10 ? 'IN_STOCK' : r.stock_quantity > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
-      descriptionAr: r.description_ar || '',
-      keywords: [r.name.toLowerCase(), r.name_ar, r.sku.toLowerCase()],
-    }));
+    return rows.map((r: any): ProductItem => {
+      let variants = undefined;
+      let offers = undefined;
+      let sellingPoints = undefined;
+      let objectionFaqs = undefined;
+      let additionalImages = undefined;
+
+      try {
+        if (r.attributes) {
+          variants = typeof r.attributes === 'string' ? JSON.parse(r.attributes) : r.attributes;
+        }
+      } catch {}
+
+      try {
+        if (r.upsell_bundles) {
+          offers = typeof r.upsell_bundles === 'string' ? JSON.parse(r.upsell_bundles) : r.upsell_bundles;
+        }
+      } catch {}
+
+      try {
+        if (r.selling_points) {
+          sellingPoints = typeof r.selling_points === 'string' ? JSON.parse(r.selling_points) : r.selling_points;
+        }
+      } catch {}
+
+      try {
+        if (r.objection_faqs) {
+          objectionFaqs = typeof r.objection_faqs === 'string' ? JSON.parse(r.objection_faqs) : r.objection_faqs;
+        }
+      } catch {}
+
+      let mainImage = r.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
+      if (mainImage.startsWith('[') && mainImage.endsWith(']')) {
+        try {
+          const parsedImgs = JSON.parse(mainImage);
+          if (Array.isArray(parsedImgs) && parsedImgs.length > 0) {
+            mainImage = parsedImgs[0];
+            additionalImages = parsedImgs.slice(1);
+          }
+        } catch {}
+      }
+
+      return {
+        id: r.id,
+        name: r.name,
+        nameAr: r.name_ar,
+        sku: r.sku,
+        category: r.category || 'General',
+        image: mainImage,
+        additionalImages,
+        sellingPrice: Number(r.base_price),
+        costPrice: Number(r.cost_price),
+        deliveryFee: 35,
+        totalStock: r.stock_quantity || 0,
+        status: r.stock_quantity > 10 ? 'IN_STOCK' : r.stock_quantity > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
+        descriptionAr: r.description_ar || '',
+        keywords: [r.name.toLowerCase(), r.name_ar, r.sku.toLowerCase()],
+        variants,
+        offers,
+        agentInstructions: r.knowledge_base || '',
+        sellingPoints,
+        objectionFaqs,
+      };
+    });
   } catch (error) {
     console.error('[DB Service] Error fetching products from DB:', error);
     return [];

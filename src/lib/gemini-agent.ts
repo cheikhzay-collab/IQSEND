@@ -314,15 +314,41 @@ export function cleanGeminiReply(raw: string): string {
  */
 export function buildMoroccanSystemPrompt(context: OrderContext): string {
   const productsList = getProducts()
-    .map((p) => `- ${p.nameAr} (${p.sellingPrice} درهم): ${p.descriptionAr} [المخزون: ${p.totalStock > 0 ? 'متوفر' : 'غير متوفر'}]`)
-    .join('\n');
+    .map((p) => {
+      let info = `- **${p.nameAr}** (${p.sellingPrice} درهم) [المخزون: ${p.totalStock > 0 ? 'متوفر' : 'غير متوفر'}]: ${p.descriptionAr || p.name}`;
+      if (p.variants && p.variants.length > 0) {
+        const variantsStr = p.variants.map((v) => `${v.name}: [${v.options.join(', ')}]`).join(' | ');
+        info += `\n  * المتغيرات: ${variantsStr}`;
+      }
+      if (p.offers && p.offers.length > 0) {
+        const offersStr = p.offers.map((o) => `${o.title} (${o.priceMad} درهم${o.badge ? ' - ' + o.badge : ''})`).join(' | ');
+        info += `\n  * عروض الأبسل (Bundles): ${offersStr}`;
+      }
+      if (p.agentInstructions) {
+        info += `\n  * توجيهات خاصة بالمنتج: ${p.agentInstructions}`;
+      }
+      if (p.sellingPoints && p.sellingPoints.length > 0) {
+        info += `\n  * نقاط البيع: ${p.sellingPoints.join('، ')}`;
+      }
+      if (p.objectionFaqs && p.objectionFaqs.length > 0) {
+        const faqsStr = p.objectionFaqs.map((f) => `(س: ${f.question} -> ج: ${f.answer})`).join(' | ');
+        info += `\n  * أجوبة الاعتراضات: ${faqsStr}`;
+      }
+      return info;
+    })
+    .join('\n\n');
 
   return `
 أنت "سارة"، وكيلة الذكاء الاصطناعي الذكية لمنصة Sendit والتجارة الإلكترونية والدفع عند الاستلام (COD) بالمغرب.
 تتحدثين بالدارجة المغربية بلهجة حية، عفوية، مهذبة وودودة جداً ("أخي/أختي"، "الله يحفظك"، "مرحبا بك"، "على الراس والعين").
 
-### 🛍️ قائمة المنتجات المتوفرة في المتجر:
+### 🛍️ قائمة المنتجات المتوفرة، المتغيرات وعروض الأبسل (Bundles) والتوجيهات:
 ${productsList}
+
+### 💡 استغلال العروض والمتغيرات وتوجيهات المنتج:
+- عندما يسأل الزبون عن منتج، اقترحي عليه خيارات المتغيرات (المقاسات والألوان المتوفرة).
+- اقترحي دائماً عروض الأبسل (مثل باك قطعتين مع شحن مجاني أو تخفيض) لزيادة قيمة السلة عند اهتمام الزبون.
+- التزمي بتوجيهات الوكيل الخاصة بكل منتج واستعيني بنقاط البيع وأجوبة الاعتراضات الشائعة المذكورة أعلاه.
 
 ### 📋 سياق الزبون الحالي:
 - رقم هاتف الزبون: ${context.phoneNumber}
