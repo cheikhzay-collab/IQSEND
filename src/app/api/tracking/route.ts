@@ -1,56 +1,66 @@
 import { NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { TrackingOrder, ShipmentStatus, LeadStatus } from '@/types';
+import { serverCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const pool = getMysqlPool();
+    const { searchParams } = new URL(req.url);
+    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
 
-    // 1. Fetch leads that have been confirmed or are in logistics stages
-    const [leads]: any = await pool.execute(`
-      SELECT 
-        l.*,
-        s.carrier,
-        s.sendit_tracking_number,
-        s.status as shipment_db_status,
-        s.waybill_url,
-        s.delivery_proof_url,
-        s.delivery_attempts_count,
-        s.failed_reason,
-        i.product_name,
-        i.quantity as item_quantity,
-        i.sku as item_sku
-      FROM order_leads l
-      LEFT JOIN shipment_details s ON l.id = s.order_id
-      LEFT JOIN order_items i ON l.id = i.order_id
-      ORDER BY l.created_at DESC
-    `);
-
-    if (!Array.isArray(leads) || leads.length === 0) {
-      return NextResponse.json({ success: true, orders: [] });
+    if (forceFresh) {
+      serverCache.invalidate('tracking');
     }
 
-    // Fetch timelines for these orders
-    const [timelines]: any = await pool.execute(`
-      SELECT * FROM order_timelines ORDER BY created_at ASC
-    `);
-    const timelinesByOrder = new Map<string, any[]>();
-    if (Array.isArray(timelines)) {
-      for (const t of timelines) {
-        if (!timelinesByOrder.has(t.order_id)) {
-          timelinesByOrder.set(t.order_id, []);
-        }
-        timelinesByOrder.get(t.order_id)!.push({
-          id: t.id,
-          timestamp: t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'À l’instant',
-          title: t.title,
-          description: t.details || '',
-          actor: (t.actor && ['SYSTEM', 'AI_BOT', 'SENDIT', 'AGENT'].includes(t.actor)) ? t.actor : 'SYSTEM',
-        });
+    const orders = await serverCache.getOrSet('tracking', 8, async () => {
+      const pool = getMysqlPool();
+
+      // Parallelize fetching leads and order timelines concurrently
+      const [[leads], [timelines]]: [any, any] = await Promise.all([
+        pool.execute(`
+          SELECT 
+            l.*,
+            s.carrier,
+            s.sendit_tracking_number,
+            s.status as shipment_db_status,
+            s.waybill_url,
+            s.delivery_proof_url,
+            s.delivery_attempts_count,
+            s.failed_reason,
+            i.product_name,
+            i.quantity as item_quantity,
+            i.sku as item_sku
+          FROM order_leads l
+          LEFT JOIN shipment_details s ON l.id = s.order_id
+          LEFT JOIN order_items i ON l.id = i.order_id
+          ORDER BY l.created_at DESC
+        `),
+        pool.execute(`
+          SELECT * FROM order_timelines ORDER BY created_at ASC
+        `),
+      ]);
+
+      if (!Array.isArray(leads) || leads.length === 0) {
+        return [];
       }
-    }
+
+      const timelinesByOrder = new Map<string, any[]>();
+      if (Array.isArray(timelines)) {
+        for (const t of timelines) {
+          if (!timelinesByOrder.has(t.order_id)) {
+            timelinesByOrder.set(t.order_id, []);
+          }
+          timelinesByOrder.get(t.order_id)!.push({
+            id: t.id,
+            timestamp: t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'À l’instant',
+            title: t.title,
+            description: t.details || '',
+            actor: (t.actor && ['SYSTEM', 'AI_BOT', 'SENDIT', 'AGENT'].includes(t.actor)) ? t.actor : 'SYSTEM',
+          });
+        }
+      }
 
     // Deduplicate leads by ID (in case of multiple items)
     const ordersMap = new Map<string, TrackingOrder>();
@@ -145,11 +155,21 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      source: 'database',
-      orders: Array.from(ordersMap.values()),
+    return Array.from(ordersMap.values());
     });
+
+    return NextResponse.json(
+      {
+        success: true,
+        source: 'database',
+        orders,
+      },
+      {
+        headers: {
+          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
+        },
+      }
+    );
   } catch (error: any) {
     console.error('[API Tracking GET] Error:', error);
     return NextResponse.json(
@@ -207,6 +227,9 @@ export async function PATCH(request: Request) {
       details: failedReason ? `Motif: ${failedReason}` : `Mise à jour statut transporteur`,
       actor: 'SENDIT',
     });
+
+    // Invalidate caches
+    serverCache.invalidate(['tracking', 'orders', 'dashboard_stats', 'packing']);
 
     return NextResponse.json({
       success: true,

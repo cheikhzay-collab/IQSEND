@@ -5,26 +5,38 @@ import { LifecycleOrder } from '@/context/OrderLifecycleContext';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const dbOrders = await getOrdersFromDb();
+    const { searchParams } = new URL(req.url);
+    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
+    const dbOrders = await getOrdersFromDb(forceFresh);
+    const headers = {
+      'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
+    };
+
     if (dbOrders && dbOrders.length > 0) {
-      return NextResponse.json({
-        success: true,
-        source: 'database',
-        orders: dbOrders,
-        count: dbOrders.length,
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          source: 'database',
+          orders: dbOrders,
+          count: dbOrders.length,
+        },
+        { headers }
+      );
     }
 
     // Fallback to in-memory store if DB has no orders yet
     const fallbackOrders = getInboundOrders();
-    return NextResponse.json({
-      success: true,
-      source: 'memory_fallback',
-      orders: fallbackOrders,
-      count: fallbackOrders.length,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        source: 'memory_fallback',
+        orders: fallbackOrders,
+        count: fallbackOrders.length,
+      },
+      { headers }
+    );
   } catch (error) {
     console.error('[API Orders GET] Error:', error);
     return NextResponse.json(

@@ -34,41 +34,58 @@ interface DashboardStats {
 }
 
 export default function DashboardOverviewPage() {
-  const [stats, setStats] = useState<DashboardStats>({
-    totalOrders: 22,
-    deliveredRevenue: 6450,
-    deliveredRevenueFormatted: '6,450 MAD',
-    deliveredCount: 18,
-    confirmedCount: 19,
-    pendingCount: 2,
-    canceledCount: 3,
-    inTransitCount: 1,
-    totalProducts: 1,
-    confirmationRate: 86.4,
-    deliveryRate: 85.7,
-    returnRate: 14.3,
+  const [stats, setStats] = useState<DashboardStats>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = sessionStorage.getItem('sendit_cached_dashboard_stats');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed && typeof parsed === 'object') return parsed;
+        }
+      } catch {}
+    }
+    return {
+      totalOrders: 22,
+      deliveredRevenue: 6450,
+      deliveredRevenueFormatted: '6,450 MAD',
+      deliveredCount: 18,
+      confirmedCount: 19,
+      pendingCount: 2,
+      canceledCount: 3,
+      inTransitCount: 1,
+      totalProducts: 1,
+      confirmationRate: 86.4,
+      deliveryRate: 85.7,
+      returnRate: 14.3,
+    };
   });
   const [loading, setLoading] = useState(false);
   const [isLiveDb, setIsLiveDb] = useState(false);
 
-  const loadStats = async () => {
-    setLoading(true);
+  const loadStats = async (silent?: boolean | unknown) => {
+    const isSilent = typeof silent === 'boolean' ? silent : false;
+    if (!isSilent) setLoading(true);
     try {
       const res = await fetch('/api/dashboard/stats');
       const data = await res.json();
       if (data.success && data.stats) {
         setStats(data.stats);
         setIsLiveDb(true);
+        try {
+          sessionStorage.setItem('sendit_cached_dashboard_stats', JSON.stringify(data.stats));
+        } catch {}
       }
     } catch (e) {
       console.warn('Dashboard stats fallback:', e);
     } finally {
-      setLoading(false);
+      if (!isSilent) setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadStats();
+    const hasCache = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('sendit_cached_dashboard_stats'));
+    if (hasCache) setIsLiveDb(true);
+    loadStats(!hasCache ? false : true);
   }, []);
 
   return (

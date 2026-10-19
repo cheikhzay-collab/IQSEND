@@ -121,8 +121,13 @@ if (process.env.NODE_ENV !== 'production') {
   global.__prisma = prisma;
 }
 
+declare global {
+  // eslint-disable-next-line no-var
+  var __mysqlHeartbeat: NodeJS.Timeout | undefined;
+}
+
 /**
- * 3. Direct MySQL Connection Pool (mysql2)
+ * 3. Direct MySQL Connection Pool (mysql2) with Keep-Alive Heartbeat & Warm Connections
  */
 export function getMysqlPool(): Pool {
   if (!global.__mysqlPool) {
@@ -135,11 +140,31 @@ export function getMysqlPool(): Pool {
       password: config.password,
       database: config.database,
       waitForConnections: true,
-      connectionLimit: 10,
+      connectionLimit: 15,
+      maxIdle: 10,
+      idleTimeout: 60000,
       queueLimit: 0,
       enableKeepAlive: true,
-      keepAliveInitialDelay: 10000,
+      keepAliveInitialDelay: 0,
+      connectTimeout: 8000,
     });
+
+    // Warm-up initial connection
+    global.__mysqlPool.query('SELECT 1').catch((err) => {
+      console.warn('[Hostinger MySQL Pool] Warm-up ping notice:', err.message);
+    });
+
+    // Heartbeat every 25 seconds to keep connection warm and prevent Hostinger timeout drops
+    if (!global.__mysqlHeartbeat) {
+      global.__mysqlHeartbeat = setInterval(() => {
+        if (global.__mysqlPool) {
+          global.__mysqlPool.query('SELECT 1').catch(() => {});
+        }
+      }, 25000);
+      if (global.__mysqlHeartbeat.unref) {
+        global.__mysqlHeartbeat.unref();
+      }
+    }
   }
   return global.__mysqlPool;
 }
