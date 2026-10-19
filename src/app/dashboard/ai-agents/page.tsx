@@ -484,15 +484,14 @@ export default function AiAgentsPage() {
             >
               <Sparkles className="w-5 h-5" />
             </div>
-            <div className="flex-1" dir="rtl">
+            <div className="flex-1">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-black text-slate-900 text-right">
+                <span className="text-sm font-black text-slate-900">
                   {geminiConfigured
-                    ? 'وكيل الذكاء الاصطناعي شغال بالـ API المباشر (Google Gemini 1.5 Flash)'
-                    : 'وكيل الذكاء الاصطناعي: يتطلب ربط مفتاح API Google Gemini'}
+                    ? 'Agent IA connecté au LLM en direct (Google Gemini 1.5 Flash)'
+                    : 'Agent IA : Connexion requise à la clé API Google Gemini'}
                 </span>
                 <span
-                  dir="ltr"
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                     geminiConfigured
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1'
@@ -509,10 +508,10 @@ export default function AiAgentsPage() {
                   )}
                 </span>
               </div>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed text-right">
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
                 {geminiConfigured
-                  ? 'الوكيل يتصل بالنموذج اللغوي الفعلي لمعالجة استفسارات الزبائن، كتالوج المنتجات، فحص الشحنات برقم الهاتف، وتثبيت وتعديل الطلبيات.'
-                  : 'أدخل مفتاح Gemini API المجاني أدناه ليتحول الوكيل إلى ذكاء اصطناعي حي يتحدث بالدارجة ويفهم المنتجات وحالة الطلبات.'}
+                  ? 'L\'agent interagit en direct avec Gemini pour qualifier les prospects, consulter le catalogue produit, suivre les colis Sendit par téléphone et confirmer les commandes.'
+                  : 'Entrez votre clé Gemini API gratuite ci-dessous pour transformer l\'agent en IA conversationnelle bilingue (Darija / Français).'}
               </p>
             </div>
           </div>
@@ -523,7 +522,7 @@ export default function AiAgentsPage() {
             rel="noopener noreferrer"
             className="text-xs font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 bg-white hover:bg-purple-50 px-3 py-2 rounded-xl border border-purple-200 transition-colors shrink-0 shadow-2xs self-start md:self-auto"
           >
-            <ExternalLink className="w-3.5 h-3.5" /> احصل على مفتاح مجاني (Google AI Studio)
+            <ExternalLink className="w-3.5 h-3.5" /> Clé gratuite Google AI Studio
           </a>
         </div>
 
@@ -533,8 +532,8 @@ export default function AiAgentsPage() {
             type="password"
             placeholder={
               geminiConfigured
-                ? 'لتغيير المفتاح، ألصق المفتاح الجديد هنا...'
-                : 'ألصق مفتاح Gemini API هنا (مثال: AIzaSy...)'
+                ? 'Pour modifier la clé, collez la nouvelle clé ici...'
+                : 'Collez la clé Gemini API ici (ex: AIzaSy...)'
             }
             value={geminiInputKey}
             onChange={(e) => setGeminiInputKey(e.target.value)}
@@ -545,7 +544,7 @@ export default function AiAgentsPage() {
             disabled={isSavingKey || !geminiInputKey.trim()}
             className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded-lg font-medium text-xs shadow-xs transition-colors shrink-0"
           >
-            <span>{isSavingKey ? 'جاري التحقق والتفعيل...' : 'تفعيل الـ API'}</span>
+            <span>{isSavingKey ? 'Vérification et activation...' : 'Activer l\'API'}</span>
             {isSavingKey ? (
               <RotateCcw className="w-4 h-4 animate-spin" />
             ) : (
@@ -649,25 +648,25 @@ export default function AiAgentsPage() {
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-bold text-white">سارة - مساعدة Sendit COD الذكية</h2>
+                    <h2 className="text-sm font-bold text-white">Sara - Assistante Sendit COD Intelligente</h2>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                       Multi-turn Live
                     </span>
                   </div>
                   <p className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                    <span>متصل الآن • لهجة دارجة مغربية حقيقية + Function Calling</span>
+                    <span>En ligne • Bilingue Darija / Français + Function Calling</span>
                   </p>
                 </div>
               </div>
 
               <button
                 onClick={handleResetChat}
-                title="إعادة ضبط المحادثة"
+                title="Réinitialiser la conversation"
                 className="flex items-center gap-1.5 text-xs text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-xl border border-slate-700 transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">مسح المحادثة</span>
+                <span className="hidden sm:inline">Effacer discussion</span>
               </button>
             </div>
 
@@ -721,14 +720,14 @@ export default function AiAgentsPage() {
 
                       <div className="p-3 space-y-2">
                         {msg.toolDetails?.resultDescription && (
-                          <div className="text-[11px] text-slate-200 font-sans" dir="rtl">
-                            📌 <strong>النتيجة:</strong> {msg.toolDetails.resultDescription}
+                          <div className="text-[11px] text-slate-200 font-sans">
+                            📌 <strong>Résultat :</strong> {msg.toolDetails.resultDescription}
                           </div>
                         )}
 
                         {msg.toolDetails?.args && Object.keys(msg.toolDetails.args).length > 0 && (
                           <div>
-                            <div className="text-[10px] text-slate-400 mb-1">البارامترات المستخرجة (Arguments):</div>
+                            <div className="text-[10px] text-slate-400 mb-1">Paramètres extraits (Arguments) :</div>
                             <pre className="bg-black/60 p-2.5 rounded-lg text-emerald-300 text-[10px] overflow-x-auto whitespace-pre font-mono">
                               {JSON.stringify(msg.toolDetails.args, null, 2)}
                             </pre>
@@ -744,7 +743,7 @@ export default function AiAgentsPage() {
                 <div className="flex items-start">
                   <div className="bg-white border border-slate-200 text-slate-500 rounded-2xl rounded-tl-xs px-4 py-3 shadow-xs text-xs flex items-center gap-2">
                     <RotateCcw className="w-3.5 h-3.5 animate-spin text-purple-600" />
-                    <span dir="rtl" className="font-medium text-slate-700">سارة تفكر وتكتب بالدارجة المغربية...</span>
+                    <span className="font-medium text-slate-700">Sara réfléchit et formule sa réponse...</span>
                   </div>
                 </div>
               )}
@@ -755,7 +754,7 @@ export default function AiAgentsPage() {
             {/* Quick Action Prompt Chips */}
             <div className="p-3 bg-white border-t border-slate-100">
               <span className="text-[11px] font-semibold text-slate-500 block mb-1.5">
-                نماذج جاهزة للاختبار الفوري (انقر للإرسال المباشر) :
+                Modèles de test rapide (cliquez pour tester l'Agent) :
               </span>
               <div className="flex flex-wrap gap-1.5">
                 {[
@@ -792,7 +791,7 @@ export default function AiAgentsPage() {
                     handleSendMessage();
                   }
                 }}
-                placeholder="اكتب رسالتك بالدارجة للوكيل هنا... (مثلاً: فين وصل الكولي؟ 0670114455)"
+                placeholder="Posez une question à l'Agent IA (ex: Où est mon colis ? 0670114455)..."
                 className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 shadow-2xs"
               />
               <button
@@ -804,7 +803,7 @@ export default function AiAgentsPage() {
                   <RotateCcw className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <span>إرسال</span>
+                    <span>Envoyer</span>
                     <Send className="w-3.5 h-3.5" />
                   </>
                 )}
@@ -818,7 +817,7 @@ export default function AiAgentsPage() {
             <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-xs">
               <h3 className="font-bold text-xs text-slate-800 flex items-center justify-between">
                 <span className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-blue-600" /> لوحة فحص الـ Function Calling
+                  <Sliders className="w-4 h-4 text-blue-600" /> Console Function Calling & Outils
                 </span>
                 <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
                   Live API
@@ -827,11 +826,11 @@ export default function AiAgentsPage() {
 
               <div className="space-y-2.5 text-xs text-slate-600">
                 <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                  <span className="text-slate-500">النموذج الفعال</span>
+                  <span className="text-slate-500">Modèle Actif</span>
                   <span className="font-bold font-mono text-blue-600">{activeModelName}</span>
                 </div>
                 <div className="flex justify-between items-center py-1 border-b border-slate-100">
-                  <span className="text-slate-500">درجة الحرارة (Temp)</span>
+                  <span className="text-slate-500">Température (Créativité)</span>
                   <span className="font-bold font-mono text-slate-800">{temperature}</span>
                 </div>
                 <input
@@ -850,7 +849,7 @@ export default function AiAgentsPage() {
                 <div className="text-slate-400 text-[10px] flex items-center justify-between border-b border-slate-800 pb-1.5">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    آخر استدعاء لأداة (Tool Call) :
+                    Dernier appel d'outil (Tool Call) :
                   </span>
                   <span className="text-emerald-400 font-bold">
                     {lastToolDetails?.name || detectedTool || 'Aucun'}
@@ -863,7 +862,7 @@ export default function AiAgentsPage() {
                       ⚡ {lastToolDetails.name}
                     </div>
                     {lastToolDetails.resultDescription && (
-                      <p className="text-slate-300 text-[10px] font-sans" dir="rtl">
+                      <p className="text-slate-300 text-[10px] font-sans">
                         {lastToolDetails.resultDescription}
                       </p>
                     )}
@@ -875,7 +874,7 @@ export default function AiAgentsPage() {
                   </div>
                 ) : (
                   <div className="text-slate-500 text-[11px] py-1">
-                    جرب كتابة: "فين وصل الكولي ديالي؟ 0670114455" لترى استدعاء دالة check_order_status مباشرة!
+                    Essayez d'écrire : "Où est mon colis ? 0670114455" pour voir l'exécution directe de check_order_status !
                   </div>
                 )}
               </div>
@@ -883,17 +882,17 @@ export default function AiAgentsPage() {
               {/* Metrics */}
               <div className="grid grid-cols-3 gap-2 text-center text-[11px] bg-slate-50 p-2.5 rounded-xl border border-slate-100">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">زمن الاستجابة</span>
+                  <span className="text-slate-400 block text-[10px]">Temps de réponse</span>
                   <strong className="text-slate-800">
                     {lastLatencyMs ? `${(lastLatencyMs / 1000).toFixed(2)}s` : '0.65s'}
                   </strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">التوكنات التقريبية</span>
+                  <span className="text-slate-400 block text-[10px]">Tokens estimés</span>
                   <strong className="text-slate-800">{lastTokensCount || 48}</strong>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">الحالة الأمنية</span>
+                  <span className="text-slate-400 block text-[10px]">Sécurité</span>
                   <strong className="text-emerald-600">Proxy Backend</strong>
                 </div>
               </div>
@@ -903,14 +902,14 @@ export default function AiAgentsPage() {
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 text-xs text-emerald-950 space-y-2">
               <div className="flex items-center gap-2 font-bold text-emerald-900">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>شحنة تجريبية نشطة للفحص الفوري:</span>
+                <span>Colis de test actif pour vérification immédiate :</span>
               </div>
               <p className="text-[11px] leading-relaxed text-emerald-800">
-                رقم الهاتف: <strong className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-900">0670114455</strong>
+                Téléphone : <strong className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-900">0670114455</strong>
                 <br />
-                الزبون: <strong>محمد الإدريسي</strong> (الدار البيضاء) • رقم الطلب: <strong>#AT1048</strong>
+                Client : <strong>Mohammed El Idrissi</strong> (Casablanca) • N° Commande : <strong>#AT1048</strong>
                 <br />
-                الحالة: <span className="text-amber-800 font-bold">في طور التوصيل (Sendit Express)</span>
+                Statut : <span className="text-amber-800 font-bold">En cours de livraison (Sendit Express)</span>
               </p>
             </div>
           </div>

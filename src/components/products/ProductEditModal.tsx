@@ -97,12 +97,12 @@ export function ProductEditModal({
       setImage(product.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600');
       setAdditionalImages(product.additionalImages || []);
       setVariants(product.variants || [
-        { type: 'size', name: 'المقاس (Taille)', options: ['M', 'L', 'XL'] },
-        { type: 'color', name: 'اللون (Couleur)', options: ['Noir', 'Blanc'] },
+        { type: 'size', name: 'Taille', options: ['M', 'L', 'XL'] },
+        { type: 'color', name: 'Couleur', options: ['Noir', 'Blanc'] },
       ]);
       setOffers(product.offers || [
-        { id: 'off-1', title: 'عرض حبة واحدة', quantity: 1, priceMad: product.sellingPrice || 299, isDefault: true },
-        { id: 'off-2', title: 'باك قطعتين (Pack Duo)', quantity: 2, priceMad: Math.round((product.sellingPrice || 299) * 1.7), discountPercent: 15, badge: 'الأكثر طلباً - شحن مجاني' },
+        { id: 'off-1', title: 'Offre 1 Pièce', quantity: 1, priceMad: product.sellingPrice || 299, isDefault: true },
+        { id: 'off-2', title: 'Pack Duo (2 Pièces)', quantity: 2, priceMad: Math.round((product.sellingPrice || 299) * 1.7), discountPercent: 15, badge: 'Plus Populaire - Livraison Gratuite' },
       ]);
       setAgentInstructions(product.agentInstructions || '');
       setSellingPoints(product.sellingPoints || []);
@@ -122,17 +122,17 @@ export function ProductEditModal({
       setImage('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600');
       setAdditionalImages([]);
       setVariants([
-        { type: 'size', name: 'المقاس (Taille)', options: ['M', 'L', 'XL'] },
-        { type: 'color', name: 'اللون (Couleur)', options: ['Noir (أسود)', 'Blanc (أبيض)'] },
+        { type: 'size', name: 'Taille', options: ['M', 'L', 'XL'] },
+        { type: 'color', name: 'Couleur', options: ['Noir', 'Blanc'] },
       ]);
       setOffers([
-        { id: 'off-1', title: 'عرض حبة واحدة', quantity: 1, priceMad: 299, isDefault: true },
-        { id: 'off-2', title: 'باك قطعتين (Pack Duo)', quantity: 2, priceMad: 499, discountPercent: 17, badge: 'الأكثر طلباً - شحن مجاني' },
+        { id: 'off-1', title: 'Offre 1 Pièce', quantity: 1, priceMad: 299, isDefault: true },
+        { id: 'off-2', title: 'Pack Duo (2 Pièces)', quantity: 2, priceMad: 499, discountPercent: 17, badge: 'Plus Populaire - Livraison Gratuite' },
       ]);
-      setAgentInstructions('ركز على الجودة العالية للمنتج وسرعة التوصيل مع الدفع عند الاستلام بعد المعاينة.');
-      setSellingPoints(['توصيل مجاني وسريع لكافة المدن', 'جودة ممتازة وضمان استبدال']);
+      setAgentInstructions('Mettre en avant la haute qualité du produit, la rapidité de livraison et le paiement cash à la livraison après inspection.');
+      setSellingPoints(['Livraison rapide et gratuite dans tout le Maroc', 'Qualité supérieure et garantie d échange']);
       setObjectionFaqs([
-        { question: 'واش نقدر نشوف السلعة قبل ما نخلص؟', answer: 'نعم بالتأكيد! كتفحص الكولية وتتأكد منها عاد كتخلص الموزع.' }
+        { question: 'Est-ce que je peux vérifier le produit avant de payer ?', answer: 'Absolument ! Vous inspectez votre colis avant de régler le livreur.' },
       ]);
     }
     setActiveTab('general');
@@ -161,7 +161,7 @@ export function ProductEditModal({
           ...prev,
           {
             type: groupType,
-            name: groupType === 'size' ? 'المقاس (Taille)' : 'اللون (Couleur)',
+            name: groupType === 'size' ? 'Taille' : 'Couleur',
             options: [val.trim()],
           },
         ];
@@ -188,11 +188,11 @@ export function ProductEditModal({
       ...offers,
       {
         id: `off-${Date.now()}`,
-        title: `عرض ${nextQty} قطع (Pack ${nextQty})`,
+        title: `Pack ${nextQty} Pièces`,
         quantity: nextQty,
         priceMad: estPrice,
         discountPercent: 18,
-        badge: 'توفير خاص + شحن مجاني',
+        badge: 'Remise Spéciale + Livraison Gratuite',
       },
     ]);
   };
@@ -370,7 +370,7 @@ export function ProductEditModal({
 
                 <div>
                   <label className="text-xs font-bold text-slate-700 block mb-1">
-                    الاسم باللغة العربية (بالدارجة / الفصحى) *
+                    Nom en Arabe / Darija (Client & WhatsApp) *
                   </label>
                   <input
                     type="text"
@@ -511,7 +511,7 @@ export function ProductEditModal({
               {/* Description */}
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
-                  الوصف التجاري بالدارجة (Description Darija pour WhatsApp & Landing Page)
+                  Description Commerciale (Darija / Français pour WhatsApp & Landing Page)
                 </label>
                 <textarea
                   rows={3}
@@ -625,7 +625,7 @@ export function ProductEditModal({
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-bold text-slate-800 block">المقاسات المتوفرة (Tailles Disponibles)</span>
+                    <span className="text-xs font-bold text-slate-800 block">Tailles Disponibles</span>
                     <span className="text-[11px] text-slate-500">Exemples : S, M, L, XL, XXL ou 39, 40, 41, 42, 43</span>
                   </div>
                 </div>
@@ -655,7 +655,7 @@ export function ProductEditModal({
                     type="text"
                     value={newSizeInput}
                     onChange={(e) => setNewSizeInput(e.target.value)}
-                    placeholder="Ajouter un مقاس (Ex: XL أو 42)"
+                    placeholder="Ajouter une taille (Ex: XL ou 42)"
                     className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl"
                   />
                   <button
@@ -675,7 +675,7 @@ export function ProductEditModal({
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <span className="text-xs font-bold text-slate-800 block">الألوان المتوفرة (Couleurs Disponibles)</span>
+                    <span className="text-xs font-bold text-slate-800 block">Couleurs Disponibles</span>
                     <span className="text-[11px] text-slate-500">Exemples : Noir, Blanc, Bleu Ciel, Marron, Kaki</span>
                   </div>
                 </div>
@@ -706,7 +706,7 @@ export function ProductEditModal({
                     type="text"
                     value={newColorInput}
                     onChange={(e) => setNewColorInput(e.target.value)}
-                    placeholder="Ajouter لون (Ex: Bleu Nuit أو كحلي)"
+                    placeholder="Ajouter une couleur (Ex: Bleu Nuit ou Noir)"
                     className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl"
                   />
                   <button
@@ -729,9 +729,9 @@ export function ProductEditModal({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-xs font-bold text-slate-800">العروض وباقات الـ Upsell للواتساب وصفحة الهبوط</h3>
+                  <h3 className="text-xs font-bold text-slate-800">Offres & Packs d'Upsell (WhatsApp & Formulaire COD)</h3>
                   <p className="text-[11px] text-slate-500">
-                    يقترح الوكيل الذكي هذه الباقات على الزبائن لزيادة معدل السلة المتوسط (Panier Moyen).
+                    L'Agent IA propose ces offres aux clients pour augmenter le panier moyen.
                   </p>
                 </div>
                 <button
@@ -828,22 +828,21 @@ export function ProductEditModal({
               <div className="p-3.5 bg-purple-50/70 border border-purple-200/80 rounded-2xl text-xs text-purple-900 flex items-start gap-2.5">
                 <Sparkles className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold">توجيهات وكيل الذكاء الاصطناعي (AI Prompt & Knowledge Base) :</span> هنا تحدد شخصية وطريقة بيع الوكيل لهذا المنتج بالذات على الواتساب، والردود الذكية على اعتراضات الزبناء بالدارجة المغربية.
+                  <span className="font-bold">Directives Agent IA (AI Prompt & Base de Connaissances) :</span> Définissez le comportement et les arguments de l'Agent IA pour ce produit lors des échanges WhatsApp.
                 </div>
               </div>
 
               {/* Custom Agent Instructions */}
               <div>
                 <label className="text-xs font-bold text-slate-800 block mb-1">
-                  توجيهات وخطة عمل الوكيل لهذا المنتج (Instructions & Directives Spécifiques)
+                  Directives & Consignes Spécifiques pour l'Agent
                 </label>
                 <textarea
                   rows={4}
                   value={agentInstructions}
                   onChange={(e) => setAgentInstructions(e.target.value)}
-                  placeholder="مثال: ركز على مميزات البطارية، اقترح باقة الحبتين كهدية لشخص عزيز، طمئن الزبون بخصوص المقاس وأن التبديل مجاني..."
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 text-right leading-relaxed"
-                  dir="rtl"
+                  placeholder="Ex: Mettre en avant la haute qualité, proposer le pack duo comme cadeau, rassurer sur les échanges de taille gratuits..."
+                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 leading-relaxed"
                 />
               </div>
 
@@ -851,7 +850,7 @@ export function ProductEditModal({
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-slate-800">
-                    نقاط القوة والإقناع التي يستعملها الوكيل (Arguments de Vente Clés)
+                    Arguments de Vente Clés (Points Forts)
                   </span>
                 </div>
 
@@ -881,16 +880,15 @@ export function ProductEditModal({
                     type="text"
                     value={newSellingPoint}
                     onChange={(e) => setNewSellingPoint(e.target.value)}
-                    placeholder="أضف نقطة إقناع جديدة (مثال: شاشة AMOLED واضحة تحت الشمس...)"
-                    className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl text-right"
-                    dir="rtl"
+                    placeholder="Ajouter un argument de vente (Ex: Écran AMOLED lisible en plein soleil...)"
+                    className="flex-1 text-xs p-2 bg-white border border-slate-200 rounded-xl"
                   />
                   <button
                     type="button"
                     onClick={handleAddSellingPoint}
                     className="px-3.5 py-2 bg-purple-700 text-white rounded-xl text-xs font-bold flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> إضافة
+                    <Plus className="w-3.5 h-3.5" /> Ajouter
                   </button>
                 </div>
               </div>
@@ -898,7 +896,7 @@ export function ProductEditModal({
               {/* Objection Handling FAQs */}
               <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                 <span className="text-xs font-bold text-slate-800 block">
-                  الردود النموذجية على اعتراضات الزبناء (Réponses aux Objections Fréquentes)
+                  Réponses Types aux Objections Fréquentes
                 </span>
 
                 <div className="space-y-2">
@@ -908,18 +906,18 @@ export function ProductEditModal({
                       className="p-3 bg-white border border-slate-200 rounded-xl space-y-1.5 relative text-xs"
                     >
                       <div className="flex items-start justify-between">
-                        <span className="font-bold text-slate-900 text-right w-full pr-6" dir="rtl">
+                        <span className="font-bold text-slate-900 w-full pr-6">
                           ❓ {faq.question}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveFaq(i)}
-                          className="text-slate-400 hover:text-rose-600 shrink-0 absolute top-2.5 left-2.5"
+                          className="text-slate-400 hover:text-rose-600 shrink-0 absolute top-2.5 right-2.5"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <p className="text-slate-600 bg-slate-50 p-2 rounded-lg text-right" dir="rtl">
+                      <p className="text-slate-600 bg-slate-50 p-2 rounded-lg">
                         💬 {faq.answer}
                       </p>
                     </div>
@@ -931,24 +929,22 @@ export function ProductEditModal({
                     type="text"
                     value={newFaqQ}
                     onChange={(e) => setNewFaqQ(e.target.value)}
-                    placeholder="سؤال أو اعتراض الزبون (مثال: واش الثمن قابل للنقاش؟)"
-                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl text-right"
-                    dir="rtl"
+                    placeholder="Question ou objection client (Ex: Est-ce que le prix est négociable ?)"
+                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                   <textarea
                     rows={2}
                     value={newFaqA}
                     onChange={(e) => setNewFaqA(e.target.value)}
-                    placeholder="جواب الوكيل المقنع بالدارجة المغربية..."
-                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl text-right"
-                    dir="rtl"
+                    placeholder="Réponse convaincante de l'agent en Darija ou Français..."
+                    className="w-full text-xs p-2 bg-slate-50 border border-slate-200 rounded-xl"
                   />
                   <button
                     type="button"
                     onClick={handleAddFaq}
                     className="w-full py-2 bg-slate-900 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5"
                   >
-                    <Plus className="w-3.5 h-3.5" /> إضافة الاعتراض وجوابه
+                    <Plus className="w-3.5 h-3.5" /> Ajouter l'objection et sa réponse
                   </button>
                 </div>
               </div>

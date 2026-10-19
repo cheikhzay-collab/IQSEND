@@ -476,7 +476,7 @@ export default function SettingsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-sm font-bold text-slate-900">
-                  Base de Données Hostinger MySQL (قاعدة البيانات الرسمية)
+                  Base de Données Hostinger MySQL (Officielle)
                 </h2>
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${

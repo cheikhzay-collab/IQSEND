@@ -52,7 +52,7 @@ export default function ProductsPage() {
           const mapped: ProductItem[] = data.products.map((p: any) => ({
             id: p.id || `prod-${Math.random().toString(36).slice(2, 7)}`,
             name: p.name || 'Produit COD',
-            nameAr: p.nameAr || p.name || 'منتج',
+            nameAr: p.nameAr || p.name || 'Produit',
             sku: p.sku || 'SKU-UNKNOWN',
             category: p.category || 'High-Tech',
             image: p.image || p.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
@@ -112,13 +112,13 @@ export default function ProductsPage() {
       throw new Error(err.error || 'Erreur lors de l enregistrement dans la base MySQL');
     }
 
-    setSaveSuccessAlert(`تم حفظ وتحديث منتج "${savedProduct.nameAr || savedProduct.name}" بنجاح في قاعدة البيانات.`);
+    setSaveSuccessAlert(`Produit "${savedProduct.name || savedProduct.nameAr}" enregistré et mis à jour avec succès.`);
     setTimeout(() => setSaveSuccessAlert(null), 5000);
   };
 
   // Delete handler
   const handleDeleteProduct = async (p: ProductItem) => {
-    const confirmDelete = window.confirm(`هل أنت متأكد من حذف المنتج "${p.nameAr || p.name}" نهائياً من قاعدة البيانات؟`);
+    const confirmDelete = window.confirm(`Êtes-vous sûr de vouloir supprimer définitivement le produit "${p.name || p.nameAr}" de la base de données ?`);
     if (!confirmDelete) return;
 
     // Optimistic local update
@@ -129,16 +129,16 @@ export default function ProductsPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || data.message || 'فشل حذف المنتج من قاعدة البيانات');
+        throw new Error(data.error || data.message || 'Échec de la suppression du produit');
       }
 
-      setSaveSuccessAlert(`تم حذف المنتج "${p.nameAr || p.name}" نهائياً من قاعدة البيانات بنجاح.`);
+      setSaveSuccessAlert(`Produit "${p.name || p.nameAr}" supprimé définitivement avec succès.`);
       setTimeout(() => setSaveSuccessAlert(null), 4000);
     } catch (err: any) {
       console.warn('[ProductsPage] Delete error:', err);
       // Revert if deletion failed
       setProducts((prev) => [...prev, p]);
-      alert(`حدث خطأ أثناء محاولة حذف المنتج من قاعدة البيانات: ${err?.message || 'خطأ غير معروف'}`);
+      alert(`Une erreur est survenue lors de la suppression du produit : ${err?.message || 'Erreur inconnue'}`);
     }
   };
 
@@ -168,7 +168,7 @@ export default function ProductsPage() {
             </div>
             <div>
               <p className="text-xs font-bold">{saveSuccessAlert}</p>
-              <p className="text-[11px] text-emerald-700">تم تحديث العروض، الصور، المتغيرات وتوجيهات الوكيل بنجاح.</p>
+              <p className="text-[11px] text-emerald-700">Offres, visuels, déclinaisons et directives IA mis à jour avec succès.</p>
             </div>
           </div>
           <button
@@ -357,7 +357,7 @@ export default function ProductsPage() {
                                 title="Offres d'upsell et packs configurés"
                               >
                                 <Tag className="w-2.5 h-2.5" />
-                                {offersCount} عروض/Packs
+                                {offersCount} Packs / Offres
                               </span>
                             )}
 
@@ -367,7 +367,7 @@ export default function ProductsPage() {
                                 title="Variantes de tailles et couleurs"
                               >
                                 <Layers className="w-2.5 h-2.5" />
-                                {totalOptions} متغيرات
+                                {totalOptions} déclinaisons
                               </span>
                             )}
 
@@ -377,7 +377,7 @@ export default function ProductsPage() {
                                 title="Directives personnalisées pour l'Agent IA WhatsApp"
                               >
                                 <Sparkles className="w-2.5 h-2.5 text-teal-600" />
-                                توجيهات AI
+                                Directives IA
                               </span>
                             )}
                           </div>

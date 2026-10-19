@@ -76,10 +76,10 @@ export default function DraftsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Draft Orders
+                  Brouillons
                 </h1>
-                <span className="text-xs font-bold text-slate-400 font-arabic">
-                  (المسودات)
+                <span className="text-xs font-bold text-slate-400">
+                  (En attente de saisie)
                 </span>
                 <span className="bg-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-full">
                   {drafts.length}

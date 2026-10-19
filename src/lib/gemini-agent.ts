@@ -71,6 +71,12 @@ export interface OrderContext {
   city: string;
   address: string;
   totalAmount: number;
+  stage?: string;
+  shippingStatus?: string;
+  courier?: string;
+  driverName?: string;
+  driverPhone?: string;
+  trackingNumber?: string;
   items: Array<{
     name: string;
     sku: string;
@@ -299,11 +305,9 @@ export function cleanGeminiReply(raw: string): string {
       // Check for numbered plan steps like "1. Acknowledge...", "5. Remind them..."
       const isNumberedStep = /^\d+[\.\)]\s+[A-Za-z]/.test(line);
       if (isNumberedStep) {
-        // Does this numbered step end with a customer-facing Arabic reply?
-        // e.g. "5. Remind them about the payment method (COD)! مرحبا بك وبناس فاس..."
-        const arabicGreetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي)/);
-        if (arabicGreetingMatch !== -1) {
-          const cut = line.slice(arabicGreetingMatch).trim();
+        const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي|bonjour|bonsoir|salut|merci|cher|chère)/i);
+        if (greetingMatch !== -1) {
+          const cut = line.slice(greetingMatch).trim();
           if (cut.length > 5) {
             cleaned.push(cut);
             messageStarted = true;
@@ -312,16 +316,16 @@ export function cleanGeminiReply(raw: string): string {
         continue;
       }
 
-      // Check if line starts with Arabic characters
+      // Check if line starts with Arabic or French greeting / customer reply
       const firstChar = line.charAt(0);
-      if (/[\u0600-\u06FF]/.test(firstChar)) {
+      if (/[\u0600-\u06FF]/.test(firstChar) || /^(?:bonjour|bonsoir|salut|merci|chere?|oui|non|d['’]accord|salam)/i.test(line)) {
         cleaned.push(line);
         messageStarted = true;
         continue;
       }
 
-      // If line contains an Arabic greeting
-      const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي)/);
+      // If line contains an Arabic or French greeting
+      const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي|bonjour|bonsoir|salut|merci|cher|chère)/i);
       if (greetingMatch !== -1) {
         cleaned.push(line.slice(greetingMatch).trim());
         messageStarted = true;
@@ -377,16 +381,24 @@ ${productsList}
 - اقترحي دائماً عروض الأبسل (مثل باك قطعتين مع شحن مجاني أو تخفيض) لزيادة قيمة السلة عند اهتمام الزبون.
 - التزمي بتوجيهات الوكيل الخاصة بكل منتج واستعيني بنقاط البيع وأجوبة الاعتراضات الشائعة المذكورة أعلاه.
 
-### 📋 سياق الزبون الحالي:
+### 📋 سياق الزبون الحالي وحالة الشحنة:
 - رقم هاتف الزبون: ${context.phoneNumber}
 - اسم الزبون: ${context.customerName}
 - المدينة: ${context.city}
 - رقم الطلب الحالي (إن وجد): ${context.orderNumber}
-- المبلغ: ${context.totalAmount} درهم
+- المبلغ: ${context.totalAmount} درهم (الدفع نقداً عند الاستلام COD)
+- المرحلة الحالية للطلب: ${context.stage || 'En attente de confirmation (في انتظار التأكيد)'}
+- حالة الشحن والتتبع: ${context.shippingStatus || 'En préparation'}
+- شركة التوصيل ورقم التتبع AWB: ${context.courier || 'Sendit Express'} (${context.trackingNumber || 'En cours'})
+- موزع التوصيل: ${context.driverName ? `${context.driverName} (${context.driverPhone || ''})` : 'En attente d affectation'}
+
+### 🌐 التحدث باللغة المناسبة (Bilinguisme Darija / Français):
+- إذا كتب الزبون بالدارجة المغربية أو الحروف العربية، ردي بالدارجة المغربية الراقية والودودة.
+- إذا كتب الزبون بالفرنسية (Français)، ردي فوراً بالفرنسية المهنية الودودة والواضحة (Français commercial courtois).
 
 ### 🎯 قدراتك ومهامك:
 1. **معرفة المنتجات وعرض الكتالوج:** الإجابة عن كل تساؤل بخصوص أسعار المنتجات ومواصفاتها، وعرض الكتالوج الكامل عند الطلب.
-2. **الاطلاع على حالة الطلب وتتبعه:** عندما يسأل الزبون عن طلبيته، استدعي دالة \`check_order_status\` وزوديه بحالة الشحن مع شركة Sendit.
+2. **الاطلاع على حالة الطلب وتتبعه:** عندما يسأل الزبون عن طلبيته، استدعي دالة \`check_order_status\` وزوديه بحالة الشحن مع شركة Sendit ورقم التتبع أو اسم الموزع إذا كان متوفراً.
 3. **مسك وتسجيل طلبية جديدة:** عندما يطلب الزبون شراء أي منتج، اجمعي منه (الاسم، المدينة، العنوان) واستدعي دالة \`create_new_order\` لتسجيل الطلبية في النظام وتزويده برقم الطلب الرسمي.
 4. **تأكيد الطلبيات الحالية:** استدعاء \`confirm_order_and_address\` عند موافقة الزبون، وطلب اللوكاسيون 📍 لتسهيل التوصيل.
 5. **إلغاء الطلب:** استدعاء \`cancel_order\` باحترام عند رفض الزبون.

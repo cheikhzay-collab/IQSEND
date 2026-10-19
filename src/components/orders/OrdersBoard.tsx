@@ -20,78 +20,18 @@ import {
   Truck,
   ExternalLink,
   Phone,
-  MessageCircle
+  MessageCircle,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { OrderItem, OrderStatus, PaymentBadge } from '@/types/orders';
 import { useOrderLifecycle, LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
 import { OrderCard } from './OrderCard';
 import { OrderDetailsModal } from './OrderDetailsModal';
 import { CreateOrderModal } from './CreateOrderModal';
-
-// Helper to convert LifecycleOrder to OrderItem for OrderCard rendering
-function lifecycleToOrderItem(o: LifecycleOrder): OrderItem {
-  const firstItem = o.items?.[0];
-  const isPaid =
-    o.payment?.status === 'COLLECTED' ||
-    o.payment?.status === 'SETTLED' ||
-    o.payment?.method === 'PREPAID';
-
-  let badgeType: PaymentBadge = isPaid ? 'PAID' : 'COD PENDING';
-  let badgeLabel: string | undefined = undefined;
-
-  if (
-    o.customer?.notes?.toLowerCase().includes('rappeler') ||
-    o.customer?.notes?.toLowerCase().includes('callback')
-  ) {
-    badgeType = 'CALLBACK';
-    badgeLabel = 'Callback 16h';
-  } else if (o.aiVerification?.status === 'CONFIRMED_BY_AI') {
-    badgeLabel = 'Validé IA';
-  } else if (o.aiVerification?.status === 'NEEDS_REVIEW') {
-    badgeLabel = 'À vérifier';
-  }
-
-  let metaBadge: { type: 'ai-call' | 'tracking'; text: string } | undefined = undefined;
-  if (o.shipping?.trackingNumber) {
-    metaBadge = { type: 'tracking', text: o.shipping.trackingNumber };
-  } else if (o.aiVerification?.status === 'CONFIRMED_BY_AI') {
-    metaBadge = { type: 'ai-call', text: 'AI Call' };
-  }
-
-  return {
-    id: o.id,
-    orderNumber: o.orderNumber,
-    status: o.stage as OrderStatus,
-    badgeType,
-    badgeLabel,
-    amount: o.payment?.amount || 0,
-    currency: o.payment?.currency || 'MAD',
-    productName: firstItem
-      ? o.items.length > 1
-        ? `${firstItem.name} (+${o.items.length - 1})`
-        : firstItem.name
-      : 'Article COD',
-    productThumbnail:
-      firstItem?.thumbnail ||
-      'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
-    customerName: o.customer?.name || 'Client',
-    city: o.customer?.city || 'Maroc',
-    countryCode: 'MA',
-    phone: o.customer?.phone || '',
-    timeAgo: o.createdAt || 'À l’instant',
-    address: o.customer?.address,
-    metaBadge,
-    hasWhatsapp: true,
-    hasCall: true,
-    hasNote: !!o.customer?.notes,
-    hasReview: !!o.completed?.reviewScore,
-    assignedAgent: {
-      type: 'initial',
-      value: o.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'IA' : 'A',
-      bgClass: o.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'bg-emerald-600' : 'bg-[#7c3aed]',
-    },
-  };
-}
+import { QuickCallModal } from './QuickCallModal';
+import { AgentInterventionModal } from './AgentInterventionModal';
+import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 
 // 4 STAGES EXACTLY MATCHING THE RED BOX IN THE USER'S SCREENSHOT
 interface ColumnConfig {
@@ -180,6 +120,8 @@ export function OrdersBoard() {
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [activeView, setActiveView] = useState<'kanban' | 'list' | 'columns'>('kanban');
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null);
+  const [callModalOrder, setCallModalOrder] = useState<OrderItem | null>(null);
+  const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<OrderItem | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<LifecycleStage | null>(null);
@@ -263,13 +205,21 @@ export function OrdersBoard() {
     }
   };
 
+  const handleQuickCall = (order: OrderItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCallModalOrder(order);
+  };
+
+  const handleAgentIntervention = (order: OrderItem, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAgentInterventionOrder(order);
+  };
+
   const handleQuickWhatsApp = (order: OrderItem, e: React.MouseEvent) => {
     e.stopPropagation();
-    const phoneClean = order.phone.replace(/\D/g, '');
-    const intlPhone = phoneClean.startsWith('0') ? '212' + phoneClean.slice(1) : phoneClean;
-    const msg = encodeURIComponent(
-      `Salam ${order.customerName}, m3ak service de livraison bkhosous talab #${order.orderNumber} dyal ${order.productName}. Wach t2akkad lina l'envoi l ${order.city} ?`
-    );
+    const stageConfig = getStageMessageConfig(order.status);
+    const intlPhone = formatPhoneForWhatsApp(order.phone);
+    const msg = encodeURIComponent(stageConfig.darija(order));
     window.open(`https://wa.me/${intlPhone}?text=${msg}`, '_blank');
   };
 
@@ -569,7 +519,9 @@ export function OrdersBoard() {
                         order={order}
                         isFloating={false}
                         onSelect={setSelectedOrder}
+                        onQuickCall={handleQuickCall}
                         onQuickWhatsApp={handleQuickWhatsApp}
+                        onAgentIntervention={handleAgentIntervention}
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                       />
@@ -642,20 +594,26 @@ export function OrdersBoard() {
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           <button
-                            onClick={(e) => handleQuickWhatsApp(order, e)}
-                            className="p-1 rounded-lg text-emerald-600 hover:bg-emerald-50"
-                            title="Envoyer WhatsApp"
+                            onClick={(e) => handleQuickCall(order, e)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                            title={`Appeler ${order.customerName} (${order.phone})`}
                           >
-                            <MessageCircle className="w-4 h-4" />
+                            <Phone className="w-3.5 h-3.5" />
                           </button>
-                          <a
-                            href={`tel:${order.phone}`}
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700"
-                            title="Appeler"
+                          <button
+                            onClick={(e) => handleQuickWhatsApp(order, e)}
+                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors"
+                            title="Envoyer WhatsApp selon statut"
                           >
-                            <Phone className="w-4 h-4" />
-                          </a>
+                            <MessageCircle className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => handleAgentIntervention(order, e)}
+                            className="p-1.5 rounded-lg text-violet-600 hover:bg-violet-50 transition-colors"
+                            title="Intervention Agent IA selon le statut"
+                          >
+                            <Bot className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -672,11 +630,28 @@ export function OrdersBoard() {
         order={selectedOrder}
         onClose={() => setSelectedOrder(null)}
         onStatusChange={handleStatusChange}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
         onSendWhatsApp={(order, msg) => {
           const phoneClean = order.phone.replace(/\D/g, '');
           const intlPhone = phoneClean.startsWith('0') ? '212' + phoneClean.slice(1) : phoneClean;
           window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, '_blank');
         }}
+      />
+
+      {/* Quick Call Modal */}
+      <QuickCallModal
+        order={callModalOrder}
+        isOpen={!!callModalOrder}
+        onClose={() => setCallModalOrder(null)}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
+      />
+
+      {/* Agent Intervention Modal */}
+      <AgentInterventionModal
+        order={agentInterventionOrder}
+        isOpen={!!agentInterventionOrder}
+        onClose={() => setAgentInterventionOrder(null)}
+        onStageChange={(orderId, newStage) => moveOrderStage(orderId, newStage)}
       />
 
       {/* Create Order Modal */}

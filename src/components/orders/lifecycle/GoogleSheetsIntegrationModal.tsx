@@ -37,32 +37,32 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
     : 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets';
 
   const scriptCode = `// ==============================================================
-// كود المزامنة التلقائية مع منصة SENDIT COD Platform
-// يرسل كل طلب يسقط في جوجل شيت مباشرة إلى مرحلة التأكيد (Pending)
+// Script de synchronisation automatique avec la plateforme SENDIT COD
+// Transmet chaque commande ajoutée dans Google Sheets directement en "En attente"
 // ==============================================================
 
 function onEdit(e) {
-  // أو يمكنك تفعيله كـ Trigger عند إرسال النموذج (On Form Submit)
+  // Ou configurez-le comme déclencheur "Lors de l'envoi du formulaire" (On form submit)
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var row = e ? e.range.getRow() : sheet.getLastRow();
-  if (row <= 1) return; // تخطي رأس الجدول
+  if (row <= 1) return; // Ignorer la ligne d'en-tête
 
   var data = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
   
-  // قم بتعديل أرقام الأعمدة حسب ترتيب جدولك (يبدأ من 0):
-  // العمود A = data[0], العمود B = data[1], العمود C = data[2] ...
+  // Ajustez les indices de colonnes selon votre feuille (index commence à 0) :
+  // Colonne A = data[0], Colonne B = data[1], Colonne C = data[2] ...
   var payload = {
-    name: data[1] || data[0],        // اسم الزبون
-    phone: data[2] || "",            // رقم الهاتف
-    city: data[3] || "Casablanca",   // المدينة
-    address: data[4] || "",          // العنوان
-    product: data[5] || "Pack COD",  // اسم المنتج
-    quantity: data[6] || 1,          // الكمية
-    price: data[7] || 299,           // السعر بالدرهم
-    notes: data[8] || "طلب جوجل شيت" // ملاحظات
+    name: data[1] || data[0],             // Nom du client
+    phone: data[2] || "",                 // Numéro de téléphone
+    city: data[3] || "Casablanca",        // Ville
+    address: data[4] || "",               // Adresse complète
+    product: data[5] || "Pack COD",       // Nom du produit
+    quantity: data[6] || 1,               // Quantité
+    price: data[7] || 299,                // Montant en MAD
+    notes: data[8] || "Commande Sheets"   // Remarques client
   };
 
-  // إرسال الطلب فوراً إلى منصة التأكيد
+  // Transmission instantanée au webhook de confirmation
   var options = {
     method: "post",
     contentType: "application/json",
@@ -72,9 +72,9 @@ function onEdit(e) {
 
   try {
     var response = UrlFetchApp.fetch("${webhookUrl}", options);
-    Logger.log("تم إرسال الطلب بنجاح: " + response.getContentText());
+    Logger.log("Commande transmise avec succès : " + response.getContentText());
   } catch (err) {
-    Logger.log("خطأ في الإرسال: " + err.toString());
+    Logger.log("Erreur lors de la transmission : " + err.toString());
   }
 }`;
 
@@ -94,10 +94,10 @@ function onEdit(e) {
     setSimulationResult(null);
 
     const testClients = [
-      { name: 'يوسف العمراني', phone: '0661998877', city: 'Marrakech', address: 'حي جليز، عمارة الأطلس شقة 6', product: 'Montre Luxe Or Noir', price: 349 },
-      { name: 'أمينة بنجلون', phone: '0672112233', city: 'Fès', address: 'طريق عين الشقف، إقامة النرجس', product: 'Pack Robe Caftan Moderne', price: 490 },
-      { name: 'طارق العلمي', phone: '0654334455', city: 'Casablanca', address: 'شارع الزرق طوني، المعاريف', product: 'Sneakers Sport Élite', price: 299 },
-      { name: 'هدى التازي', phone: '0663778899', city: 'Tanger', address: 'طنجة البالية، مجمع النصر رقم 18', product: 'Sac Cuir Artisanal', price: 380 },
+      { name: 'Youssef El Amrani', phone: '0661998877', city: 'Marrakech', address: 'Guéliz, Immeuble Atlas, Appt 6', product: 'Montre Luxe Or Noir', price: 349 },
+      { name: 'Amina Benjelloun', phone: '0672112233', city: 'Fès', address: 'Route Ain Chkef, Résidence Narjiss', product: 'Pack Robe Caftan Moderne', price: 490 },
+      { name: 'Tariq Alami', phone: '0654334455', city: 'Casablanca', address: 'Bd Zerktouni, Quartier Maârif', product: 'Sneakers Sport Élite', price: 299 },
+      { name: 'Houda Tazi', phone: '0663778899', city: 'Tanger', address: 'Tanger Balia, Complexe Ennasr n°18', product: 'Sac Cuir Artisanal', price: 380 },
     ];
 
     const randomClient = testClients[Math.floor(Math.random() * testClients.length)];
@@ -114,19 +114,19 @@ function onEdit(e) {
         setSimulationResult({
           success: true,
           orderNumber: data.orderNumber,
-          message: `تم إسقاط الطلب بنجاح! رقم الطلب: ${data.orderNumber} (${randomClient.name} - ${randomClient.city})`,
+          message: `Commande injectée avec succès ! N° : ${data.orderNumber} (${randomClient.name} — ${randomClient.city})`,
         });
         await refreshInboundOrders();
       } else {
         setSimulationResult({
           success: false,
-          message: data.error || 'حدث خطأ أثناء إرسال الطلب',
+          message: data.error || 'Une erreur est survenue lors de l\'injection de la commande.',
         });
       }
     } catch (err: any) {
       setSimulationResult({
         success: false,
-        message: err.message || 'تعذر الاتصال بالخادم',
+        message: err.message || 'Impossible de joindre le serveur.',
       });
     } finally {
       setIsSimulating(false);
@@ -145,10 +145,10 @@ function onEdit(e) {
             </div>
             <div>
               <h3 className="font-black text-base tracking-tight">
-                ربط Google Sheets بصفحة التأكيد
+                Liaison Google Sheets & Synchronisation Live
               </h3>
               <p className="text-xs text-emerald-100">
-                إسقاط لحظي وتلقائي لأي طلب يُسجل في جوجل شيت في مرحلة (Pending Confirmation)
+                Injection instantanée et automatique de chaque commande reçue dans la phase En attente (Pending Confirmation)
               </p>
             </div>
           </div>
@@ -168,21 +168,21 @@ function onEdit(e) {
             <div className="flex items-center gap-2.5">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               <div>
-                <span className="font-bold text-emerald-950 text-xs">منفذ الاستقبال نشط وجاهز (Live Webhook Active)</span>
+                <span className="font-bold text-emerald-950 text-xs">Point de terminaison Webhook actif (Live Webhook Active)</span>
                 <p className="text-[11px] text-emerald-700 mt-0.5">
-                  المنصة تستمع وتحدث الطلبات فورياً بدون الحاجة لإعادة تحميل الصفحة.
+                  La plateforme écoute et actualise les commandes en temps réel sans nécessiter de rechargement de page.
                 </p>
               </div>
             </div>
             <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full">
-              متصل 100%
+              Connecté 100%
             </span>
           </div>
 
           {/* Webhook Endpoint URL */}
           <div className="space-y-1.5">
             <label className="font-bold text-slate-900 block">
-              1. رابط الويب هوك الخاص بك (Webhook Ingestion Endpoint):
+              1. URL de votre Webhook d'ingestion (Webhook Ingestion Endpoint) :
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -200,7 +200,7 @@ function onEdit(e) {
                 }`}
               >
                 {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedUrl ? 'تم النسخ!' : 'نسخ الرابط'}</span>
+                <span>{copiedUrl ? 'Copié !' : 'Copier l\'URL'}</span>
               </button>
             </div>
           </div>
@@ -209,13 +209,13 @@ function onEdit(e) {
           <div className="space-y-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
             <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>طريقة التفعيل في 3 خطوات بسيطة داخل Google Sheet:</span>
+              <span>Activation en 3 étapes simples dans Google Sheets :</span>
             </h4>
             <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed pr-1">
-              <li>افتح ملف الـ <strong>Google Sheet</strong> الخاص بطلبات متجرك.</li>
-              <li>من القائمة العلوية اضغط على <strong>إضافات (Extensions)</strong> ➔ <strong>Apps Script</strong>.</li>
-              <li>امسح ما بداخل المحرر، والصق الكود الجاهز أسفله، ثم اضغط <strong>حفظ (Save)</strong>.</li>
-              <li>من القائمة الجانبية في Apps Script اختر <strong>المشغلات (Triggers)</strong> واجعل الدالة تعمل عند <strong>إرسال النموذج (On form submit)</strong> أو <strong>عند التعديل (On edit)</strong>.</li>
+              <li>Ouvrez votre document <strong>Google Sheets</strong> contenant les commandes.</li>
+              <li>Dans le menu supérieur, cliquez sur <strong>Extensions</strong> ➔ <strong>Apps Script</strong>.</li>
+              <li>Effacez le contenu existant, collez le script ci-dessous, puis cliquez sur <strong>Enregistrer</strong>.</li>
+              <li>Dans le menu latéral d'Apps Script, ouvrez <strong>Déclencheurs (Triggers)</strong> et activez l'exécution <strong>Lors de l'envoi du formulaire</strong> ou <strong>Lors de la modification</strong>.</li>
             </ol>
           </div>
 
@@ -223,14 +223,14 @@ function onEdit(e) {
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-900">
-                2. كود Google Apps Script الجاهز للنسخ:
+                2. Script Google Apps Script prêt à l'emploi :
               </label>
               <button
                 onClick={() => copyToClipboard(scriptCode, false)}
                 className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1"
               >
                 {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedCode ? 'تم نسخ الكود!' : 'نسخ الكود كاملاً'}</span>
+                <span>{copiedCode ? 'Code copié !' : 'Copier le script'}</span>
               </button>
             </div>
             <pre className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800 leading-relaxed dir-ltr text-left">
@@ -244,10 +244,10 @@ function onEdit(e) {
               <div>
                 <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
                   <Play className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
-                  <span>3. تجربة واختبار الربط فورياً (Live Simulation):</span>
+                  <span>3. Tester la connexion en direct (Live Simulation) :</span>
                 </h4>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  اضغط لتجربة إرسال طلب وهمي فوري وشاهده وهو يسقط مباشرة أمامك في جدول التأكيد.
+                  Cliquez pour simuler une commande immédiate et la voir apparaître instantanément dans votre pipeline.
                 </p>
               </div>
               <button
@@ -256,7 +256,7 @@ function onEdit(e) {
                 className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{isSimulating ? 'جاري الإرسال...' : 'إسقاط طلب تجريبي الآن'}</span>
+                <span>{isSimulating ? 'Envoi en cours...' : 'Injecter commande test'}</span>
               </button>
             </div>
 
@@ -283,13 +283,13 @@ function onEdit(e) {
         {/* Modal Footer */}
         <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
           <span className="text-[11px] text-slate-500">
-            يدعم الحقول باللغة العربية والفرنسية والإنجليزية تلقائياً.
+            Prise en charge automatique des colonnes en français, arabe et anglais.
           </span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors"
           >
-            إغلاق
+            Fermer
           </button>
         </div>
 

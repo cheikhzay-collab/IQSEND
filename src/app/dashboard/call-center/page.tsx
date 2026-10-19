@@ -285,7 +285,7 @@ export default function CallCenterPage() {
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-teal-600" />
-                  Script d'Appel Recommandé (الدارجة المغربية)
+                  Script d'Appel Recommandé (Darija Marocaine)
                 </span>
                 <span className="text-[10px] text-slate-400">À lire au client</span>
               </div>

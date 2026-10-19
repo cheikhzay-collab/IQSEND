@@ -12,8 +12,10 @@ import {
   Barcode,
   ArrowRight,
   Send,
-  Check,
-  ScanLine
+  ScanLine,
+  Phone,
+  MessageSquare,
+  Bot
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -21,6 +23,10 @@ import {
   ShippingLabelModal,
   InvoiceModal,
 } from '@/components/orders/lifecycle/OrderModals';
+import { QuickCallModal } from '@/components/orders/QuickCallModal';
+import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
+import { OrderItem } from '@/types/orders';
+import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 
 const COURIER_OPTIONS = [
   'Sendit.ma Express',
@@ -44,6 +50,8 @@ export default function ProcessingOrdersPage() {
   // Modals
   const [labelOrder, setLabelOrder] = useState<LifecycleOrder | null>(null);
   const [invoiceOrder, setInvoiceOrder] = useState<LifecycleOrder | null>(null);
+  const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
+  const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
 
   // Filter orders for Processing
   const processingOrders = useMemo(() => {
@@ -147,13 +155,53 @@ export default function ProcessingOrdersPage() {
                         <div>
                           <span className="text-xs font-black text-slate-900 block">{order.orderNumber}</span>
                           <span className="text-[10px] text-slate-500">
-                            Destination : <strong className="text-slate-800">{order.customer.city}</strong>
+                            Client : <strong className="text-slate-800">{order.customer.name}</strong> • {order.customer.city}
                           </span>
                         </div>
                         <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-0.5 rounded-md font-mono text-[10px] text-slate-800 font-bold border border-slate-200">
                           <Warehouse className="w-2.5 h-2.5 text-slate-500" />
                           <span>{order.items[0]?.binLocation || 'Bay A-01'}</span>
                         </div>
+                      </div>
+
+                      {/* 3 Quick Action Buttons: Call, WhatsApp, Agent IA */}
+                      <div className="grid grid-cols-3 gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                          className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[11px] font-bold transition-colors active:scale-95"
+                          title="Appel rapide"
+                        >
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">Appeler</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const item = lifecycleToOrderItem(order);
+                            const conf = getStageMessageConfig(item.status);
+                            window.open(
+                              `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                              '_blank'
+                            );
+                          }}
+                          className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[11px] font-bold transition-colors active:scale-95"
+                          title="Message WhatsApp Préparation"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span className="truncate">Préparation</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                          className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-[11px] font-bold transition-colors active:scale-95"
+                          title="Intervention Agent IA"
+                        >
+                          <Bot className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                          <span className="truncate">Agent IA</span>
+                        </button>
                       </div>
 
                       {/* Items to pack */}
@@ -357,9 +405,47 @@ export default function ProcessingOrdersPage() {
                             </div>
                           </td>
 
-                          {/* 6. Actions (Print Label + Ship -> Moves to In Transit) */}
+                          {/* 6. Actions (Quick Actions + Print Label + Ship -> Moves to In Transit) */}
                           <td className="py-4 px-4 text-right whitespace-nowrap">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {/* 1. Bouton Appel Rapide */}
+                              <button
+                                type="button"
+                                onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                                className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors"
+                                title={`Appel téléphonique rapide à ${order.customer.name} (${order.customer.phone})`}
+                              >
+                                <Phone className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-600" />
+                              </button>
+
+                              {/* 2. Bouton Message WhatsApp selon Statut */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const item = lifecycleToOrderItem(order);
+                                  const conf = getStageMessageConfig(item.status);
+                                  window.open(
+                                    `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                                    '_blank'
+                                  );
+                                }}
+                                className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 transition-colors"
+                                title="Envoyer le message WhatsApp (En cours de préparation)"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* 3. Bouton Intervention Agent IA */}
+                              <button
+                                type="button"
+                                onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold transition-colors shadow-2xs"
+                                title="Intervention Agent IA (Génération personnalisée & tonalités)"
+                              >
+                                <Bot className="w-3.5 h-3.5 text-violet-600" />
+                                <span>Agent IA</span>
+                              </button>
+
                               {/* Print Shipping Label */}
                               <button
                                 onClick={() => setLabelOrder(order)}
@@ -403,6 +489,21 @@ export default function ProcessingOrdersPage() {
         order={invoiceOrder}
         isOpen={!!invoiceOrder}
         onClose={() => setInvoiceOrder(null)}
+      />
+
+      {/* Quick Call Modal */}
+      <QuickCallModal
+        order={quickCallOrder}
+        isOpen={!!quickCallOrder}
+        onClose={() => setQuickCallOrder(null)}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
+      />
+
+      {/* Agent Intervention Modal */}
+      <AgentInterventionModal
+        order={agentInterventionOrder}
+        isOpen={!!agentInterventionOrder}
+        onClose={() => setAgentInterventionOrder(null)}
       />
     </div>
   );

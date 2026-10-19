@@ -37,3 +37,6 @@ yarn-error.log*
 # whatsapp baileys sessions
 whatsapp_sessions/
 .wa_auth/
+
+# scratch / temp scripts
+scratch/

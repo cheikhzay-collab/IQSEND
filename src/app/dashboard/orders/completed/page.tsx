@@ -9,13 +9,20 @@ import {
   Banknote,
   Calendar,
   Check,
-  RotateCcw,
   ShieldCheck,
-  ExternalLink
+  ExternalLink,
+  Phone,
+  MessageSquare,
+  Bot,
+  RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { InvoiceModal } from '@/components/orders/lifecycle/OrderModals';
+import { QuickCallModal } from '@/components/orders/QuickCallModal';
+import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
+import { OrderItem } from '@/types/orders';
+import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 
 export default function CompletedOrdersPage() {
   const {
@@ -29,6 +36,8 @@ export default function CompletedOrdersPage() {
   const [invoiceOrder, setInvoiceOrder] = useState<LifecycleOrder | null>(null);
   const [returnOrder, setReturnOrder] = useState<LifecycleOrder | null>(null);
   const [returnReason, setReturnReason] = useState('Changement de taille souhaité');
+  const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
+  const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
 
   // Filter orders for Completed
   const completedOrders = useMemo(() => {
@@ -187,6 +196,46 @@ export default function CompletedOrdersPage() {
                   </span>
                 </div>
 
+                {/* 3 Quick Action Buttons: Call, WhatsApp, Agent IA */}
+                <div className="grid grid-cols-3 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[11px] font-bold transition-colors active:scale-95"
+                    title="Appel rapide"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span className="truncate">Appeler</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const item = lifecycleToOrderItem(order);
+                      const conf = getStageMessageConfig(item.status);
+                      window.open(
+                        `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                        '_blank'
+                      );
+                    }}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold transition-colors active:scale-95"
+                    title="Message WhatsApp Avis"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span className="truncate">Avis</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                    className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-[11px] font-bold transition-colors active:scale-95"
+                    title="Intervention Agent IA"
+                  >
+                    <Bot className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                    <span className="truncate">Agent IA</span>
+                  </button>
+                </div>
+
                 {/* Mobile Action Buttons */}
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   <button
@@ -338,16 +387,54 @@ export default function CompletedOrdersPage() {
                         </div>
                       </td>
 
-                      {/* 6. Actions */}
+                      {/* 6. Actions (Quick Actions + Invoice, Review, Return) */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* 1. Bouton Appel Rapide */}
+                          <button
+                            type="button"
+                            onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors"
+                            title={`Appel téléphonique rapide à ${order.customer.name} (${order.customer.phone})`}
+                          >
+                            <Phone className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-600" />
+                          </button>
+
+                          {/* 2. Bouton Message WhatsApp selon Statut */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const item = lifecycleToOrderItem(order);
+                              const conf = getStageMessageConfig(item.status);
+                              window.open(
+                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                                '_blank'
+                              );
+                            }}
+                            className="p-1.5 rounded-lg text-amber-600 hover:text-amber-800 hover:bg-amber-50 border border-amber-200 hover:border-amber-300 transition-colors"
+                            title="Envoyer le message WhatsApp de satisfaction & avis (Livré)"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 3. Bouton Intervention Agent IA */}
+                          <button
+                            type="button"
+                            onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold transition-colors shadow-2xs"
+                            title="Intervention Agent IA (Collecte avis, upsell post-achat)"
+                          >
+                            <Bot className="w-3.5 h-3.5 text-violet-600" />
+                            <span>Agent IA</span>
+                          </button>
+
                           {/* View Invoice */}
                           <button
                             onClick={() => setInvoiceOrder(order)}
                             className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs transition-colors"
                             title="Consulter et imprimer la facture commerciale"
                           >
-                            <FileText className="w-3 h-3 text-slate-500" />
+                            <FileText className="w-3.5 h-3.5 text-slate-500" />
                             <span>Facture</span>
                           </button>
 
@@ -363,7 +450,7 @@ export default function CompletedOrdersPage() {
                           >
                             <Star className="w-3 h-3 text-amber-500" />
                             <span>
-                              {order.completed?.reviewRequested ? 'Avis demandé ✓' : 'Avis WhatsApp'}
+                              {order.completed?.reviewRequested ? 'Avis demandé ✓' : 'Avis'}
                             </span>
                           </button>
 
@@ -374,7 +461,7 @@ export default function CompletedOrdersPage() {
                             title="Créer un retour ou un échange"
                           >
                             <RotateCcw className="w-3 h-3 text-rose-600" />
-                            <span>Retour / Échange</span>
+                            <span>Retour</span>
                           </button>
                         </div>
                       </td>
@@ -436,6 +523,21 @@ export default function CompletedOrdersPage() {
           </div>
         </div>
       )}
+
+      {/* Quick Call Modal */}
+      <QuickCallModal
+        order={quickCallOrder}
+        isOpen={!!quickCallOrder}
+        onClose={() => setQuickCallOrder(null)}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
+      />
+
+      {/* Agent Intervention Modal */}
+      <AgentInterventionModal
+        order={agentInterventionOrder}
+        isOpen={!!agentInterventionOrder}
+        onClose={() => setAgentInterventionOrder(null)}
+      />
     </div>
   );
 }

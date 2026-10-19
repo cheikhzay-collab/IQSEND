@@ -16,7 +16,9 @@ import {
   PhoneCall,
   Clock,
   ShieldAlert,
-  ArrowRight
+  ArrowRight,
+  Bot,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -24,6 +26,11 @@ import {
   EditOrderModal,
   CancelOrderModal,
 } from '@/components/orders/lifecycle/OrderModals';
+import { QuickCallModal } from '@/components/orders/QuickCallModal';
+import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
+import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
+import { OrderItem } from '@/types/orders';
+import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 
 export default function PendingOrdersPage() {
   const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
@@ -36,6 +43,9 @@ export default function PendingOrdersPage() {
   const [cancellingOrder, setCancellingOrder] = useState<LifecycleOrder | null>(null);
   const [callingOrder, setCallingOrder] = useState<LifecycleOrder | null>(null);
   const [callOutcome, setCallOutcome] = useState('CONFIRMED');
+  const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
+  const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
+  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
 
   // Filter orders for Pending Confirmation (Strictly COD)
   const pendingOrders = useMemo(() => {
@@ -133,6 +143,16 @@ export default function PendingOrdersPage() {
                 </option>
               ))}
             </select>
+
+            {/* Google Sheets Sync Button */}
+            <button
+              onClick={() => setIsSheetsModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all shadow-2xs shrink-0 active:scale-95"
+              title="Lier Google Sheets pour synchronisation automatique des commandes"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Google Sheets</span>
+            </button>
           </div>
         </div>
 
@@ -179,26 +199,40 @@ export default function PendingOrdersPage() {
                       )}
                     </div>
 
-                    {/* Quick Call & WhatsApp Buttons */}
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <a
-                        href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
-                          `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
-                        )}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-colors active:scale-95"
+                    {/* 3 Quick Action Buttons: Call, WhatsApp, Agent IA */}
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[11px] font-bold transition-colors active:scale-95"
                       >
-                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>WhatsApp Darija</span>
-                      </a>
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">Appeler</span>
+                      </button>
 
                       <button
-                        onClick={() => setCallingOrder(order)}
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-xs font-bold transition-colors active:scale-95"
+                        type="button"
+                        onClick={() => {
+                          const item = lifecycleToOrderItem(order);
+                          const conf = getStageMessageConfig(item.status);
+                          window.open(
+                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                            '_blank'
+                          );
+                        }}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-colors active:scale-95"
                       >
-                        <PhoneCall className="w-3.5 h-3.5 text-blue-600" />
-                        <span>Appel ({order.customer.phone})</span>
+                        <MessageSquare className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span className="truncate">Confirmer</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-[11px] font-bold transition-colors active:scale-95"
+                      >
+                        <Bot className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                        <span className="truncate">Agent IA</span>
                       </button>
                     </div>
 
@@ -386,9 +420,48 @@ export default function PendingOrdersPage() {
                           )}
                         </td>
 
-                        {/* 5. Actions */}
+                        {/* 5. Actions with 3 Quick Buttons (Call, WhatsApp, Agent IA) */}
                         <td className="py-4 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* 1. Bouton Appel Rapide */}
+                            <button
+                              type="button"
+                              onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors"
+                              title={`Appel téléphonique rapide à ${order.customer.name} (${order.customer.phone})`}
+                            >
+                              <Phone className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-600" />
+                            </button>
+
+                            {/* 2. Bouton Message WhatsApp selon Statut */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const item = lifecycleToOrderItem(order);
+                                const conf = getStageMessageConfig(item.status);
+                                window.open(
+                                  `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                                  '_blank'
+                                );
+                              }}
+                              className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-300 transition-colors"
+                              title="Envoyer le message WhatsApp de confirmation (En attente)"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* 3. Bouton Intervention Agent IA */}
+                            <button
+                              type="button"
+                              onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold transition-colors shadow-2xs"
+                              title="Intervention Agent IA (Génération personnalisée & tonalités)"
+                            >
+                              <Bot className="w-3.5 h-3.5 text-violet-600" />
+                              <span>Agent IA</span>
+                            </button>
+
+                            {/* Confirmer ➔ Préparation */}
                             <button
                               onClick={() => confirmOrder(order.id)}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
@@ -487,6 +560,27 @@ export default function PendingOrdersPage() {
         isOpen={!!cancellingOrder}
         onClose={() => setCancellingOrder(null)}
         onConfirmCancel={cancelOrder}
+      />
+
+      {/* Quick Call Modal */}
+      <QuickCallModal
+        order={quickCallOrder}
+        isOpen={!!quickCallOrder}
+        onClose={() => setQuickCallOrder(null)}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
+      />
+
+      {/* Agent Intervention Modal */}
+      <AgentInterventionModal
+        order={agentInterventionOrder}
+        isOpen={!!agentInterventionOrder}
+        onClose={() => setAgentInterventionOrder(null)}
+      />
+
+      {/* Google Sheets Sync Modal */}
+      <GoogleSheetsIntegrationModal
+        isOpen={isSheetsModalOpen}
+        onClose={() => setIsSheetsModalOpen(false)}
       />
     </div>
   );

@@ -227,7 +227,7 @@ export default function IntegrationsPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Compréhension du dialecte marocain (الدارجة), négociation d'upsell et transcription audio par Whisper.
+                Compréhension du dialecte marocain (Darija), négociation d'upsell et transcription audio par Whisper.
               </p>
             </div>
           </div>

@@ -83,10 +83,10 @@ export default function ReviewsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Customer Reviews
+                  Avis Clients
                 </h1>
-                <span className="text-xs font-bold text-slate-400 font-arabic">
-                  (تقييمات العملاء)
+                <span className="text-xs font-bold text-slate-400">
+                  (Retours & Témoignages)
                 </span>
                 <span className="bg-amber-100 text-amber-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-amber-200">
                   ★ 4.9 / 5.0 (98% Satisfaction)

@@ -247,7 +247,7 @@ export default function LeadsConfirmationPage() {
 
   // Real AI Agent confirmation execution on single lead
   const handleTriggerAiBot = async (lead: LeadCard) => {
-    showToast(`🤖 جاري تشغيل سارة (وكيل الذكاء الاصطناعي) لتأكيد الطلب ${lead.orderNumber}...`);
+    showToast(`🤖 Lancement de Sara (Agent IA) pour confirmer la commande ${lead.orderNumber}...`);
     try {
       const res = await fetch('/api/ai/execute', {
         method: 'POST',
@@ -256,20 +256,20 @@ export default function LeadsConfirmationPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`✅ تم تأكيد ${lead.orderNumber} آلياً بواسطة سارة، إرسال رسالة الواتساب وحفظها في قاعدة البيانات!`);
+        showToast(`✅ Commande ${lead.orderNumber} confirmée par Sara, message WhatsApp envoyé et synchronisé en base !`);
         fetchLeads();
       } else {
-        showToast(`⚠️ ملاحظة: ${data.error || data.message || 'تعذر التأكيد'}`);
+        showToast(`⚠️ Remarque : ${data.error || data.message || 'Impossible de confirmer'}`);
       }
     } catch (e: any) {
-      showToast(`خطأ في تشغيل الوكيل: ${e.message}`);
+      showToast(`Erreur d'exécution de l'agent : ${e.message}`);
     }
   };
 
   // Real Auto-Pilot execution across all NEW leads
   const handleRunAutoPilot = async () => {
     setIsAutoPiloting(true);
-    showToast('🚀 بدأ وكيل الذكاء الاصطناعي سارة بفحص وتأكيد كافة الطلبات الجديدة...');
+    showToast("🚀 L'Agent IA Sara analyse et confirme toutes les nouvelles commandes...");
     try {
       const res = await fetch('/api/ai/execute', {
         method: 'POST',
@@ -278,13 +278,13 @@ export default function LeadsConfirmationPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`🎉 نجح وكيل الذكاء الاصطناعي في تأكيد ${data.processedCount} طلبية جديدة وتحديثها في قاعدة البيانات!`);
+        showToast(`🎉 L'Agent IA a confirmé ${data.processedCount} nouvelle(s) commande(s) avec succès !`);
         fetchLeads();
       } else {
-        showToast(`ملاحظة: ${data.error || 'تمت العملية'}`);
+        showToast(`Remarque : ${data.error || 'Opération terminée'}`);
       }
     } catch (e: any) {
-      showToast(`خطأ: ${e.message}`);
+      showToast(`Erreur : ${e.message}`);
     } finally {
       setIsAutoPiloting(false);
     }
@@ -293,7 +293,7 @@ export default function LeadsConfirmationPage() {
   // Live test lead creation & AI confirmation demo
   const handleCreateTestLead = async () => {
     setIsCreatingTest(true);
-    showToast('🧪 جاري توليد طلبية تجريبية حقيقية وتأكيدها بواسطة سارة...');
+    showToast("🧪 Génération d'une commande test et confirmation par Sara...");
     try {
       const res = await fetch('/api/ai/execute', {
         method: 'POST',
@@ -302,11 +302,11 @@ export default function LeadsConfirmationPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(`✨ تم إنشاء الطلبية ${data.orderNumber} للزبون ${data.customerName} وتأكيدها بالذكاء الاصطناعي وحفظها في قاعدة البيانات!`);
+        showToast(`✨ Commande ${data.orderNumber} créée pour ${data.customerName} et confirmée par l'IA !`);
         fetchLeads();
       }
     } catch (e: any) {
-      showToast(`خطأ: ${e.message}`);
+      showToast(`Erreur : ${e.message}`);
     } finally {
       setIsCreatingTest(false);
     }
@@ -472,17 +472,17 @@ export default function LeadsConfirmationPage() {
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-extrabold text-sm text-white">وكيل الذكاء الاصطناعي "سارة" (Auto-Pilot AI)</span>
+              <span className="font-extrabold text-sm text-white">Agent IA "Sara" (Auto-Pilot IA)</span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                مفعل ونشط
+                Actif & En ligne
               </span>
               <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                قاعدة بيانات حقيقية: Hostinger Cloud MySQL (srv977.hstgr.io)
+                Base de données : Hostinger Cloud MySQL (srv977.hstgr.io)
               </span>
             </div>
             <p className="text-[11px] text-slate-300 mt-0.5">
-              تأكيد أوتوماتيكي للطلبات • محادثات دارجة مغربية حقيقية • كشف العناوين واللوكاسيون 📍 • مزامنة فورية في قاعدة البيانات
+              Confirmation automatique des commandes • Dialogues naturels Darija/Français • Détection adresses & GPS 📍 • Synchronisation temps réel
             </p>
           </div>
         </div>
@@ -495,24 +495,24 @@ export default function LeadsConfirmationPage() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4 text-slate-950" />
-            <span>{isAutoPiloting ? 'جاري التأكيد الذاتي...' : 'تشغيل الوكيل على كافة الطلبات الجديدة ⚡'}</span>
+            <span>{isAutoPiloting ? 'Confirmation auto en cours...' : 'Lancer l\'Agent sur toutes les nouvelles commandes ⚡'}</span>
           </button>
 
           <button
             onClick={handleCreateTestLead}
             disabled={isCreatingTest}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold text-xs transition-colors active:scale-95 disabled:opacity-50"
-            title="توليد طلب جديد وتأكيده مباشرة لاختبار الوكيل حياً"
+            title="Générer une commande test et la confirmer en direct pour tester l'Agent"
           >
             <Package className="w-3.5 h-3.5 text-blue-300" />
-            <span>{isCreatingTest ? 'جاري التوليد...' : 'تجربة طلب حي (Demo)'}</span>
+            <span>{isCreatingTest ? 'Génération en cours...' : 'Tester commande en direct (Démo)'}</span>
           </button>
 
           <button
             onClick={fetchLeads}
             disabled={isLoading}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition-colors"
-            title="تحديث البيانات من Hostinger MySQL"
+            title="Actualiser les données depuis Hostinger MySQL"
           >
             <RotateCcw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
@@ -615,7 +615,7 @@ export default function LeadsConfirmationPage() {
                             {/* Form Edit Button */}
                             <button
                               onClick={() => setEditingLead({ ...lead })}
-                              title="Modifier la commande / تعديل الطلب"
+                              title="Modifier la commande"
                               className="bg-white text-slate-700 hover:text-blue-600 p-1.5 rounded-md shadow-md hover:bg-slate-50 transition-colors"
                             >
                               <Edit3 className="w-3.5 h-3.5" />
@@ -738,7 +738,7 @@ export default function LeadsConfirmationPage() {
                             className="flex items-center justify-center gap-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-1.5 rounded-lg text-[11px] transition-all shadow-xs active:scale-95"
                           >
                             <Bot className="w-3.5 h-3.5" />
-                            <span>تأكيد IA</span>
+                            <span>Confirmer IA</span>
                           </button>
                         </div>
 
@@ -749,7 +749,7 @@ export default function LeadsConfirmationPage() {
                             className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-all shadow-xs active:scale-95"
                           >
                             <Sparkles className="w-3.5 h-3.5" />
-                            🤖 تشغيل وكيل الذكاء الاصطناعي للتأكيد ⚡
+                            🤖 Lancer l'Agent IA pour confirmer ⚡
                           </button>
                         )}
 
@@ -1059,7 +1059,7 @@ export default function LeadsConfirmationPage() {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm">
-                    Message WhatsApp Personnalisé (الواتساب)
+                    Message WhatsApp Personnalisé
                   </h3>
                   <p className="text-[11px] text-emerald-100">
                     Destinataire: {customWhatsAppLead.customerName} ({customWhatsAppLead.phone})
@@ -1087,7 +1087,7 @@ export default function LeadsConfirmationPage() {
                     onClick={() => applyTemplate('confirm')}
                     className="p-2 text-left border border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 hover:bg-emerald-50 transition-colors"
                   >
-                    <span className="font-bold text-slate-800 block">💬 تأكيد الطلب السريع</span>
+                    <span className="font-bold text-slate-800 block">💬 Confirmation Rapide</span>
                     <span className="text-[10px] text-slate-500">Demande de confirmation standard</span>
                   </button>
 
@@ -1096,8 +1096,8 @@ export default function LeadsConfirmationPage() {
                     onClick={() => applyTemplate('gps')}
                     className="p-2 text-left border border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 hover:bg-emerald-50 transition-colors"
                   >
-                    <span className="font-bold text-slate-800 block">📍 طلب اللوكاسيون GPS</span>
-                    <span className="text-[10px] text-slate-500">Localisation pour livreur</span>
+                    <span className="font-bold text-slate-800 block">📍 Demande Localisation GPS</span>
+                    <span className="text-[10px] text-slate-500">Position pour livreur</span>
                   </button>
 
                   <button
@@ -1105,7 +1105,7 @@ export default function LeadsConfirmationPage() {
                     onClick={() => applyTemplate('upsell')}
                     className="p-2 text-left border border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 hover:bg-emerald-50 transition-colors"
                   >
-                    <span className="font-bold text-slate-800 block">🎁 عرض إضافي (Upsell)</span>
+                    <span className="font-bold text-slate-800 block">🎁 Offre Spéciale (Upsell)</span>
                     <span className="text-[10px] text-slate-500">Remise -40% sur 2ème pièce</span>
                   </button>
 
@@ -1114,7 +1114,7 @@ export default function LeadsConfirmationPage() {
                     onClick={() => applyTemplate('no_answer')}
                     className="p-2 text-left border border-slate-200 hover:border-emerald-500 rounded-xl bg-slate-50 hover:bg-emerald-50 transition-colors"
                   >
-                    <span className="font-bold text-slate-800 block">📞 اتصال لم يتم الرد</span>
+                    <span className="font-bold text-slate-800 block">📞 Appel sans réponse (Relance)</span>
                     <span className="text-[10px] text-slate-500">Rappel après appel sans réponse</span>
                   </button>
                 </div>

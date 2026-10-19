@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Phone,
@@ -14,31 +14,50 @@ import {
   ShieldCheck,
   Send,
   ExternalLink,
-  Truck
+  Truck,
+  Bot,
+  Sparkles
 } from 'lucide-react';
 import { OrderItem, OrderStatus } from '@/types/orders';
+import { getStageMessageConfig } from '@/lib/order-stage-messages';
 
 interface OrderDetailsModalProps {
   order: OrderItem | null;
+  isOpen?: boolean;
   onClose: () => void;
   onStatusChange: (orderId: string, newStatus: OrderStatus) => void;
   onSendWhatsApp: (order: OrderItem, message: string) => void;
+  onOpenAgentIntervention?: (order: OrderItem) => void;
 }
 
 export function OrderDetailsModal({
   order,
+  isOpen = true,
   onClose,
   onStatusChange,
   onSendWhatsApp,
+  onOpenAgentIntervention,
 }: OrderDetailsModalProps) {
-  const [customMsg, setCustomMsg] = useState(
-    order
-      ? `السلام عليكم ${order.customerName}، معكم خدمة تأكيد الطلبات بخصوص طلبكم #${order.orderNumber} لـ ${order.productName}. واش نأكدو معكم الإرسال إلى ${order.city}؟`
-      : ''
-  );
+  const [customMsg, setCustomMsg] = useState('');
+  const [activeLang, setActiveLang] = useState<'french' | 'darija' | 'arabic'>('french');
   const [copied, setCopied] = useState(false);
 
-  if (!order) return null;
+  useEffect(() => {
+    if (order) {
+      const stageConfig = getStageMessageConfig(order.status);
+      if (activeLang === 'french') {
+        setCustomMsg(stageConfig.french(order));
+      } else if (activeLang === 'darija') {
+        setCustomMsg(stageConfig.darija(order));
+      } else {
+        setCustomMsg(stageConfig.arabic(order));
+      }
+    }
+  }, [order, activeLang]);
+
+  if (!order || !isOpen) return null;
+
+  const stageConfig = getStageMessageConfig(order.status);
 
   const handleCopy = () => {
     navigator.clipboard?.writeText(order.orderNumber);
@@ -64,7 +83,7 @@ export function OrderDetailsModal({
                 <button
                   onClick={handleCopy}
                   className="text-slate-400 hover:text-slate-600 transition-colors p-1"
-                  title="Copier le numéro"
+                  title="Copier le numéro de commande"
                 >
                   {copied ? (
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -72,9 +91,14 @@ export function OrderDetailsModal({
                     <Copy className="w-3.5 h-3.5" />
                   )}
                 </button>
+                <span
+                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${stageConfig.badgeBg}`}
+                >
+                  {stageConfig.stageNameFr}
+                </span>
               </div>
               <p className="text-xs text-slate-500">
-                Créé il y a {order.timeAgo} • Destination: <strong className="text-slate-700">{order.city}, Maroc</strong>
+                Créé il y a {order.timeAgo} • Destination : <strong className="text-slate-700">{order.city}, Maroc</strong>
               </p>
             </div>
           </div>
@@ -89,7 +113,6 @@ export function OrderDetailsModal({
 
         {/* Modal Body */}
         <div className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
-          
           {/* Status Bar & Quick Switcher */}
           <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 flex items-center justify-between">
             <div>
@@ -107,11 +130,11 @@ export function OrderDetailsModal({
                 onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
                 className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-teal-600"
               >
-                <option value="NEW_ORDERS">Nouveaux (New Orders)</option>
-                <option value="CONFIRMED">Confirmé (Confirmed)</option>
-                <option value="PACKING">En Packing</option>
-                <option value="SHIPPED">Expédié (Shipped)</option>
-                <option value="DELIVERED">Livré & Payé (Delivered)</option>
+                <option value="PENDING_CONFIRMATION">1. En attente (Pending)</option>
+                <option value="PROCESSING">2. En préparation (Processing)</option>
+                <option value="IN_TRANSIT">3. En livraison (In Transit)</option>
+                <option value="COMPLETED">4. Livré & Encaissé (Completed)</option>
+                <option value="CANCELED">Annulée (Canceled)</option>
               </select>
             </div>
           </div>
@@ -161,35 +184,75 @@ export function OrderDetailsModal({
             </div>
           </div>
 
-          {/* WhatsApp Direct Action in Darija */}
+          {/* Stage-Adapted WhatsApp & Agent Action */}
           <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
-                <span>Message WhatsApp Rapide (Darija)</span>
+                <span>Message WhatsApp adapté à l'étape ({stageConfig.stageNameFr})</span>
               </div>
-              <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                Gemini COD
-              </span>
+
+              {/* Language Switcher */}
+              <div className="flex items-center gap-1 text-[10px] font-bold">
+                <button
+                  onClick={() => setActiveLang('french')}
+                  className={`px-2 py-0.5 rounded ${
+                    activeLang === 'french' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
+                  }`}
+                >
+                  Français
+                </button>
+                <button
+                  onClick={() => setActiveLang('darija')}
+                  className={`px-2 py-0.5 rounded ${
+                    activeLang === 'darija' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
+                  }`}
+                >
+                  Darija
+                </button>
+                <button
+                  onClick={() => setActiveLang('arabic')}
+                  className={`px-2 py-0.5 rounded ${
+                    activeLang === 'arabic' ? 'bg-emerald-600 text-white' : 'bg-emerald-100 text-emerald-800'
+                  }`}
+                >
+                  Arabe
+                </button>
+              </div>
             </div>
 
             <textarea
               value={customMsg}
               onChange={(e) => setCustomMsg(e.target.value)}
               rows={3}
-              dir="rtl"
+              dir={activeLang === 'french' ? 'ltr' : 'rtl'}
               className="w-full text-xs p-2.5 rounded-lg border border-emerald-300 bg-white text-slate-800 focus:outline-emerald-600 font-sans"
             />
 
-            <button
-              onClick={() => onSendWhatsApp(order, customMsg)}
-              className="w-full bg-[#25D366] hover:bg-[#20be5a] text-white font-bold text-xs py-2 px-4 rounded-lg flex items-center justify-center gap-2 shadow-xs transition-colors"
-            >
-              <Send className="w-3.5 h-3.5" />
-              Envoyer sur WhatsApp ({order.phone})
-            </button>
-          </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => onSendWhatsApp(order, customMsg)}
+                className="flex-1 bg-[#25D366] hover:bg-[#20be5a] text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 shadow-xs transition-colors"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Envoyer sur WhatsApp ({order.phone})
+              </button>
 
+              {onOpenAgentIntervention && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onOpenAgentIntervention(order);
+                  }}
+                  className="px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                  title="Ouvrir l'intervention Agent IA pour contrôle complet"
+                >
+                  <Bot className="w-3.5 h-3.5" />
+                  <span>Agent IA</span>
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Modal Footer */}
@@ -209,7 +272,6 @@ export function OrderDetailsModal({
             Fermer
           </button>
         </div>
-
       </div>
     </div>
   );

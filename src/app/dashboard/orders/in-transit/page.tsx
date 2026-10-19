@@ -12,15 +12,18 @@ import {
   ExternalLink,
   Copy,
   AlertTriangle,
-  ArrowRight,
-  ShieldAlert,
   Navigation,
   Sparkles,
-  User
+  User,
+  Bot
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { RescheduleModal } from '@/components/orders/lifecycle/OrderModals';
+import { QuickCallModal } from '@/components/orders/QuickCallModal';
+import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
+import { OrderItem } from '@/types/orders';
+import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 
 export default function InTransitOrdersPage() {
   const {
@@ -39,6 +42,8 @@ export default function InTransitOrdersPage() {
   const [trackingModalOrder, setTrackingModalOrder] = useState<LifecycleOrder | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [rescueToast, setRescueToast] = useState<string | null>(null);
+  const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
+  const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
 
   // Filter orders for In Transit
   const inTransitOrders = useMemo(() => {
@@ -172,6 +177,46 @@ export default function InTransitOrdersPage() {
                           {order.customer.city}
                         </span>
                       </div>
+                    </div>
+
+                    {/* 3 Quick Action Buttons: Call, WhatsApp, Agent IA */}
+                    <div className="grid grid-cols-3 gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-slate-50 hover:bg-emerald-50 text-slate-700 hover:text-emerald-800 border border-slate-200 text-[11px] font-bold transition-colors active:scale-95"
+                        title="Appel rapide"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate">Appeler</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const item = lifecycleToOrderItem(order);
+                          const conf = getStageMessageConfig(item.status);
+                          window.open(
+                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                            '_blank'
+                          );
+                        }}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] font-bold transition-colors active:scale-95"
+                        title="Message WhatsApp Livraison"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span className="truncate">Livraison</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                        className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-[11px] font-bold transition-colors active:scale-95"
+                        title="Intervention Agent IA"
+                      >
+                        <Bot className="w-3.5 h-3.5 text-violet-600 shrink-0" />
+                        <span className="truncate">Agent IA</span>
+                      </button>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
@@ -387,9 +432,47 @@ export default function InTransitOrdersPage() {
                         )}
                       </td>
 
-                      {/* 6. Actions (Track Link, Reschedule, Mark Delivered -> Moves to Completed) */}
+                      {/* 6. Actions (Quick Actions + Track Link, Reschedule, Mark Delivered) */}
                       <td className="py-4 px-4 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* 1. Bouton Appel Rapide */}
+                          <button
+                            type="button"
+                            onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
+                            className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors"
+                            title={`Appel téléphonique rapide à ${order.customer.name} (${order.customer.phone})`}
+                          >
+                            <Phone className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-600" />
+                          </button>
+
+                          {/* 2. Bouton Message WhatsApp selon Statut */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const item = lifecycleToOrderItem(order);
+                              const conf = getStageMessageConfig(item.status);
+                              window.open(
+                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
+                                '_blank'
+                              );
+                            }}
+                            className="p-1.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-300 transition-colors"
+                            title="Envoyer le message WhatsApp de livraison (En cours de distribution)"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* 3. Bouton Intervention Agent IA */}
+                          <button
+                            type="button"
+                            onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold transition-colors shadow-2xs"
+                            title="Intervention Agent IA (Génération personnalisée & tonalités)"
+                          >
+                            <Bot className="w-3.5 h-3.5 text-violet-600" />
+                            <span>Agent IA</span>
+                          </button>
+
                           {/* Live Track Modal */}
                           <button
                             onClick={() => setTrackingModalOrder(order)}
@@ -397,7 +480,7 @@ export default function InTransitOrdersPage() {
                             title="Consulter le suivi Sendit"
                           >
                             <ExternalLink className="w-3 h-3 text-slate-500" />
-                            <span>Suivi Sendit</span>
+                            <span>Suivi</span>
                           </button>
 
                           {/* Reschedule */}
@@ -417,7 +500,7 @@ export default function InTransitOrdersPage() {
                             title="Confirmer la livraison et l'encaissement des fonds COD"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Livré & Encaissé ➔ Clôture</span>
+                            <span>Livré & Encaissé</span>
                           </button>
                         </div>
                       </td>
@@ -437,6 +520,21 @@ export default function InTransitOrdersPage() {
         isOpen={!!reschedulingOrder}
         onClose={() => setReschedulingOrder(null)}
         onReschedule={rescheduleDelivery}
+      />
+
+      {/* Quick Call Modal */}
+      <QuickCallModal
+        order={quickCallOrder}
+        isOpen={!!quickCallOrder}
+        onClose={() => setQuickCallOrder(null)}
+        onOpenAgentIntervention={(ord) => setAgentInterventionOrder(ord)}
+      />
+
+      {/* Agent Intervention Modal */}
+      <AgentInterventionModal
+        order={agentInterventionOrder}
+        isOpen={!!agentInterventionOrder}
+        onClose={() => setAgentInterventionOrder(null)}
       />
 
       {/* Live Tracking Timeline Modal */}

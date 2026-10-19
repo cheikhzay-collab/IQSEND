@@ -94,10 +94,10 @@ export default function AbandonedCartsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Abandoned Carts
+                  Paniers Abandonnés
                 </h1>
-                <span className="text-xs font-bold text-slate-400 font-arabic">
-                  (السلات المتروكة)
+                <span className="text-xs font-bold text-slate-400">
+                  (À relancer)
                 </span>
                 <span className="bg-rose-100 text-rose-700 text-xs font-black px-2 py-0.5 rounded-full border border-rose-200">
                   {carts.length} paniers

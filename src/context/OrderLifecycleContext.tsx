@@ -1016,7 +1016,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       }).catch((e) => console.warn('[OrderLifecycle] DB insert error:', e));
     } catch {}
 
-    showToast(`📦 طلب جديد سقط في مرحلة التأكيد: ${newOrder.orderNumber} (${newOrder.customer.name})`, 'success');
+    showToast(`📦 Nouvelle commande reçue en confirmation : ${newOrder.orderNumber} (${newOrder.customer.name})`, 'success');
   };
 
   // 11. Refresh Inbound Orders from Webhook API
@@ -1039,7 +1039,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
             }
           }
           if (addedCount > 0) {
-            showToast(`📦 تم جلب ${addedCount} طلب جديد مباشرة من Google Sheets!`, 'success');
+            showToast(`📦 ${addedCount} nouvelle(s) commande(s) importée(s) depuis Google Sheets !`, 'success');
           }
           return updated;
         });

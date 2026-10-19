@@ -302,7 +302,7 @@ export default function WhatsAppInboxPage() {
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-900 truncate">
                       {chat.customerName.includes('Client (+19') || chat.customerName.includes('Client (+')
-                        ? (chat.realPhoneNumber ? `زبون (${formatDisplayPhone(chat.realPhoneNumber)})` : chat.pushName || 'زبون واتساب جديد')
+                        ? (chat.realPhoneNumber ? `Client (${formatDisplayPhone(chat.realPhoneNumber)})` : chat.pushName || 'Nouveau client WhatsApp')
                         : chat.customerName}
                     </span>
                     <span className="text-[10px] text-slate-400">{chat.lastTime}</span>
@@ -373,7 +373,7 @@ export default function WhatsAppInboxPage() {
                   <div className="flex items-center gap-2">
                     <h2 className="text-xs font-bold text-slate-900 truncate">
                       {currentChat.customerName.includes('Client (+19') || currentChat.customerName.includes('Client (+')
-                        ? (currentChat.realPhoneNumber ? `زبون (${formatDisplayPhone(currentChat.realPhoneNumber)})` : currentChat.pushName || 'زبون واتساب جديد')
+                        ? (currentChat.realPhoneNumber ? `Client (${formatDisplayPhone(currentChat.realPhoneNumber)})` : currentChat.pushName || 'Nouveau client WhatsApp')
                         : currentChat.customerName}
                     </h2>
                     <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
@@ -387,7 +387,7 @@ export default function WhatsAppInboxPage() {
                         type="text"
                         value={editPhoneInput}
                         onChange={(e) => setEditPhoneInput(e.target.value)}
-                        placeholder="الرقم الفعلي للزبون (مثال: 0612345678)"
+                        placeholder="Numéro réel du client (ex: 0612345678)"
                         className="text-xs px-2 py-0.5 rounded bg-white border border-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48 font-mono"
                         autoFocus
                       />
@@ -397,7 +397,7 @@ export default function WhatsAppInboxPage() {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold px-2 py-1 rounded flex items-center gap-0.5 transition-colors cursor-pointer"
                       >
                         <Check className="w-3 h-3" />
-                        <span>{savingPhone ? '...' : 'حفظ'}</span>
+                        <span>{savingPhone ? '...' : 'Enregistrer'}</span>
                       </button>
                       <button
                         onClick={() => setIsEditingPhone(false)}
@@ -422,10 +422,10 @@ export default function WhatsAppInboxPage() {
                           setIsEditingPhone(true);
                         }}
                         className="text-[10px] text-blue-600 hover:text-blue-800 flex items-center gap-0.5 hover:underline font-semibold ml-1 cursor-pointer"
-                        title="تعديل أو إدخال الرقم الفعلي للزبون"
+                        title="Modifier ou saisir le numéro de téléphone réel du client"
                       >
                         <Pencil className="w-2.5 h-2.5" />
-                        <span>{isLidNumber(currentChat.phoneNumber) && !currentChat.realPhoneNumber ? 'تحديد الرقم الفعلي' : 'تعديل الرقم'}</span>
+                        <span>{isLidNumber(currentChat.phoneNumber) && !currentChat.realPhoneNumber ? 'Définir numéro réel' : 'Modifier numéro'}</span>
                       </button>
                       <span className="text-slate-300">•</span>
                       <span className="text-slate-400 font-mono">
@@ -479,8 +479,8 @@ export default function WhatsAppInboxPage() {
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📱</span>
                     <div>
-                      <span className="font-bold">معرّف واتساب (WhatsApp LID):</span>
-                      <span className="mr-1">هذه المحادثة واردة عبر معرف واتساب المؤقت (+{currentChat.phoneNumber}). أدخل الرقم الفعلي للزبون (06... / 07...) لربطها بطلبيته في النظام.</span>
+                      <span className="font-bold">Identifiant WhatsApp (WhatsApp LID) :</span>
+                      <span className="ml-1">Cette conversation provient d'un identifiant temporaire (+{currentChat.phoneNumber}). Saisissez le numéro réel du client (06... / 07...) pour la relier à sa commande.</span>
                     </div>
                   </div>
                   <button
@@ -490,7 +490,7 @@ export default function WhatsAppInboxPage() {
                     }}
                     className="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-lg text-xs shrink-0 transition-colors cursor-pointer"
                   >
-                    إدخال الرقم الفعلي
+                    Saisir le numéro réel
                   </button>
                 </div>
               )}
@@ -601,9 +601,9 @@ export default function WhatsAppInboxPage() {
                     'مرحبا بك أخي، تم تأكيد طلبك وغادي توصلك الكولية غدا مع موزع Sendit.'
                   )
                 }
-                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
-                تأكيد الطلب ✓
+                Confirmer commande ✓
               </button>
               <button
                 onClick={() =>
@@ -611,9 +611,9 @@ export default function WhatsAppInboxPage() {
                     'عفاك واش تقدر تشارك معنا الموقع ديالك بالخريطة (Localisation WhatsApp)؟'
                   )
                 }
-                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
-                طلب الـ Localisation 📍
+                Demander Localisation 📍
               </button>
               <button
                 onClick={() =>
@@ -621,9 +621,9 @@ export default function WhatsAppInboxPage() {
                     'الموزع في الطريق لعندك اليوم، المرجو تجهيز المبلغ نقداً.'
                   )
                 }
-                className="font-arabic bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full whitespace-nowrap active:scale-95 transition-transform"
               >
-                تنبيه الموزع 🚚
+                Avis Livreur en route 🚚
               </button>
             </div>
 
