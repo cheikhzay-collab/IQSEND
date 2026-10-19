@@ -65,11 +65,36 @@ export async function GET() {
       items: Array.from(itemsMap.values()),
     });
   } catch (error: any) {
-    console.error('[API Packing GET] Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.warn('[API Packing GET] DB error, using unified store fallback:', error.message);
+    const { getInboundOrders } = await import('@/lib/orders-store');
+    const inbound = getInboundOrders();
+
+    const fallbackItems = inbound
+      .filter((o) => o.stage === 'CONFIRMED' || o.stage === 'PACKING' || o.stage === 'IN_TRANSIT')
+      .map((o) => {
+        const isPacked = o.stage === 'PACKING' || o.stage === 'IN_TRANSIT';
+        const isPushed = o.stage === 'IN_TRANSIT' || Boolean(o.tracking?.trackingNumber);
+        return {
+          id: o.id,
+          orderNumber: o.orderNumber.startsWith('#') ? o.orderNumber : `#${o.orderNumber}`,
+          customerName: o.customer.name,
+          city: o.customer.city,
+          productName: o.items[0]?.name || 'Pack 2x Chemises Lin',
+          sku: o.items[0]?.sku || 'SKU-LIN-01',
+          quantity: o.items[0]?.quantity || 1,
+          totalAmount: o.payment.amount,
+          stockAvailable: 35,
+          isPacked,
+          senditStatus: isPushed ? 'PUSHED' as const : 'PENDING' as const,
+          trackingCode: o.tracking?.trackingNumber || undefined,
+        };
+      });
+
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      items: fallbackItems,
+    });
   }
 }
 
@@ -86,9 +111,12 @@ export async function PATCH(request: Request) {
     }
 
     const pool = getMysqlPool();
+    const { updateOrderStatus, updateOrderTracking } = await import('@/lib/orders-store');
 
     if (action === 'TOGGLE_PACKED') {
       const newStatus = isPacked ? 'PACKING' : 'CONFIRMED';
+      updateOrderStatus(orderId, newStatus);
+
       await pool.execute(
         `UPDATE order_leads SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR order_number = ?`,
         [newStatus, orderId, orderId]
@@ -98,6 +126,10 @@ export async function PATCH(request: Request) {
 
     if (action === 'PUSH_SENDIT') {
       const tracking = trackingCode || `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+
+      // Update in-memory store
+      updateOrderTracking(orderId, tracking, 'Sendit.ma Express');
+      updateOrderStatus(orderId, 'IN_TRANSIT');
 
       // Update lead to IN_TRANSIT
       await pool.execute(

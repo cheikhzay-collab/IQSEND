@@ -8,43 +8,30 @@ import {
   ProductItem,
 } from '@/lib/products-store';
 import { getMysqlPool } from '@/lib/db';
-import { serverCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
-    const dbProducts = await getProductsFromDb(forceFresh);
-    const headers = {
-      'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
-    };
-
+    const dbProducts = await getProductsFromDb();
     if (dbProducts) {
       // Keep in-memory store in sync with actual Hostinger MySQL database state
       syncStoreWithDbProducts(dbProducts);
-      return NextResponse.json(
-        {
-          success: true,
-          source: 'database',
-          products: dbProducts,
-          count: dbProducts.length,
-        },
-        { headers }
-      );
+      return NextResponse.json({
+        success: true,
+        source: 'database',
+        products: dbProducts,
+        count: dbProducts.length,
+      });
     }
 
     const fallbackProducts = getProducts();
-    return NextResponse.json(
-      {
-        success: true,
-        source: 'memory_fallback',
-        products: fallbackProducts,
-        count: fallbackProducts.length,
-      },
-      { headers }
-    );
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      products: fallbackProducts,
+      count: fallbackProducts.length,
+    });
   } catch (error) {
     console.error('[API Products GET] Error:', error);
     return NextResponse.json(
@@ -169,9 +156,6 @@ export async function POST(req: Request) {
       objectionFaqs: Array.isArray(objectionFaqs) ? objectionFaqs : undefined,
     });
 
-    // Invalidate products cache
-    serverCache.invalidate(['products', 'dashboard_stats']);
-
     return NextResponse.json({
       success: true,
       message: 'Produit et directives IA enregistrés avec succès dans MySQL !',
@@ -234,9 +218,6 @@ export async function DELETE(req: Request) {
     // 3. Remove cleanly from memory store and WhatsApp AI catalog
     if (id) deleteProductFromStore(id);
     if (sku) deleteProductFromStore(sku);
-
-    // Invalidate products cache
-    serverCache.invalidate(['products', 'dashboard_stats']);
 
     return NextResponse.json({
       success: true,

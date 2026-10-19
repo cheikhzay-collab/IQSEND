@@ -21,10 +21,28 @@ import {
   Pencil,
   Check,
   X,
+  ShoppingBag,
+  Package,
+  Truck,
+  CheckCircle2,
+  ClipboardCheck,
+  ArrowRight,
+  Box
 } from 'lucide-react';
 import { ChatConversation, ChatMessage } from '@/lib/inbox-store';
+import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 
 export default function WhatsAppInboxPage() {
+  const {
+    orders: lifecycleOrders,
+    confirmOrder,
+    shipOrder,
+    markDelivered,
+    cancelOrder,
+    editOrder,
+    showToast,
+  } = useOrderLifecycle();
+
   const [conversations, setConversations] = useState<ChatConversation[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'ai' | 'human'>('all');
@@ -35,6 +53,7 @@ export default function WhatsAppInboxPage() {
   const [isEditingPhone, setIsEditingPhone] = useState(false);
   const [editPhoneInput, setEditPhoneInput] = useState('');
   const [savingPhone, setSavingPhone] = useState(false);
+  const [showOrderPanel, setShowOrderPanel] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const isLidNumber = (phone?: string) => {
@@ -90,6 +109,20 @@ export default function WhatsAppInboxPage() {
 
   const currentChat =
     conversations.find((c) => c.id === selectedChatId) || conversations[0];
+
+  const matchingOrder: LifecycleOrder | undefined = React.useMemo(() => {
+    if (!currentChat) return undefined;
+    const rawClean = (currentChat.realPhoneNumber || currentChat.phoneNumber || '').replace(/[^\d]/g, '');
+    const cleanOrderNum = (currentChat.orderNumber || '').replace(/[#\s]/g, '').toLowerCase();
+
+    return lifecycleOrders.find((o) => {
+      const orderPhone = (o.customer.phone || '').replace(/[^\d]/g, '');
+      const phoneMatch = Boolean(rawClean && orderPhone && (rawClean.endsWith(orderPhone) || orderPhone.endsWith(rawClean)));
+      const numMatch = Boolean(cleanOrderNum && o.orderNumber.toLowerCase().includes(cleanOrderNum));
+      const nameMatch = Boolean(currentChat.customerName && o.customer.name.toLowerCase().trim() === currentChat.customerName.toLowerCase().trim());
+      return phoneMatch || numMatch || nameMatch;
+    });
+  }, [lifecycleOrders, currentChat]);
 
   const handleToggleTakeover = async (chatId: string) => {
     if (!currentChat) return;
@@ -356,7 +389,8 @@ export default function WhatsAppInboxPage() {
 
         {/* Right Column: Chat Conversation Thread */}
         {currentChat ? (
-          <div className={`w-full flex-1 flex flex-col bg-[#F0F2F5]/60 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
+          <>
+            <div className={`w-full flex-1 flex flex-col bg-[#F0F2F5]/60 ${mobileView === 'list' ? 'hidden md:flex' : 'flex'}`}>
             {/* Thread Header */}
             <div className="h-14 border-b border-slate-200 bg-white px-3 md:px-6 flex items-center justify-between shrink-0 shadow-2xs">
               <div className="flex items-center gap-1.5 min-w-0">
@@ -468,6 +502,24 @@ export default function WhatsAppInboxPage() {
                 >
                   <Phone className="w-3.5 h-3.5" />
                 </a>
+
+                <button
+                  onClick={() => setShowOrderPanel(!showOrderPanel)}
+                  className={`text-[11px] px-2.5 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    showOrderPanel
+                      ? 'bg-blue-50 text-blue-900 border border-blue-200 shadow-2xs'
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                  title="Détails de la commande liée & logistique"
+                >
+                  <ShoppingBag className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="hidden sm:inline">Commande</span>
+                  {matchingOrder && (
+                    <span className="text-[9px] bg-blue-600 text-white font-mono px-1.5 py-0.2 rounded-full font-bold">
+                      {matchingOrder.orderNumber}
+                    </span>
+                  )}
+                </button>
               </div>
             </div>
 
@@ -649,6 +701,217 @@ export default function WhatsAppInboxPage() {
               </button>
             </form>
           </div>
+
+          {/* Right Column: Linked Order & Sendit Tracking Context */}
+            {showOrderPanel && (
+              <div className="w-80 lg:w-88 border-l border-slate-200 bg-white flex flex-col shrink-0 overflow-y-auto p-4 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <ShoppingBag className="w-4 h-4 text-teal-600" />
+                    <h3 className="font-black text-xs text-slate-900 uppercase tracking-wider">
+                      Commande & Logistique
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowOrderPanel(false)}
+                    className="p-1 text-slate-400 hover:text-slate-600 rounded-lg lg:hidden"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {matchingOrder ? (
+                  <div className="space-y-4 text-xs">
+                    {/* Stage & Order Number Card */}
+                    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono font-black text-slate-900 text-sm">
+                          {matchingOrder.orderNumber}
+                        </span>
+                        {matchingOrder.stage === 'PENDING_CONFIRMATION' && (
+                          <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+                            <ClipboardCheck className="w-3 h-3 text-amber-600" /> 1. À Confirmer
+                          </span>
+                        )}
+                        {matchingOrder.stage === 'PROCESSING' && (
+                          <span className="bg-blue-100 text-blue-900 border border-blue-300 font-bold px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+                            <Package className="w-3 h-3 text-blue-600" /> 2. En Préparation
+                          </span>
+                        )}
+                        {matchingOrder.stage === 'IN_TRANSIT' && (
+                          <span className="bg-indigo-100 text-indigo-900 border border-indigo-300 font-bold px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+                            <Truck className="w-3 h-3 text-indigo-600" /> 3. En Livraison
+                          </span>
+                        )}
+                        {matchingOrder.stage === 'COMPLETED' && (
+                          <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold px-2 py-0.5 rounded-full text-[10px] flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> 4. Livrée & Encaissée
+                          </span>
+                        )}
+                        {matchingOrder.stage === 'CANCELED' && (
+                          <span className="bg-rose-100 text-rose-900 border border-rose-300 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                            Annulée
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="text-[11px] text-slate-500 flex justify-between">
+                        <span>Créée: {matchingOrder.createdAt}</span>
+                        <span className="font-bold text-slate-700">Méthode: {matchingOrder.payment.method}</span>
+                      </div>
+                    </div>
+
+                    {/* Customer Destination Info */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Destinataire & Adresse
+                      </span>
+                      <p className="font-bold text-slate-900">{matchingOrder.customer.name}</p>
+                      <p className="text-slate-600 font-mono text-[11px]">{matchingOrder.customer.phone}</p>
+                      <p className="text-slate-700 text-[11px] flex items-start gap-1">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                        <span>{matchingOrder.customer.city} • {matchingOrder.customer.address || 'Adresse à confirmer'}</span>
+                      </p>
+                      {matchingOrder.customer.notes && (
+                        <div className="bg-amber-50 text-amber-900 p-2 rounded-xl text-[10px] border border-amber-200/60 font-medium">
+                          Note: {matchingOrder.customer.notes}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Items List */}
+                    <div className="bg-white border border-slate-200 rounded-2xl p-3.5 space-y-2 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Articles du Panier
+                      </span>
+                      {matchingOrder.items.map((item, idx) => (
+                        <div key={idx} className="flex items-center gap-2.5 py-1.5 border-b border-slate-100 last:border-0">
+                          {item.thumbnail ? (
+                            <img src={item.thumbnail} alt={item.name} className="w-9 h-9 rounded-lg object-cover shrink-0 border border-slate-200" />
+                          ) : (
+                            <div className="w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center text-slate-400">
+                              <Box className="w-4 h-4" />
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-bold text-slate-900 truncate">{item.name}</p>
+                            <span className="text-[10px] text-slate-400 font-mono block">
+                              Qté: {item.quantity} {item.size ? `• Taille: ${item.size}` : ''}
+                            </span>
+                          </div>
+                          <span className="font-black text-slate-900 font-mono shrink-0">
+                            {item.price * item.quantity} MAD
+                          </span>
+                        </div>
+                      ))}
+
+                      {/* Total Cash to Collect */}
+                      <div className="pt-2 border-t border-slate-200 flex items-center justify-between">
+                        <span className="font-extrabold text-slate-900">Total COD à encaisser:</span>
+                        <span className="text-sm font-black text-emerald-600 font-mono">
+                          {matchingOrder.payment.amount} MAD
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Shipping & Sendit Status */}
+                    {matchingOrder.shipping && (
+                      <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-3.5 space-y-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider">
+                            Transporteur Sendit.ma
+                          </span>
+                          <Truck className="w-3.5 h-3.5 text-blue-600" />
+                        </div>
+                        <p className="font-mono font-bold text-xs text-blue-950">
+                          N° Suivi: {matchingOrder.shipping.trackingNumber || 'En attente d\'attribution'}
+                        </p>
+                        <p className="text-[11px] text-blue-800">
+                          Statut: <strong>{matchingOrder.shipping.liveStatus}</strong>
+                        </p>
+                        {matchingOrder.shipping.driverName && (
+                          <p className="text-[10px] text-blue-700">
+                            Livreur: {matchingOrder.shipping.driverName} ({matchingOrder.shipping.driverPhone})
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Quick Lifecycle Action Buttons */}
+                    <div className="space-y-2 pt-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Actions Directes sur la Commande
+                      </span>
+
+                      {matchingOrder.stage === 'PENDING_CONFIRMATION' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            confirmOrder(matchingOrder.id);
+                            showToast(`Commande ${matchingOrder.orderNumber} confirmée et transmise au packing !`, 'success');
+                          }}
+                          className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Confirmer la Commande (➔ Packing)
+                        </button>
+                      )}
+
+                      {matchingOrder.stage === 'PROCESSING' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            shipOrder(matchingOrder.id);
+                            showToast(`Colis ${matchingOrder.orderNumber} étiqueté et prêt pour ramassage Sendit !`, 'success');
+                          }}
+                          className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                        >
+                          <Truck className="w-3.5 h-3.5" />
+                          Expédier Sendit (➔ En livraison)
+                        </button>
+                      )}
+
+                      {matchingOrder.stage === 'IN_TRANSIT' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            markDelivered(matchingOrder.id);
+                            showToast(`Commande ${matchingOrder.orderNumber} marquée livrée et fonds encaissés !`, 'success');
+                          }}
+                          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors shadow-xs active:scale-95 cursor-pointer"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Marquer Livrée & Encaissée (POD)
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          cancelOrder(matchingOrder.id, 'Annulée suite à la conversation WhatsApp');
+                          showToast(`Commande ${matchingOrder.orderNumber} annulée.`, 'info');
+                        }}
+                        className="w-full bg-slate-100 hover:bg-rose-50 hover:text-rose-700 text-slate-600 font-semibold py-1.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                        Annuler la commande
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-center space-y-3">
+                    <ShoppingBag className="w-6 h-6 text-slate-400 mx-auto" />
+                    <div>
+                      <p className="font-bold text-slate-700">Aucune commande directement liée</p>
+                      <p className="text-[11px] text-slate-400 mt-1">
+                        Numéro provisoire: {currentChat.orderNumber || '#NON-LIÉ'} • {currentChat.totalAmount || 0} MAD
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-xs text-slate-400">
             Sélectionnez une conversation pour afficher les messages.

@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl, safeDialPhone } from '@/lib/navigation-utils';
 
 interface OrderCardProps {
   order: OrderItem;
@@ -83,7 +84,7 @@ export function OrderCard({
     } else {
       const formattedPhone = formatPhoneForWhatsApp(order.phone);
       const msg = encodeURIComponent(stageConfig.french(order));
-      window.open(`https://wa.me/${formattedPhone}?text=${msg}`, '_blank');
+      safeOpenExternalUrl(`https://wa.me/${formattedPhone}?text=${msg}`);
     }
   };
 
@@ -92,7 +93,7 @@ export function OrderCard({
     if (onQuickCall) {
       onQuickCall(order, e);
     } else {
-      window.open(`tel:${order.phone}`, '_self');
+      safeDialPhone(order.phone);
     }
   };
 

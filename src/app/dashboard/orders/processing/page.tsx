@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Package,
   Search,
@@ -27,6 +28,7 @@ import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 const COURIER_OPTIONS = [
   'Sendit.ma Express',
@@ -129,6 +131,14 @@ export default function ProcessingOrdersPage() {
               <option value="Hub Central Casablanca">Hub Central Casablanca</option>
               <option value="Hub Fès-Meknès">Hub Fès-Meknès</option>
             </select>
+
+            <Link
+              href="/dashboard/packing"
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors shadow-xs shrink-0"
+            >
+              <span>Atelier d'Emballage (AWB)</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
 
@@ -181,9 +191,8 @@ export default function ProcessingOrdersPage() {
                           onClick={() => {
                             const item = lifecycleToOrderItem(order);
                             const conf = getStageMessageConfig(item.status);
-                            window.open(
-                              `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                              '_blank'
+                            safeOpenExternalUrl(
+                              `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                             );
                           }}
                           className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 text-[11px] font-bold transition-colors active:scale-95"
@@ -424,9 +433,8 @@ export default function ProcessingOrdersPage() {
                                 onClick={() => {
                                   const item = lifecycleToOrderItem(order);
                                   const conf = getStageMessageConfig(item.status);
-                                  window.open(
-                                    `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                                    '_blank'
+                                  safeOpenExternalUrl(
+                                    `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                                   );
                                 }}
                                 className="p-1.5 rounded-lg text-blue-600 hover:text-blue-800 hover:bg-blue-50 border border-blue-200 hover:border-blue-300 transition-colors"

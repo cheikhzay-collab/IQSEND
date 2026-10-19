@@ -53,8 +53,18 @@ const DEFAULT_CALL_TASK: CallTask = {
   attempts: 1,
 };
 
+import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
+
 export default function CallCenterPage() {
-  const [tasks, setTasks] = useState<CallTask[]>([DEFAULT_CALL_TASK]);
+  const {
+    orders: lifecycleOrders,
+    confirmOrder,
+    cancelOrder,
+    editOrder,
+    showToast,
+  } = useOrderLifecycle();
+
+  const [dbTasks, setDbTasks] = useState<CallTask[]>([]);
   const [activeTask, setActiveTask] = useState<CallTask>(DEFAULT_CALL_TASK);
   const [callStatus, setCallStatus] = useState<'IDLE' | 'CALLING' | 'LOGGED'>('IDLE');
   const [upsellAccepted, setUpsellAccepted] = useState(false);
@@ -69,8 +79,7 @@ export default function CallCenterPage() {
       const res = await fetch('/api/call-center');
       const data = await res.json();
       if (data.success && Array.isArray(data.tasks) && data.tasks.length > 0) {
-        setTasks(data.tasks);
-        setActiveTask(data.tasks[0]);
+        setDbTasks(data.tasks);
         setIsLiveDb(true);
       }
     } catch (e) {
@@ -84,10 +93,89 @@ export default function CallCenterPage() {
     fetchTasks();
   }, []);
 
+  // Cohesive task list: merge PENDING_CONFIRMATION orders from OrderLifecycleContext with DB tasks
+  const tasks: CallTask[] = React.useMemo(() => {
+    const list: CallTask[] = [];
+    const seen = new Set<string>();
+
+    // From lifecycle context
+    const pendingOrders = lifecycleOrders.filter((o) => o.stage === 'PENDING_CONFIRMATION');
+    pendingOrders.forEach((o) => {
+      seen.add(o.id);
+      let priority: 'URGENT' | 'RAPPEL' | 'NOUVEAU' = 'NOUVEAU';
+      if (o.customer.notes?.toLowerCase().includes('rappel')) priority = 'RAPPEL';
+      else if (o.aiVerification?.riskScore && o.aiVerification.riskScore > 35) priority = 'URGENT';
+
+      list.push({
+        id: o.id,
+        orderNumber: o.orderNumber.startsWith('#') ? o.orderNumber : `#${o.orderNumber}`,
+        customerName: o.customer.name,
+        phone: o.customer.phone,
+        city: o.customer.city,
+        address: o.customer.address,
+        product: o.items[0]?.name || 'Produit COD',
+        amount: o.payment.amount,
+        priority,
+        scheduledTime: o.customer.notes || undefined,
+        attempts: 1,
+        status: o.stage,
+      });
+    });
+
+    // From DB tasks
+    dbTasks.forEach((d) => {
+      if (!seen.has(d.id)) {
+        seen.add(d.id);
+        list.push(d);
+      }
+    });
+
+    return list.length > 0 ? list : [DEFAULT_CALL_TASK];
+  }, [lifecycleOrders, dbTasks]);
+
+  // Keep active task synced
+  useEffect(() => {
+    if (tasks.length > 0 && (!activeTask || !tasks.some((t) => t.id === activeTask.id))) {
+      setActiveTask(tasks[0]);
+    }
+  }, [tasks]);
+
   const handleOutcome = async (outcome: 'CONFIRMED' | 'RAPPEL' | 'CANCELED') => {
     if (!activeTask) return;
+
+    // 1. Synchronously update global OrderLifecycleContext
+    if (outcome === 'CONFIRMED') {
+      confirmOrder(activeTask.id);
+      if (upsellAccepted) {
+        editOrder(activeTask.id, {
+          payment: {
+            method: 'COD',
+            amount: activeTask.amount + 179,
+            currency: 'MAD',
+            status: 'PENDING',
+          },
+        });
+      }
+      showToast(`Commande ${activeTask.orderNumber} confirmée et transmise à la station d'emballage !`, 'success');
+    } else if (outcome === 'CANCELED') {
+      cancelOrder(activeTask.id, note || 'Annulée lors de l\'appel de confirmation');
+      showToast(`Commande ${activeTask.orderNumber} annulée.`, 'info');
+    } else if (outcome === 'RAPPEL') {
+      editOrder(activeTask.id, {
+        customer: {
+          name: activeTask.customerName,
+          phone: activeTask.phone,
+          city: activeTask.city,
+          address: activeTask.address,
+          notes: `Rappel téléphonique: ${note || 'Demande client'}`,
+        },
+      });
+      showToast(`Rappel programmé pour ${activeTask.customerName}.`, 'info');
+    }
+
+    // 2. Persist to MySQL
     try {
-      const res = await fetch('/api/call-center', {
+      await fetch('/api/call-center', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,23 +186,21 @@ export default function CallCenterPage() {
           verifiedAddress: activeTask.address,
         }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setToast(`Décision enregistrée en base : ${outcome === 'CONFIRMED' ? 'Confirmé ✅' : outcome === 'RAPPEL' ? 'Rappel programmé 📞' : 'Annulé ❌'}`);
-        setTimeout(() => setToast(null), 3500);
-
-        // Remove active task and advance to next
-        const remaining = tasks.filter((t) => t.id !== activeTask.id);
-        setTasks(remaining);
-        if (remaining.length > 0) {
-          setActiveTask(remaining[0]);
-        }
-        setNote('');
-        setUpsellAccepted(false);
-      }
     } catch (e) {
-      console.warn('Error saving call outcome:', e);
+      console.warn('Error saving call outcome to DB:', e);
     }
+
+    setToast(`Décision enregistrée : ${outcome === 'CONFIRMED' ? 'Confirmé ✅ (Passé en préparation)' : outcome === 'RAPPEL' ? 'Rappel programmé 📞' : 'Annulé ❌'}`);
+    setTimeout(() => setToast(null), 3500);
+
+    // Advance to next task
+    const nextList = tasks.filter((t) => t.id !== activeTask.id);
+    if (nextList.length > 0) {
+      setActiveTask(nextList[0]);
+    }
+    setNote('');
+    setUpsellAccepted(false);
+    setCallStatus('IDLE');
   };
 
   return (

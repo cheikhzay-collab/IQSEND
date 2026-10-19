@@ -21,6 +21,7 @@ import {
   getStageMessageConfig,
   formatPhoneForWhatsApp,
 } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 interface AgentInterventionModalProps {
   order: OrderItem | null;
@@ -160,7 +161,7 @@ export function AgentInterventionModal({
   const handleOpenWhatsAppWeb = () => {
     const formattedPhone = formatPhoneForWhatsApp(order.phone);
     const encoded = encodeURIComponent(messageText);
-    window.open(`https://wa.me/${formattedPhone}?text=${encoded}`, '_blank');
+    safeOpenExternalUrl(`https://wa.me/${formattedPhone}?text=${encoded}`);
     showToast('Conversation ouverte dans l\'application WhatsApp.', 'info');
   };
 

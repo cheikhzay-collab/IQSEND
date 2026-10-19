@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   Printer,
@@ -306,14 +306,25 @@ export function EditOrderModal({
   onClose: () => void;
   onSave: (orderId: string, updates: Partial<LifecycleOrder>) => void;
 }) {
-  if (!isOpen || !order) return null;
+  const [name, setName] = useState(order?.customer.name || '');
+  const [phone, setPhone] = useState(order?.customer.phone || '');
+  const [city, setCity] = useState(order?.customer.city || '');
+  const [address, setAddress] = useState(order?.customer.address || '');
+  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'PREPAID'>(order?.payment.method || 'COD');
+  const [amount, setAmount] = useState(order?.payment.amount || 0);
 
-  const [name, setName] = useState(order.customer.name);
-  const [phone, setPhone] = useState(order.customer.phone);
-  const [city, setCity] = useState(order.customer.city);
-  const [address, setAddress] = useState(order.customer.address);
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'PREPAID'>(order.payment.method);
-  const [amount, setAmount] = useState(order.payment.amount);
+  useEffect(() => {
+    if (order) {
+      setName(order.customer.name);
+      setPhone(order.customer.phone);
+      setCity(order.customer.city);
+      setAddress(order.customer.address);
+      setPaymentMethod(order.payment.method);
+      setAmount(order.payment.amount);
+    }
+  }, [order]);
+
+  if (!isOpen || !order) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -442,9 +453,9 @@ export function CancelOrderModal({
   onClose: () => void;
   onConfirmCancel: (orderId: string, reason: string) => void;
 }) {
-  if (!isOpen || !order) return null;
-
   const [reason, setReason] = useState('Client injoignable au téléphone');
+
+  if (!isOpen || !order) return null;
 
   const handleCancel = () => {
     onConfirmCancel(order.id, reason);
@@ -507,10 +518,10 @@ export function RescheduleModal({
   onClose: () => void;
   onReschedule: (orderId: string, newDate: string, note?: string) => void;
 }) {
-  if (!isOpen || !order) return null;
-
   const [date, setDate] = useState('Demain matin (09h - 13h)');
   const [note, setNote] = useState('Le client a demandé de livrer à son bureau');
+
+  if (!isOpen || !order) return null;
 
   const handleConfirm = () => {
     onReschedule(order.id, date, note);

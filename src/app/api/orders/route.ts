@@ -5,38 +5,26 @@ import { LifecycleOrder } from '@/context/OrderLifecycleContext';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
-    const dbOrders = await getOrdersFromDb(forceFresh);
-    const headers = {
-      'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
-    };
-
+    const dbOrders = await getOrdersFromDb();
     if (dbOrders && dbOrders.length > 0) {
-      return NextResponse.json(
-        {
-          success: true,
-          source: 'database',
-          orders: dbOrders,
-          count: dbOrders.length,
-        },
-        { headers }
-      );
+      return NextResponse.json({
+        success: true,
+        source: 'database',
+        orders: dbOrders,
+        count: dbOrders.length,
+      });
     }
 
     // Fallback to in-memory store if DB has no orders yet
     const fallbackOrders = getInboundOrders();
-    return NextResponse.json(
-      {
-        success: true,
-        source: 'memory_fallback',
-        orders: fallbackOrders,
-        count: fallbackOrders.length,
-      },
-      { headers }
-    );
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      orders: fallbackOrders,
+      count: fallbackOrders.length,
+    });
   } catch (error) {
     console.error('[API Orders GET] Error:', error);
     return NextResponse.json(
@@ -96,8 +84,10 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Update in MySQL Database
+    // Update in MySQL Database & in-memory store
     const updated = await updateOrderStageInDb(orderId, stage);
+    const { updateOrderStatus } = await import('@/lib/orders-store');
+    updateOrderStatus(orderId, stage);
 
     return NextResponse.json({
       success: true,

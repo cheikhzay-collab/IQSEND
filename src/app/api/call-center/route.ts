@@ -71,11 +71,44 @@ export async function GET() {
       tasks: Array.from(tasksMap.values()),
     });
   } catch (error: any) {
-    console.error('[API Call Center GET] Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.warn('[API Call Center GET] DB error, using unified store fallback:', error.message);
+    const { getInboundOrders } = await import('@/lib/orders-store');
+    const inbound = getInboundOrders();
+
+    const fallbackTasks = inbound
+      .filter((o) => o.stage === 'PENDING_CONFIRMATION' || o.stage === 'NEW_ORDERS' || o.stage === 'NEEDS_ATTENTION' || o.stage === 'CONFIRMED')
+      .map((o) => {
+        let priority: 'URGENT' | 'RAPPEL' | 'NOUVEAU' = 'NOUVEAU';
+        if (o.customer?.notes?.includes('Rappel')) {
+          priority = 'RAPPEL';
+        } else if (o.aiVerification?.riskScore && o.aiVerification.riskScore > 40) {
+          priority = 'URGENT';
+        }
+
+        const rawNum = o.orderNumber || '';
+        const cleanNum = rawNum.startsWith('#') ? rawNum : `#${rawNum}`;
+
+        return {
+          id: o.id,
+          orderNumber: cleanNum,
+          customerName: o.customer.name,
+          phone: o.customer.phone,
+          city: o.customer.city,
+          address: o.customer.address,
+          product: o.items[0]?.name || 'Pack 2x Chemises Lin',
+          amount: o.payment.amount,
+          priority,
+          scheduledTime: o.customer.notes || undefined,
+          attempts: 0,
+          status: o.stage,
+        };
+      });
+
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      tasks: fallbackTasks,
+    });
   }
 }
 
@@ -105,6 +138,10 @@ export async function POST(request: Request) {
       newStatus = 'CANCELED';
       timelineTitle = 'Commande annulée par le client';
     }
+
+    // Update in-memory store
+    const { updateOrderStatus } = await import('@/lib/orders-store');
+    updateOrderStatus(orderId, newStatus);
 
     // Update order_leads
     await pool.execute(

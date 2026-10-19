@@ -2,7 +2,6 @@ import { getMysqlPool, executeQuery } from './db';
 import { LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
 import { IngestedOrder, cleanMoroccanPhone } from './orders-store';
 import { ProductItem } from './products-store';
-import { serverCache } from './cache';
 
 /**
  * Stage mapping between frontend LifecycleStage and database enum status
@@ -55,116 +54,112 @@ export function mapDbStatusToStage(status: string): LifecycleStage {
 }
 
 /**
- * 1. Fetch all orders from MySQL database (parallelized queries + high-speed server cache)
+ * 1. Fetch all orders from MySQL database (order_leads + order_items + shipment_details)
  */
-export async function getOrdersFromDb(forceFresh = false): Promise<LifecycleOrder[]> {
+export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
   try {
-    if (forceFresh) {
-      serverCache.invalidate('orders');
+    const pool = getMysqlPool();
+
+    // Fetch leads
+    const [leads]: any = await pool.execute(`
+      SELECT 
+        l.*,
+        s.carrier,
+        s.sendit_tracking_number,
+        s.status as shipment_status,
+        s.waybill_url,
+        s.delivery_proof_url
+      FROM order_leads l
+      LEFT JOIN shipment_details s ON l.id = s.order_id
+      ORDER BY l.created_at DESC
+    `);
+
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return [];
     }
 
-    return await serverCache.getOrSet('orders', 8, async () => {
-      const pool = getMysqlPool();
+    // Fetch items for all leads
+    const [items]: any = await pool.execute(`
+      SELECT * FROM order_items
+    `);
 
-      // Parallelize fetching leads and order items in 1 network round-trip instead of 2 sequential trips
-      const [[leads], [items]]: [any, any] = await Promise.all([
-        pool.execute(`
-          SELECT 
-            l.*,
-            s.carrier,
-            s.sendit_tracking_number,
-            s.status as shipment_status,
-            s.waybill_url,
-            s.delivery_proof_url
-          FROM order_leads l
-          LEFT JOIN shipment_details s ON l.id = s.order_id
-          ORDER BY l.created_at DESC
-        `),
-        pool.execute(`SELECT * FROM order_items`),
-      ]);
+    const itemsByOrderId: Record<string, any[]> = {};
+    if (Array.isArray(items)) {
+      items.forEach((it) => {
+        if (!itemsByOrderId[it.order_id]) {
+          itemsByOrderId[it.order_id] = [];
+        }
+        itemsByOrderId[it.order_id].push(it);
+      });
+    }
 
-      if (!Array.isArray(leads) || leads.length === 0) {
-        return [];
-      }
+    return leads.map((lead: any): LifecycleOrder => {
+      const orderItems = itemsByOrderId[lead.id] || [];
+      const stage = mapDbStatusToStage(lead.status);
 
-      const itemsByOrderId: Record<string, any[]> = {};
-      if (Array.isArray(items)) {
-        items.forEach((it) => {
-          if (!itemsByOrderId[it.order_id]) {
-            itemsByOrderId[it.order_id] = [];
-          }
-          itemsByOrderId[it.order_id].push(it);
-        });
-      }
-
-      return leads.map((lead: any): LifecycleOrder => {
-        const orderItems = itemsByOrderId[lead.id] || [];
-        const stage = mapDbStatusToStage(lead.status);
-
-        return {
-          id: lead.id,
-          orderNumber: lead.order_number,
-          stage,
-          createdAt: lead.created_at
-            ? new Date(lead.created_at).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : 'À l’instant',
-          customer: {
-            name: lead.customer_name,
-            phone: lead.phone_number,
-            address: lead.address || '',
-            city: lead.city,
-            notes: lead.notes || undefined,
-          },
-          items: orderItems.map((it: any) => ({
-            id: it.id,
-            name: it.product_name,
-            sku: it.sku,
-            thumbnail:
-              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
-            quantity: it.quantity,
-            price: Number(it.price),
-          })),
-          payment: {
-            method: 'COD',
-            amount: Number(lead.total_amount),
-            currency: 'MAD',
-            status: lead.status === 'DELIVERED_PAID' ? 'COLLECTED' : 'PENDING',
-          },
-          aiVerification: {
-            status:
-              lead.ai_confirmation_status === 'CONFIRMED'
-                ? 'CONFIRMED_BY_AI'
-                : lead.ai_confirmation_status === 'VERIFIED'
-                ? 'VERIFIED'
-                : 'NEEDS_REVIEW',
-            riskScore: lead.risk_score || 10,
-            notes: lead.notes || 'Vérification automatique',
-          },
-          shipping: lead.sendit_tracking_number
+      return {
+        id: lead.id,
+        orderNumber: lead.order_number,
+        stage,
+        createdAt: lead.created_at
+          ? new Date(lead.created_at).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'À l’instant',
+        customer: {
+          name: lead.customer_name,
+          phone: lead.phone_number,
+          address: lead.address || '',
+          city: lead.city,
+          notes: lead.notes || undefined,
+        },
+        items: orderItems.map((it: any) => ({
+          id: it.id,
+          name: it.product_name,
+          sku: it.sku,
+          thumbnail:
+            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+          quantity: it.quantity,
+          price: Number(it.price),
+        })),
+        payment: {
+          method: 'COD',
+          amount: Number(lead.total_amount),
+          currency: 'MAD',
+          status: lead.status === 'DELIVERED_PAID' ? 'COLLECTED' : 'PENDING',
+        },
+        aiVerification: {
+          status:
+            lead.ai_confirmation_status === 'CONFIRMED'
+              ? 'CONFIRMED_BY_AI'
+              : lead.ai_confirmation_status === 'VERIFIED'
+              ? 'VERIFIED'
+              : 'NEEDS_REVIEW',
+          riskScore: lead.risk_score || 10,
+          notes: lead.notes || 'Vérification automatique',
+        },
+        shipping: lead.sendit_tracking_number
+          ? {
+              courier: lead.carrier || 'Sendit.ma Express',
+              trackingNumber: lead.sendit_tracking_number,
+              liveStatus: lead.shipment_status === 'DELIVERED_PAID' ? 'DELIVERED' : 'DISPATCHED',
+              lastUpdated: 'À l’instant',
+              deliveryAttempts: 1,
+            }
+          : undefined,
+        completed:
+          lead.status === 'DELIVERED_PAID'
             ? {
-                courier: lead.carrier || 'Sendit.ma Express',
-                trackingNumber: lead.sendit_tracking_number,
-                liveStatus: lead.shipment_status === 'DELIVERED_PAID' ? 'DELIVERED' : 'DISPATCHED',
-                lastUpdated: 'À l’instant',
-                deliveryAttempts: 1,
+                deliveredAt: new Date(lead.updated_at).toLocaleDateString('fr-FR'),
+                podType: 'CUSTOMER_SIGNATURE',
+                settlementStatus: 'PAID_SETTLEMENT',
+                reviewRequested: false,
               }
             : undefined,
-          completed:
-            lead.status === 'DELIVERED_PAID'
-              ? {
-                  deliveredAt: new Date(lead.updated_at).toLocaleDateString('fr-FR'),
-                  podType: 'CUSTOMER_SIGNATURE',
-                  settlementStatus: 'PAID_SETTLEMENT',
-                  reviewRequested: false,
-                }
-              : undefined,
-        };
-      });
+      };
     });
   } catch (error) {
     console.error('[DB Service] Error fetching orders from DB:', error);
@@ -270,9 +265,6 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
       );
     }
 
-    // Invalidate caches so frontend instantly reflects the updated order state
-    serverCache.invalidate(['orders', 'leads', 'dashboard_stats', 'tracking', 'packing']);
-
     return true;
   } catch (error) {
     console.error('[DB Service] Error saving order to DB:', error);
@@ -309,9 +301,6 @@ export async function updateOrderStageInDb(orderId: string, stage: LifecycleStag
       );
     }
 
-    // Invalidate caches
-    serverCache.invalidate(['orders', 'leads', 'dashboard_stats', 'tracking', 'packing']);
-
     return true;
   } catch (error) {
     console.error('[DB Service] Error updating order stage in DB:', error);
@@ -320,88 +309,82 @@ export async function updateOrderStageInDb(orderId: string, stage: LifecycleStag
 }
 
 /**
- * 4. Fetch all products from MySQL database (with 15s in-memory server cache)
+ * 4. Fetch all products from MySQL database
  */
-export async function getProductsFromDb(forceFresh = false): Promise<ProductItem[]> {
+export async function getProductsFromDb(): Promise<ProductItem[]> {
   try {
-    if (forceFresh) {
-      serverCache.invalidate('products');
+    const pool = getMysqlPool();
+    const [rows]: any = await pool.execute(`
+      SELECT * FROM products WHERE is_active = TRUE ORDER BY name ASC
+    `);
+
+    if (!Array.isArray(rows) || rows.length === 0) {
+      return [];
     }
 
-    return await serverCache.getOrSet('products', 15, async () => {
-      const pool = getMysqlPool();
-      const [rows]: any = await pool.execute(`
-        SELECT * FROM products WHERE is_active = TRUE ORDER BY name ASC
-      `);
+    return rows.map((r: any): ProductItem => {
+      let variants = undefined;
+      let offers = undefined;
+      let sellingPoints = undefined;
+      let objectionFaqs = undefined;
+      let additionalImages = undefined;
 
-      if (!Array.isArray(rows) || rows.length === 0) {
-        return [];
+      try {
+        if (r.attributes) {
+          variants = typeof r.attributes === 'string' ? JSON.parse(r.attributes) : r.attributes;
+        }
+      } catch {}
+
+      try {
+        if (r.upsell_bundles) {
+          offers = typeof r.upsell_bundles === 'string' ? JSON.parse(r.upsell_bundles) : r.upsell_bundles;
+        }
+      } catch {}
+
+      try {
+        if (r.selling_points) {
+          sellingPoints = typeof r.selling_points === 'string' ? JSON.parse(r.selling_points) : r.selling_points;
+        }
+      } catch {}
+
+      try {
+        if (r.objection_faqs) {
+          objectionFaqs = typeof r.objection_faqs === 'string' ? JSON.parse(r.objection_faqs) : r.objection_faqs;
+        }
+      } catch {}
+
+      let mainImage = r.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
+      if (mainImage.startsWith('[') && mainImage.endsWith(']')) {
+        try {
+          const parsedImgs = JSON.parse(mainImage);
+          if (Array.isArray(parsedImgs) && parsedImgs.length > 0) {
+            mainImage = parsedImgs[0];
+            additionalImages = parsedImgs.slice(1);
+          }
+        } catch {}
       }
 
-      return rows.map((r: any): ProductItem => {
-        let variants = undefined;
-        let offers = undefined;
-        let sellingPoints = undefined;
-        let objectionFaqs = undefined;
-        let additionalImages = undefined;
-
-        try {
-          if (r.attributes) {
-            variants = typeof r.attributes === 'string' ? JSON.parse(r.attributes) : r.attributes;
-          }
-        } catch {}
-
-        try {
-          if (r.upsell_bundles) {
-            offers = typeof r.upsell_bundles === 'string' ? JSON.parse(r.upsell_bundles) : r.upsell_bundles;
-          }
-        } catch {}
-
-        try {
-          if (r.selling_points) {
-            sellingPoints = typeof r.selling_points === 'string' ? JSON.parse(r.selling_points) : r.selling_points;
-          }
-        } catch {}
-
-        try {
-          if (r.objection_faqs) {
-            objectionFaqs = typeof r.objection_faqs === 'string' ? JSON.parse(r.objection_faqs) : r.objection_faqs;
-          }
-        } catch {}
-
-        let mainImage = r.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
-        if (mainImage.startsWith('[') && mainImage.endsWith(']')) {
-          try {
-            const parsedImgs = JSON.parse(mainImage);
-            if (Array.isArray(parsedImgs) && parsedImgs.length > 0) {
-              mainImage = parsedImgs[0];
-              additionalImages = parsedImgs.slice(1);
-            }
-          } catch {}
-        }
-
-        return {
-          id: r.id,
-          name: r.name,
-          nameAr: r.name_ar,
-          sku: r.sku,
-          category: r.category || 'General',
-          image: mainImage,
-          additionalImages,
-          sellingPrice: Number(r.base_price),
-          costPrice: Number(r.cost_price),
-          deliveryFee: 35,
-          totalStock: r.stock_quantity || 0,
-          status: r.stock_quantity > 10 ? 'IN_STOCK' : r.stock_quantity > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
-          descriptionAr: r.description_ar || '',
-          keywords: [r.name.toLowerCase(), r.name_ar, r.sku.toLowerCase()],
-          variants,
-          offers,
-          agentInstructions: r.knowledge_base || '',
-          sellingPoints,
-          objectionFaqs,
-        };
-      });
+      return {
+        id: r.id,
+        name: r.name,
+        nameAr: r.name_ar,
+        sku: r.sku,
+        category: r.category || 'General',
+        image: mainImage,
+        additionalImages,
+        sellingPrice: Number(r.base_price),
+        costPrice: Number(r.cost_price),
+        deliveryFee: 35,
+        totalStock: r.stock_quantity || 0,
+        status: r.stock_quantity > 10 ? 'IN_STOCK' : r.stock_quantity > 0 ? 'LOW_STOCK' : 'OUT_OF_STOCK',
+        descriptionAr: r.description_ar || '',
+        keywords: [r.name.toLowerCase(), r.name_ar, r.sku.toLowerCase()],
+        variants,
+        offers,
+        agentInstructions: r.knowledge_base || '',
+        sellingPoints,
+        objectionFaqs,
+      };
     });
   } catch (error) {
     console.error('[DB Service] Error fetching products from DB:', error);
@@ -481,85 +464,79 @@ export async function addTimelineEventToDb(params: {
 }
 
 /**
- * 7. Fetch all leads for Leads Qualification Pipeline (with 8s in-memory server cache)
+ * 7. Fetch all leads for Leads Qualification Pipeline (/dashboard/leads)
  */
-export async function getLeadsFromDb(forceFresh = false): Promise<any[]> {
+export async function getLeadsFromDb(): Promise<any[]> {
   try {
-    if (forceFresh) {
-      serverCache.invalidate('leads');
+    const pool = getMysqlPool();
+    const [leads]: any = await pool.execute(`
+      SELECT 
+        l.*,
+        i.product_name,
+        i.sku,
+        i.quantity as item_quantity,
+        i.price as item_price
+      FROM order_leads l
+      LEFT JOIN order_items i ON l.id = i.order_id
+      ORDER BY l.created_at DESC
+    `);
+
+    if (!Array.isArray(leads)) return [];
+
+    // Deduplicate leads by ID (in case multiple items exist)
+    const leadsMap = new Map<string, any>();
+    for (const row of leads) {
+      if (!leadsMap.has(row.id)) {
+        const timeAgoStr = row.created_at
+          ? new Date(row.created_at).toLocaleDateString('fr-FR', {
+              day: 'numeric',
+              month: 'short',
+              hour: '2-digit',
+              minute: '2-digit',
+            })
+          : 'À l’instant';
+
+        const rawOrderNum = row.order_number || '';
+        const cleanOrderNumber = rawOrderNum.startsWith('#')
+          ? rawOrderNum.replace(/^#+/, '#')
+          : `#${rawOrderNum}`;
+
+        let aiStageText = 'En attente de qualification IA';
+        if (row.status === 'CONFIRMED' || row.ai_confirmation_status === 'CONFIRMED') {
+          aiStageText = 'Confirmé par Sarah (Agent IA) - Adresse & Téléphone validés';
+        } else if (row.status === 'AI_CHATTING') {
+          aiStageText = 'Bot IA en conversation WhatsApp (Proposition Upsell)...';
+        } else if (row.status === 'NEW') {
+          aiStageText = 'Nouveau lead prêt pour déclenchement IA immédiat';
+        } else if (row.status === 'CANCELED') {
+          aiStageText = 'Annulé par le client lors de la qualification';
+        }
+
+        leadsMap.set(row.id, {
+          id: row.id,
+          orderNumber: cleanOrderNumber,
+          customerName: row.customer_name,
+          phone: row.phone_number,
+          city: row.city,
+          address: row.address,
+          amount: Number(row.total_amount),
+          product: row.product_name || 'Smart Watch Ultra Pro S2',
+          productImage:
+            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+          quantity: row.item_quantity || 1,
+          customerNote: row.notes || undefined,
+          status: row.status,
+          aiStageText,
+          timeAgo: timeAgoStr,
+          isUpsold: Boolean(row.upsell_accepted),
+          upsellAmount: row.upsell_accepted ? 120 : 0,
+          gpsReceived: Boolean(row.gps_location_url),
+          riskScore: row.risk_score || 5,
+        });
+      }
     }
 
-    return await serverCache.getOrSet('leads', 8, async () => {
-      const pool = getMysqlPool();
-      const [leads]: any = await pool.execute(`
-        SELECT 
-          l.*,
-          i.product_name,
-          i.sku,
-          i.quantity as item_quantity,
-          i.price as item_price
-        FROM order_leads l
-        LEFT JOIN order_items i ON l.id = i.order_id
-        ORDER BY l.created_at DESC
-      `);
-
-      if (!Array.isArray(leads)) return [];
-
-      // Deduplicate leads by ID (in case multiple items exist)
-      const leadsMap = new Map<string, any>();
-      for (const row of leads) {
-        if (!leadsMap.has(row.id)) {
-          const timeAgoStr = row.created_at
-            ? new Date(row.created_at).toLocaleDateString('fr-FR', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : 'À l’instant';
-
-          const rawOrderNum = row.order_number || '';
-          const cleanOrderNumber = rawOrderNum.startsWith('#')
-            ? rawOrderNum.replace(/^#+/, '#')
-            : `#${rawOrderNum}`;
-
-          let aiStageText = 'En attente de qualification IA';
-          if (row.status === 'CONFIRMED' || row.ai_confirmation_status === 'CONFIRMED') {
-            aiStageText = 'Confirmé par Sarah (Agent IA) - Adresse & Téléphone validés';
-          } else if (row.status === 'AI_CHATTING') {
-            aiStageText = 'Bot IA en conversation WhatsApp (Proposition Upsell)...';
-          } else if (row.status === 'NEW') {
-            aiStageText = 'Nouveau lead prêt pour déclenchement IA immédiat';
-          } else if (row.status === 'CANCELED') {
-            aiStageText = 'Annulé par le client lors de la qualification';
-          }
-
-          leadsMap.set(row.id, {
-            id: row.id,
-            orderNumber: cleanOrderNumber,
-            customerName: row.customer_name,
-            phone: row.phone_number,
-            city: row.city,
-            address: row.address,
-            amount: Number(row.total_amount),
-            product: row.product_name || 'Smart Watch Ultra Pro S2',
-            productImage:
-              'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
-            quantity: row.item_quantity || 1,
-            customerNote: row.notes || undefined,
-            status: row.status,
-            aiStageText,
-            timeAgo: timeAgoStr,
-            isUpsold: Boolean(row.upsell_accepted),
-            upsellAmount: row.upsell_accepted ? 120 : 0,
-            gpsReceived: Boolean(row.gps_location_url),
-            riskScore: row.risk_score || 5,
-          });
-        }
-      }
-
-      return Array.from(leadsMap.values());
-    });
+    return Array.from(leadsMap.values());
   } catch (error) {
     console.error('[DB Service] Error fetching leads from DB:', error);
     return [];
@@ -661,9 +638,6 @@ export async function executeAiLeadConfirmation(leadId: string): Promise<{
     } catch (waErr: any) {
       console.warn('[AI Execute] WhatsApp dispatch note:', waErr.message);
     }
-
-    // Invalidate caches
-    serverCache.invalidate(['orders', 'leads', 'dashboard_stats', 'tracking', 'whatsapp_inbox', 'packing']);
 
     return {
       success: true,

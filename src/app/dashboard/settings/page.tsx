@@ -38,6 +38,12 @@ export default function SettingsPage() {
   const [dbStatus, setDbStatus] = useState<any>(null);
   const [isInitializingDb, setIsInitializingDb] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [toastNotification, setToastNotification] = useState<string | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastNotification(msg);
+    setTimeout(() => setToastNotification(null), 3500);
+  };
 
   const fetchDbStatus = () => {
     fetch('/api/database/init')
@@ -129,7 +135,15 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-4xl">
+    <div className="p-6 space-y-6 max-w-4xl relative">
+      {/* Toast Notification Banner */}
+      {toastNotification && (
+        <div className="fixed top-4 right-4 z-50 bg-slate-900 text-white font-bold text-xs py-3 px-4 rounded-xl shadow-xl border border-slate-700 animate-in fade-in slide-in-from-top-2 flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400" />
+          <span>{toastNotification}</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-200 pb-4">
         <div>
@@ -186,9 +200,9 @@ export default function SettingsPage() {
               <button
                 onClick={() => {
                   navigator.clipboard.writeText('https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets');
-                  alert('URL Webhook copiée dans le presse-papier !');
+                  showToast("URL Webhook copiée dans le presse-papier !");
                 }}
-                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition-colors"
+                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <Copy className="w-3.5 h-3.5" />
                 Copier l'URL
@@ -235,9 +249,9 @@ export default function SettingsPage() {
   }
 }`;
                   navigator.clipboard.writeText(script);
-                  alert('Code Apps Script copié dans le presse-papier !');
+                  showToast('Code Apps Script copié dans le presse-papier !');
                 }}
-                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs"
+                className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-2xs cursor-pointer"
               >
                 <Copy className="w-3 h-3" />
                 Copier le script Code.gs
@@ -276,13 +290,13 @@ export default function SettingsPage() {
                   });
                   const json = await res.json();
                   if (json.success) {
-                    alert(`Commande test ${json.orderNumber} créée avec succès dans "En attente de confirmation" !`);
+                    showToast(`Commande test ${json.orderNumber} créée avec succès dans "En attente de confirmation" !`);
                   }
                 } catch {
-                  alert('Erreur lors de la simulation');
+                  showToast('Erreur lors de la simulation de commande Google Sheets');
                 }
               }}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition-colors"
+              className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
             >
               Simuler un envoi Test
             </button>
@@ -318,8 +332,11 @@ export default function SettingsPage() {
                 className="flex-1 p-2.5 bg-slate-100 border border-slate-200 rounded-xl font-mono text-slate-600"
               />
               <button
-                onClick={() => alert('URL Webhook copiée!')}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700"
+                onClick={() => {
+                  navigator.clipboard.writeText('https://app.sendit-cod.ma/api/webhooks/sendit');
+                  showToast('URL Webhook Sendit copiée !');
+                }}
+                className="p-2.5 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700 cursor-pointer"
               >
                 <Copy className="w-4 h-4" />
               </button>

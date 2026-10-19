@@ -7,33 +7,24 @@ import {
 } from '@/lib/inbox-store';
 import { sendWhatsAppDirectMessage } from '@/lib/whatsapp/baileys-service';
 import { getMysqlPool } from '@/lib/db';
-import { serverCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
 // GET: Return all active WhatsApp conversations (hydrated from Hostinger MySQL + in-memory store)
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
+    const memoryConversations = getInboxConversations();
+    const pool = getMysqlPool();
 
-    if (forceFresh) {
-      serverCache.invalidate('whatsapp_inbox');
-    }
-
-    const payload = await serverCache.getOrSet('whatsapp_inbox', 5, async () => {
-      const memoryConversations = getInboxConversations();
-      const pool = getMysqlPool();
-
-      // Fetch messages from MySQL
-      const [dbMsgs]: any = await pool.execute(`
-        SELECT 
-          m.id, m.order_id, m.phone, m.sender, m.body, m.message_type, m.audio_transcribed_text, m.created_at,
-          l.order_number, l.customer_name, l.city, l.total_amount
-        FROM whatsapp_messages m
-        LEFT JOIN order_leads l ON (m.order_id = l.id OR m.phone = l.phone_number)
-        ORDER BY m.created_at ASC
-      `);
+    // Fetch messages from MySQL
+    const [dbMsgs]: any = await pool.execute(`
+      SELECT 
+        m.id, m.order_id, m.phone, m.sender, m.body, m.message_type, m.audio_transcribed_text, m.created_at,
+        l.order_number, l.customer_name, l.city, l.total_amount
+      FROM whatsapp_messages m
+      LEFT JOIN order_leads l ON (m.order_id = l.id OR m.phone = l.phone_number)
+      ORDER BY m.created_at ASC
+    `);
 
     if (Array.isArray(dbMsgs) && dbMsgs.length > 0) {
       // Group by phone
@@ -105,37 +96,26 @@ export async function GET(req: Request) {
         }
       }
 
-      return {
+      return NextResponse.json({
+        success: true,
         source: 'database_and_memory',
         conversations: mergedList,
-      };
+      });
     }
 
-    return {
+    return NextResponse.json({
+      success: true,
       source: 'memory',
       conversations: memoryConversations,
-    };
-  });
-
-  return NextResponse.json(
-    {
+    });
+  } catch (err: any) {
+    console.warn('[Inbox GET] Fallback to memory:', err.message);
+    return NextResponse.json({
       success: true,
-      ...payload,
-    },
-    {
-      headers: {
-        'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
-      },
-    }
-  );
-} catch (err: any) {
-  console.warn('[Inbox GET] Fallback to memory:', err.message);
-  return NextResponse.json({
-    success: true,
-    source: 'memory_fallback',
-    conversations: getInboxConversations(),
-  });
-}
+      source: 'memory_fallback',
+      conversations: getInboxConversations(),
+    });
+  }
 }
 
 // POST: Human agent sends a message to customer via WhatsApp
@@ -182,9 +162,6 @@ export async function POST(request: Request) {
       text,
       sender: 'AGENT',
     });
-
-    // Invalidate inbox cache
-    serverCache.invalidate('whatsapp_inbox');
 
     return NextResponse.json({
       success: true,
@@ -245,7 +222,6 @@ export async function PATCH(request: Request) {
         totalAmount: finalAmount,
       });
 
-      serverCache.invalidate('whatsapp_inbox');
       return NextResponse.json({
         success: true,
         conversation: updated,
@@ -253,7 +229,6 @@ export async function PATCH(request: Request) {
     }
 
     const updated = toggleAiActive(chatId, isAiActive);
-    serverCache.invalidate('whatsapp_inbox');
     return NextResponse.json({
       success: true,
       conversation: updated,

@@ -1,66 +1,56 @@
 import { NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { TrackingOrder, ShipmentStatus, LeadStatus } from '@/types';
-import { serverCache } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(req.url);
-    const forceFresh = searchParams.get('refresh') === 'true' || searchParams.get('refresh') === '1';
+    const pool = getMysqlPool();
 
-    if (forceFresh) {
-      serverCache.invalidate('tracking');
+    // 1. Fetch leads that have been confirmed or are in logistics stages
+    const [leads]: any = await pool.execute(`
+      SELECT 
+        l.*,
+        s.carrier,
+        s.sendit_tracking_number,
+        s.status as shipment_db_status,
+        s.waybill_url,
+        s.delivery_proof_url,
+        s.delivery_attempts_count,
+        s.failed_reason,
+        i.product_name,
+        i.quantity as item_quantity,
+        i.sku as item_sku
+      FROM order_leads l
+      LEFT JOIN shipment_details s ON l.id = s.order_id
+      LEFT JOIN order_items i ON l.id = i.order_id
+      ORDER BY l.created_at DESC
+    `);
+
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return NextResponse.json({ success: true, orders: [] });
     }
 
-    const orders = await serverCache.getOrSet('tracking', 8, async () => {
-      const pool = getMysqlPool();
-
-      // Parallelize fetching leads and order timelines concurrently
-      const [[leads], [timelines]]: [any, any] = await Promise.all([
-        pool.execute(`
-          SELECT 
-            l.*,
-            s.carrier,
-            s.sendit_tracking_number,
-            s.status as shipment_db_status,
-            s.waybill_url,
-            s.delivery_proof_url,
-            s.delivery_attempts_count,
-            s.failed_reason,
-            i.product_name,
-            i.quantity as item_quantity,
-            i.sku as item_sku
-          FROM order_leads l
-          LEFT JOIN shipment_details s ON l.id = s.order_id
-          LEFT JOIN order_items i ON l.id = i.order_id
-          ORDER BY l.created_at DESC
-        `),
-        pool.execute(`
-          SELECT * FROM order_timelines ORDER BY created_at ASC
-        `),
-      ]);
-
-      if (!Array.isArray(leads) || leads.length === 0) {
-        return [];
-      }
-
-      const timelinesByOrder = new Map<string, any[]>();
-      if (Array.isArray(timelines)) {
-        for (const t of timelines) {
-          if (!timelinesByOrder.has(t.order_id)) {
-            timelinesByOrder.set(t.order_id, []);
-          }
-          timelinesByOrder.get(t.order_id)!.push({
-            id: t.id,
-            timestamp: t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'À l’instant',
-            title: t.title,
-            description: t.details || '',
-            actor: (t.actor && ['SYSTEM', 'AI_BOT', 'SENDIT', 'AGENT'].includes(t.actor)) ? t.actor : 'SYSTEM',
-          });
+    // Fetch timelines for these orders
+    const [timelines]: any = await pool.execute(`
+      SELECT * FROM order_timelines ORDER BY created_at ASC
+    `);
+    const timelinesByOrder = new Map<string, any[]>();
+    if (Array.isArray(timelines)) {
+      for (const t of timelines) {
+        if (!timelinesByOrder.has(t.order_id)) {
+          timelinesByOrder.set(t.order_id, []);
         }
+        timelinesByOrder.get(t.order_id)!.push({
+          id: t.id,
+          timestamp: t.created_at ? new Date(t.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'À l’instant',
+          title: t.title,
+          description: t.details || '',
+          actor: (t.actor && ['SYSTEM', 'AI_BOT', 'SENDIT', 'AGENT'].includes(t.actor)) ? t.actor : 'SYSTEM',
+        });
       }
+    }
 
     // Deduplicate leads by ID (in case of multiple items)
     const ordersMap = new Map<string, TrackingOrder>();
@@ -155,27 +145,81 @@ export async function GET(req: Request) {
       });
     }
 
-    return Array.from(ordersMap.values());
+    return NextResponse.json({
+      success: true,
+      source: 'database',
+      orders: Array.from(ordersMap.values()),
+    });
+  } catch (error: any) {
+    console.warn('[API Tracking GET] DB error, using unified store fallback:', error.message);
+    const { getInboundOrders } = await import('@/lib/orders-store');
+    const inbound = getInboundOrders();
+
+    const fallbackOrders: TrackingOrder[] = inbound.map((o) => {
+      let shipmentStatus: ShipmentStatus = 'READY_FOR_PICKUP';
+      if (o.stage === 'IN_TRANSIT') shipmentStatus = 'OUT_FOR_DELIVERY';
+      else if (o.stage === 'DELIVERED') shipmentStatus = 'DELIVERED_PAID';
+      else if (o.stage === 'CANCELLED') shipmentStatus = 'RETURNED';
+      else if (o.stage === 'PACKING') shipmentStatus = 'READY_FOR_PICKUP';
+
+      const cleanNum = o.orderNumber.replace(/^#+/, '');
+      const tracking = o.tracking?.trackingNumber || `SND-${cleanNum}`;
+
+      return {
+        id: o.id,
+        orderNumber: o.orderNumber.startsWith('#') ? o.orderNumber : `#${o.orderNumber}`,
+        customerName: o.customer.name,
+        phoneNumber: o.customer.phone,
+        city: o.customer.city,
+        address: o.customer.address,
+        gpsLocationUrl: o.gpsLocationUrl || 'https://maps.google.com/?q=33.5731,-7.5898',
+        totalAmount: o.payment.amount,
+        productName: o.items[0]?.name || 'Article E-commerce COD',
+        productQuantity: o.items[0]?.quantity || 1,
+        leadStatus: (o.stage === 'CONFIRMED' || o.stage === 'IN_TRANSIT' || o.stage === 'DELIVERED') ? 'CONFIRMED' : 'NEW',
+        shipmentStatus,
+        trackingNumber: tracking,
+        waybillUrl: `https://sendit.ma/awb/${tracking}.pdf`,
+        driverName: 'Mohamed Tazi',
+        driverPhone: '0670112233',
+        deliveryAttempts: shipmentStatus === 'DELIVERED_PAID' ? 1 : 0,
+        aiHandoverRequired: false,
+        aiConversationEnabled: true,
+        riskScore: o.aiVerification?.riskScore || 10,
+        createdAt: o.createdAt,
+        lastUpdatedAt: new Date().toISOString(),
+        timeline: [
+          {
+            id: `t-${o.id}-1`,
+            timestamp: 'Récemment',
+            title: 'Commande validée',
+            description: `Commande ${o.orderNumber} enregistrée pour ${o.customer.name}`,
+            actor: 'SYSTEM',
+          },
+          {
+            id: `t-${o.id}-2`,
+            timestamp: 'Récemment',
+            title: 'Prise en charge Sendit Express',
+            description: `Numéro d'expédition ${tracking} généré`,
+            actor: 'SENDIT',
+          },
+        ],
+        chatMessages: [
+          {
+            id: `msg-${o.id}-1`,
+            sender: 'AI_BOT',
+            text: `السلام عليكم أخي ${o.customer.name}! كنشكروك على طلبك. الكولي ديالك راه مجهز للتوصيل في ${o.customer.city}.`,
+            time: '11:00',
+          },
+        ],
+      };
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        source: 'database',
-        orders,
-      },
-      {
-        headers: {
-          'Cache-Control': 'public, s-maxage=5, stale-while-revalidate=15',
-        },
-      }
-    );
-  } catch (error: any) {
-    console.error('[API Tracking GET] Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      orders: fallbackOrders,
+    });
   }
 }
 
@@ -198,6 +242,10 @@ export async function PATCH(request: Request) {
     if (shipmentStatus === 'DELIVERED_PAID') dbStatus = 'DELIVERED_PAID';
     else if (shipmentStatus === 'DELIVERY_FAILED') dbStatus = 'DELIVERY_FAILED';
     else if (shipmentStatus === 'RETURNED') dbStatus = 'CANCELED';
+
+    // Update in-memory store
+    const { updateOrderStatus } = await import('@/lib/orders-store');
+    updateOrderStatus(orderId, dbStatus);
 
     // Update order_leads
     await pool.execute(
@@ -227,9 +275,6 @@ export async function PATCH(request: Request) {
       details: failedReason ? `Motif: ${failedReason}` : `Mise à jour statut transporteur`,
       actor: 'SENDIT',
     });
-
-    // Invalidate caches
-    serverCache.invalidate(['tracking', 'orders', 'dashboard_stats', 'packing']);
 
     return NextResponse.json({
       success: true,

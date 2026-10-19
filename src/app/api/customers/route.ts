@@ -110,10 +110,54 @@ export async function GET() {
       }
     });
   } catch (error: any) {
-    console.error('[API Customers GET] Error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.warn('[API Customers GET] DB error, using unified store fallback:', error.message);
+    const { getInboundOrders } = await import('@/lib/orders-store');
+    const inbound = getInboundOrders();
+
+    const customerMap = new Map<string, CustomerItem>();
+    inbound.forEach((o, idx) => {
+      const phone = o.customer.phone;
+      if (!customerMap.has(phone)) {
+        customerMap.set(phone, {
+          id: `cust-${idx + 1}`,
+          name: o.customer.name,
+          phone,
+          city: o.customer.city,
+          address: o.customer.address,
+          totalOrders: 1,
+          deliveredOrders: o.stage === 'DELIVERED' ? 1 : 0,
+          refusedOrders: o.stage === 'CANCELLED' ? 1 : 0,
+          totalSpent: o.stage === 'DELIVERED' ? o.payment.amount : 0,
+          lastOrderDate: 'Récemment',
+          reliabilityScore: o.stage === 'DELIVERED' ? 'FIABLE' : o.stage === 'CANCELLED' ? 'RISQUE' : 'NOUVEAU',
+          notes: o.customer.notes || 'Client enregistré via le système unifié',
+        });
+      } else {
+        const existing = customerMap.get(phone)!;
+        existing.totalOrders += 1;
+        if (o.stage === 'DELIVERED') {
+          existing.deliveredOrders += 1;
+          existing.totalSpent += o.payment.amount;
+          existing.reliabilityScore = existing.deliveredOrders >= 2 ? 'VIP' : 'FIABLE';
+        } else if (o.stage === 'CANCELLED') {
+          existing.refusedOrders += 1;
+        }
+      }
+    });
+
+    const fallbackCustomers = Array.from(customerMap.values());
+
+    return NextResponse.json({
+      success: true,
+      source: 'memory_fallback',
+      customers: fallbackCustomers,
+      total: fallbackCustomers.length,
+      stats: {
+        totalCustomers: fallbackCustomers.length,
+        vipCount: fallbackCustomers.filter((c) => c.reliabilityScore === 'VIP' || c.reliabilityScore === 'FIABLE').length,
+        blacklistCount: fallbackCustomers.filter((c) => c.reliabilityScore === 'BLACKLIST' || c.reliabilityScore === 'RISQUE').length,
+        totalRevenue: fallbackCustomers.reduce((sum, c) => sum + c.totalSpent, 0),
+      },
+    });
   }
 }

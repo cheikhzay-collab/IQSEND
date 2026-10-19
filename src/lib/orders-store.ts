@@ -283,6 +283,104 @@ const INITIAL_BASE_ORDERS: IngestedOrder[] = [
       status: 'PENDING',
     },
   },
+  {
+    id: 'ord-1033',
+    orderNumber: '#AT1033',
+    stage: 'DELIVERED',
+    createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'Samira Belkacem',
+      phone: '0663412099',
+      city: 'Rabat',
+      address: 'Avenue Fal Ould Oumeir, Agdal',
+    },
+    items: [
+      {
+        id: 'item-6',
+        name: 'Montre Automatique Édition Noire',
+        sku: 'WTC-BLK-AUTO',
+        thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 450,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 450,
+      currency: 'MAD',
+      status: 'PAID',
+    },
+    tracking: {
+      carrier: 'Sendit Express',
+      trackingNumber: 'SND-819207',
+      deliveredAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+    },
+  },
+  {
+    id: 'ord-1036',
+    orderNumber: '#AT1036',
+    stage: 'DELIVERED',
+    createdAt: new Date(Date.now() - 72 * 3600 * 1000).toISOString(),
+    source: 'GOOGLE_SHEETS',
+    customer: {
+      name: 'Ibtissam Berrada',
+      phone: '0654321098',
+      city: 'Fès',
+      address: 'Hay Saada, Villa 12',
+    },
+    items: [
+      {
+        id: 'item-7',
+        name: 'Sac à Main Artisanal en Cuir Maroquin',
+        sku: 'BAG-LTHR-BRN',
+        thumbnail: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 520,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 520,
+      currency: 'MAD',
+      status: 'PAID',
+    },
+    tracking: {
+      carrier: 'Sendit Express',
+      trackingNumber: 'SND-819206',
+      deliveredAt: new Date(Date.now() - 40 * 3600 * 1000).toISOString(),
+    },
+  },
+  {
+    id: 'ord-1039',
+    orderNumber: '#AT1039',
+    stage: 'CANCELLED',
+    createdAt: new Date(Date.now() - 96 * 3600 * 1000).toISOString(),
+    source: 'STOREFRONT_WEBHOOK',
+    customer: {
+      name: 'Mehdi Benani',
+      phone: '0671234567',
+      city: 'Tanger',
+      address: 'Malabata, Résidence Marina',
+      notes: 'Annulé par le client avant expédition',
+    },
+    items: [
+      {
+        id: 'item-8',
+        name: 'Baskets Urbaines AirFlex',
+        sku: 'SNK-AIR-RED',
+        thumbnail: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 280,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 280,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+  },
 ];
 
 // Global reference across serverless warm invokes
@@ -429,6 +527,114 @@ export function createDirectCustomerOrder(params: {
 
   addInboundOrder(newOrder);
   return newOrder;
+}
+
+/**
+ * Update an order's stage in the centralized in-memory store
+ */
+export function updateOrderStatus(orderId: string, stage: OrderStage | string): boolean {
+  if (!global.__inboundOrders) {
+    global.__inboundOrders = [...INITIAL_BASE_ORDERS];
+  }
+  const cleanId = orderId.replace(/^#+/, '');
+  let updated = false;
+
+  // Normalize stage string
+  let targetStage: OrderStage = 'PENDING_CONFIRMATION';
+  if (stage === 'NEW' || stage === 'NEW_ORDERS' || stage === 'PENDING_CONFIRMATION') {
+    targetStage = 'PENDING_CONFIRMATION';
+  } else if (stage === 'CONFIRMED' || stage === 'PROCESSING') {
+    targetStage = 'CONFIRMED';
+  } else if (stage === 'PACKING') {
+    targetStage = 'PACKING';
+  } else if (stage === 'IN_TRANSIT' || stage === 'OUT_FOR_DELIVERY' || stage === 'DISPATCHED') {
+    targetStage = 'IN_TRANSIT';
+  } else if (stage === 'DELIVERED' || stage === 'DELIVERED_PAID' || stage === 'COMPLETED') {
+    targetStage = 'DELIVERED';
+  } else if (stage === 'CANCELED' || stage === 'CANCELLED') {
+    targetStage = 'CANCELLED';
+  }
+
+  for (const order of global.__inboundOrders) {
+    const cleanNum = order.orderNumber.replace(/^#+/, '');
+    if (order.id === orderId || cleanNum === cleanId) {
+      order.stage = targetStage;
+      if (targetStage === 'DELIVERED') {
+        order.payment.status = 'PAID';
+        if (!order.tracking) {
+          order.tracking = { carrier: 'Sendit Express', trackingNumber: `SND-${Math.floor(800000 + Math.random() * 99999)}` };
+        }
+        order.tracking.deliveredAt = new Date().toISOString();
+      }
+      updated = true;
+    }
+  }
+  return updated;
+}
+
+/**
+ * Assign Sendit tracking number and advance to IN_TRANSIT
+ */
+export function updateOrderTracking(orderId: string, trackingNumber: string, carrier = 'Sendit.ma Express'): boolean {
+  if (!global.__inboundOrders) {
+    global.__inboundOrders = [...INITIAL_BASE_ORDERS];
+  }
+  const cleanId = orderId.replace(/^#+/, '');
+  let updated = false;
+
+  for (const order of global.__inboundOrders) {
+    const cleanNum = order.orderNumber.replace(/^#+/, '');
+    if (order.id === orderId || cleanNum === cleanId) {
+      order.stage = 'IN_TRANSIT';
+      order.tracking = {
+        carrier,
+        trackingNumber,
+        dispatchNoticeSent: true,
+      };
+      updated = true;
+    }
+  }
+  return updated;
+}
+
+/**
+ * Unified calculation of dashboard KPIs from all known orders
+ */
+export function getUnifiedDashboardStats() {
+  const orders = getInboundOrders();
+  const totalOrders = orders.length;
+
+  const deliveredOrders = orders.filter((o) => o.stage === 'DELIVERED');
+  const deliveredCount = deliveredOrders.length;
+  const deliveredRevenue = deliveredOrders.reduce((sum, o) => sum + (o.payment?.amount || 0), 0);
+
+  const confirmedCount = orders.filter((o) => o.stage === 'CONFIRMED' || o.stage === 'PACKING' || o.stage === 'IN_TRANSIT' || o.stage === 'DELIVERED').length;
+  const pendingCount = orders.filter((o) => o.stage === 'PENDING_CONFIRMATION' || o.stage === 'NEW_ORDERS' || o.stage === 'NEEDS_ATTENTION').length;
+  const inTransitCount = orders.filter((o) => o.stage === 'IN_TRANSIT' || o.stage === 'DISPATCHED').length;
+  const canceledCount = orders.filter((o) => o.stage === 'CANCELLED').length;
+
+  const confirmationRate = totalOrders > 0 ? Math.round((confirmedCount / totalOrders) * 100 * 10) / 10 : 85.0;
+  const deliveryRate = (deliveredCount + canceledCount) > 0 
+    ? Math.round((deliveredCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+    : 85.7;
+  const returnRate = (deliveredCount + canceledCount) > 0 
+    ? Math.round((canceledCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+    : 14.3;
+
+  return {
+    totalOrders,
+    deliveredRevenue,
+    deliveredRevenueFormatted: `${deliveredRevenue.toLocaleString('fr-FR')} MAD`,
+    deliveredCount,
+    confirmedCount,
+    pendingCount,
+    canceledCount,
+    inTransitCount,
+    totalProducts: 4,
+    confirmationRate,
+    deliveryRate,
+    returnRate,
+  };
 }
 
 /**

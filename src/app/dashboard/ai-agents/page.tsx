@@ -104,6 +104,106 @@ const DEFAULT_PRODUCTS_KB: ProductKbData[] = [
       },
     ],
   },
+  {
+    id: 'prod-2',
+    name: 'Smart Watch S2 Pro Retina',
+    sku: 'SW2-PRO-BLK',
+    basePrice: 599,
+    sellingPoints: [
+      'Écran AMOLED Retina Ultra-lumineux visible en plein soleil',
+      'Appels Bluetooth directs et notifications WhatsApp en arabe et français',
+      'Autonomie longue durée de 7 jours avec charge rapide magnétique',
+      'Étanche IP68 certifiée pour le sport, la pluie et les ablutions',
+    ],
+    objections: [
+      {
+        category: 'Fonctionnalités',
+        objection: 'واش كتدوز المكالمات بالبلوتوث وفيها ميكروفون وسبيكر؟',
+        replyDarija: 'نعم أخي تماماً! الساعة فيها ميكروفون ومكبر صوت نقي جداً، كتقدر تجاوب وتهضر مباشرة من يدك وتشوف رسائل الواتساب كاملة.',
+      },
+      {
+        category: 'Garantie',
+        objection: 'واش فيها ضمانة إيلا وقع فيها شي مشكل؟',
+        replyDarija: 'أكيد أخي، الساعة كتوصلك مع شهادة ضمانة لمدة سنة كاملة ضد أي عيب مصنعي، وزيادة على ذلك عندك الحق تفحصها وتخدمها قبل ماتخلص الموزع.',
+      },
+    ],
+    upsellBundle: {
+      title: 'Pack Duo (Smart Watch + Écouteurs Sans Fil)',
+      extraQty: 1,
+      discountPercent: 40,
+      pitchDarija: 'أخي العزيز، كاين عرض خاص اليوم: تقدر تاخد مع الساعة ليزيكوتور بلوتوث Pro غير بـ 99 درهم إضافية عوض 250 درهم! واش نضيفوها ليك؟',
+    },
+    mediaGallery: [
+      {
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+        caption: 'Écran AMOLED et finition midnight black',
+      },
+    ],
+  },
+  {
+    id: 'prod-3',
+    name: 'Robe Traditionnelle Soie Brodée',
+    sku: 'ROB-SOIE-M',
+    basePrice: 490,
+    sellingPoints: [
+      'Tissu 100% Crêpe de Soie royale de premier choix, fluide et opaque',
+      'Broderie artisanale marocaine raffinée (Zwaq Lemâalem) fil d’or',
+      'Coupe flatteuse adaptée à toutes les morphologies et occasions',
+      'Livraison avec essayage à domicile avant le paiement en espèces',
+    ],
+    objections: [
+      {
+        category: 'Taille',
+        objection: 'خفت ماتجيش قدي واش كاين التبديل؟',
+        replyDarija: 'مرحبا لالة! اطمئني، الموزع كيعطيك الوقت تقيسي، وإيلا ماجاتكش كتقدي تبدلي المقاس فابور أو ترجعيها فالحين بدون أي مصاريف.',
+      },
+    ],
+    upsellBundle: {
+      title: 'Foulard Soie Assorti (-50%)',
+      extraQty: 1,
+      discountPercent: 50,
+      pitchDarija: 'لالة، واش تحبي نرافقو ليك الرداء بشال حرير بنفس درجة اللون غير بـ 60 درهم عوض 120 درهم؟',
+    },
+    mediaGallery: [
+      {
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&auto=format&fit=crop&q=80',
+        caption: 'Détail broderie marocaine fil d’or',
+      },
+    ],
+  },
+  {
+    id: 'prod-4',
+    name: 'Pack Soins Visage Huile d’Argan Pure',
+    sku: 'ARG-CARE-PK',
+    basePrice: 299,
+    sellingPoints: [
+      'Huile d’argan cosmétique 100% bio pressée à froid de la région de Taroudant',
+      'Riche en Vitamine E et acides gras essentiels pour hydrater et régénérer la peau',
+      'Sérum anti-âge naturel certifié ONSSA sans aucun produit chimique',
+    ],
+    objections: [
+      {
+        category: 'Authenticité',
+        objection: 'واش أرݣان حر طبيعي 100% ولا مخلط؟',
+        replyDarija: 'أرݣان حر ومعصور على البارد من تعاونية نسوية معتمدة بتارودانت ومختوم بشهادة المطابقة الصحية. كتقدري تفتحي وتشوفي القوام والرائحة الزكية.',
+      },
+    ],
+    upsellBundle: {
+      title: 'Pack 2 Boîtes (2ème à -40%)',
+      extraQty: 1,
+      discountPercent: 40,
+      pitchDarija: 'لالة، واش تفضلي تستافدي من العرض المزدوج وتخدي الباك الثاني بـ 179 درهم فقط مع توصيل مجاني؟',
+    },
+    mediaGallery: [
+      {
+        type: 'image',
+        url: 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=600&auto=format&fit=crop&q=80',
+        caption: 'Pack bio extraction artisanale certifiée',
+      },
+    ],
+  },
 ];
 
 export default function AiAgentsPage() {

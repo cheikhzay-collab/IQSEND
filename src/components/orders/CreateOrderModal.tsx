@@ -27,6 +27,8 @@ const MOROCCAN_CITIES = [
   'Béni Mellal',
 ];
 
+import { CATALOG_PRODUCTS } from '@/lib/products-store';
+
 export function CreateOrderModal({
   isOpen,
   onClose,
@@ -36,11 +38,26 @@ export function CreateOrderModal({
   const [phone, setPhone] = useState('06');
   const [city, setCity] = useState('Casablanca');
   const [address, setAddress] = useState('');
-  const [productName, setProductName] = useState('Smart Watch S2');
-  const [amount, setAmount] = useState('299');
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string>(CATALOG_PRODUCTS[0]?.id || 'custom');
+  const [productName, setProductName] = useState(CATALOG_PRODUCTS[0]?.name || 'Pack 2x Chemises Lin');
+  const [amount, setAmount] = useState(String(CATALOG_PRODUCTS[0]?.sellingPrice || 399));
+  const [productThumbnail, setProductThumbnail] = useState(CATALOG_PRODUCTS[0]?.image || '');
   const [status, setStatus] = useState<OrderStatus>('PENDING_CONFIRMATION');
 
   if (!isOpen) return null;
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedCatalogId(productId);
+    if (productId === 'custom') {
+      return;
+    }
+    const found = CATALOG_PRODUCTS.find((p) => p.id === productId);
+    if (found) {
+      setProductName(found.name);
+      setAmount(String(found.sellingPrice));
+      setProductThumbnail(found.image);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,14 +71,7 @@ export function CreateOrderModal({
       amount: parseFloat(amount) || 299,
       currency: 'MAD',
       productName,
-      productThumbnail:
-        productName.toLowerCase().includes('watch')
-          ? 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80'
-          : productName.toLowerCase().includes('perfume')
-          ? 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?w=300&auto=format&fit=crop&q=80'
-          : productName.toLowerCase().includes('jeans')
-          ? 'https://images.unsplash.com/photo-1542272604-780c96856592?w=300&auto=format&fit=crop&q=80'
-          : 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=300&auto=format&fit=crop&q=80',
+      productThumbnail: productThumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
       customerName,
       city,
       countryCode: 'MA',
@@ -165,10 +175,28 @@ export function CreateOrderModal({
             />
           </div>
 
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Sélectionner dans le catalogue
+            </label>
+            <select
+              value={selectedCatalogId}
+              onChange={(e) => handleSelectProduct(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-teal-600 font-medium bg-white"
+            >
+              {CATALOG_PRODUCTS.map((prod) => (
+                <option key={prod.id} value={prod.id}>
+                  {prod.name} ({prod.sellingPrice} MAD • Stock: {prod.totalStock})
+                </option>
+              ))}
+              <option value="custom">Autre article personnalisé...</option>
+            </select>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-bold text-slate-700 block mb-1">
-                Article / Produit
+                Nom de l'Article
               </label>
               <input
                 type="text"

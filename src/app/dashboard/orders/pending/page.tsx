@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   ClipboardCheck,
   Search,
@@ -18,7 +19,8 @@ import {
   ShieldAlert,
   ArrowRight,
   Bot,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Headphones
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -31,6 +33,7 @@ import { AgentInterventionModal } from '@/components/orders/AgentInterventionMod
 import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 export default function PendingOrdersPage() {
   const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
@@ -153,6 +156,16 @@ export default function PendingOrdersPage() {
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span>Google Sheets</span>
             </button>
+
+            {/* Quick Link to Call Center */}
+            <Link
+              href="/dashboard/call-center"
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all shadow-2xs shrink-0 active:scale-95"
+              title="Ouvrir le poste téléphonique pour appeler les clients"
+            >
+              <Headphones className="w-3.5 h-3.5" />
+              <span>Centre d'Appels</span>
+            </Link>
           </div>
         </div>
 
@@ -215,9 +228,8 @@ export default function PendingOrdersPage() {
                         onClick={() => {
                           const item = lifecycleToOrderItem(order);
                           const conf = getStageMessageConfig(item.status);
-                          window.open(
-                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                            '_blank'
+                          safeOpenExternalUrl(
+                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                           );
                         }}
                         className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-[11px] font-bold transition-colors active:scale-95"
@@ -439,9 +451,8 @@ export default function PendingOrdersPage() {
                               onClick={() => {
                                 const item = lifecycleToOrderItem(order);
                                 const conf = getStageMessageConfig(item.status);
-                                window.open(
-                                  `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                                  '_blank'
+                                safeOpenExternalUrl(
+                                  `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                                 );
                               }}
                               className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-300 transition-colors"

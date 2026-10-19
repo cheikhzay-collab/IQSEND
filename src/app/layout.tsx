@@ -18,13 +18,19 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: 'Sendit COD Platform | Suivi Logistique & Confirmation IA',
-  description: 'Plateforme e-commerce Cash-on-Delivery avec automatisation WhatsApp par IA et intégration Sendit.ma',
-  applicationName: 'SENDIT COD',
+  title: 'IQSEND - COD & Logistics Suite for Morocco',
+  description:
+    'Unified COD e-commerce management platform for Morocco: multi-stage order lifecycle, Darija AI confirmation agents, WhatsApp live inbox, packing workstation, and Sendit logistics integration.',
+  applicationName: 'IQSEND',
+  openGraph: {
+    title: 'IQSEND - COD & Logistics Suite for Morocco',
+    description:
+      'Unified COD e-commerce management platform for Morocco: multi-stage order lifecycle, Darija AI confirmation agents, WhatsApp live inbox, packing workstation, and Sendit logistics integration.',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'SENDIT COD',
+    title: 'IQSEND',
   },
   formatDetection: {
     telephone: true,

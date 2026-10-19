@@ -30,18 +30,7 @@ import { ProductItem, CATALOG_PRODUCTS } from '@/lib/products-store';
 import { ProductEditModal } from '@/components/products/ProductEditModal';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<ProductItem[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('sendit_cached_products');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return CATALOG_PRODUCTS;
-  });
+  const [products, setProducts] = useState<ProductItem[]>(CATALOG_PRODUCTS);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,12 +40,11 @@ export default function ProductsPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [saveSuccessAlert, setSaveSuccessAlert] = useState<string | null>(null);
 
-  // Load products directly from Hostinger MySQL Database (SWR pattern)
+  // Load products directly from Hostinger MySQL Database
   useEffect(() => {
-    const hasCache = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('sendit_cached_products'));
     const fetchDbProducts = async () => {
       try {
-        if (!hasCache) setIsLoading(true);
+        setIsLoading(true);
         const res = await fetch('/api/products');
         if (!res.ok) return;
         const data = await res.json();
@@ -90,14 +78,11 @@ export default function ProductsPage() {
             objectionFaqs: Array.isArray(p.objectionFaqs) ? p.objectionFaqs : [],
           }));
           setProducts(mapped);
-          try {
-            sessionStorage.setItem('sendit_cached_products', JSON.stringify(mapped));
-          } catch {}
         }
       } catch (err) {
         console.warn('[ProductsPage] DB fetch error:', err);
       } finally {
-        if (!hasCache) setIsLoading(false);
+        setIsLoading(false);
       }
     };
 
@@ -153,7 +138,8 @@ export default function ProductsPage() {
       console.warn('[ProductsPage] Delete error:', err);
       // Revert if deletion failed
       setProducts((prev) => [...prev, p]);
-      alert(`Une erreur est survenue lors de la suppression du produit : ${err?.message || 'Erreur inconnue'}`);
+      setSaveSuccessAlert(`Erreur lors de la suppression : ${err?.message || 'Impossible de supprimer le produit'}`);
+      setTimeout(() => setSaveSuccessAlert(null), 5000);
     }
   };
 

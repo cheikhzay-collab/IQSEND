@@ -20,6 +20,7 @@ import { TrackingOrder, ShipmentStatus, TrackingKpis } from '@/types';
 import { KpiCards } from '@/components/tracking/KpiCards';
 import { TrackingKanban } from '@/components/tracking/TrackingKanban';
 import { OrderDrawer } from '@/components/tracking/OrderDrawer';
+import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 // -------------------------------------------------------------
 // REALISTIC MOCK DATA (Moroccan COD Scenarios)
@@ -196,6 +197,7 @@ const INITIAL_ORDERS: TrackingOrder[] = [
 ];
 
 export default function TrackingPage() {
+  const { markDelivered, showToast } = useOrderLifecycle();
   const [orders, setOrders] = useState<TrackingOrder[]>(INITIAL_ORDERS);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
@@ -284,6 +286,11 @@ export default function TrackingPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId, shipmentStatus: newStatus }),
     }).catch((err) => console.warn('[Tracking Page] DB PATCH error:', err));
+
+    if (newStatus === 'DELIVERED_PAID') {
+      markDelivered(orderId);
+      showToast('Colis marqué Livré & Encaissé ! Fonds COD lettrés en comptabilité.', 'success');
+    }
 
     setOrders((prev) =>
       prev.map((order) => {
@@ -481,7 +488,7 @@ export default function TrackingPage() {
                   onClick={() => {
                     const atRisk = orders.filter((o) => o.shipmentStatus === 'DELIVERY_FAILED');
                     atRisk.forEach((ord) => handleSendMessage(ord.id, `مرحباً ${ord.customerName}، لاحظنا أن الموزع واجه صعوبة في تسليم طلبك اليوم (${ord.failedReason || 'تعذر الوصول'}). كيفاش تفضل نكملوا التوصيل؟`));
-                    alert(`✅ Message de sauvetage WhatsApp envoyé avec succès aux ${atRisk.length} clients en échec !`);
+                    showToast(`Message de sauvetage WhatsApp envoyé avec succès aux ${atRisk.length} clients en échec !`, 'success');
                   }}
                   className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm"
                 >
@@ -520,7 +527,7 @@ export default function TrackingPage() {
                             atRiskOrder.id,
                             `مرحباً ${atRiskOrder.customerName}، لاحظنا أن موزع Sendit حاول يتصل بك اليوم بخصوص طلبيتك. هل تفضل استلامها غداً، أو تحديد توقيت آخر يناسبك؟ 🚚`
                           );
-                          alert(`✅ Message de sauvetage envoyé à ${atRiskOrder.customerName}`);
+                          showToast(`Message de sauvetage envoyé à ${atRiskOrder.customerName}`, 'success');
                         }}
                         className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 text-[11px] font-bold py-1.5 rounded-lg text-center transition-colors"
                       >

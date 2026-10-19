@@ -33,6 +33,7 @@ import {
   Copy,
   Printer
 } from 'lucide-react';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 export interface LeadCard {
   id: string;
@@ -192,18 +193,7 @@ const MOROCCAN_CITIES = [
 ];
 
 export default function LeadsConfirmationPage() {
-  const [leads, setLeads] = useState<LeadCard[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('sendit_cached_leads');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return INITIAL_LEADS;
-  });
+  const [leads, setLeads] = useState<LeadCard[]>(INITIAL_LEADS);
   const [search, setSearch] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -224,31 +214,25 @@ export default function LeadsConfirmationPage() {
     }, 4000);
   };
 
-  // Fetch live leads directly from Hostinger MySQL Database (SWR pattern)
-  const fetchLeads = async (silent?: boolean | unknown) => {
-    const isSilent = typeof silent === 'boolean' ? silent : false;
-    if (!isSilent) setIsLoading(true);
+  // Fetch live leads directly from Hostinger MySQL Database
+  const fetchLeads = async () => {
+    setIsLoading(true);
     try {
       const res = await fetch('/api/leads');
       const data = await res.json();
       if (data.success && Array.isArray(data.leads) && data.leads.length > 0) {
         setLeads(data.leads);
         setDbConnected(true);
-        try {
-          sessionStorage.setItem('sendit_cached_leads', JSON.stringify(data.leads));
-        } catch {}
       }
     } catch (err) {
       console.warn('Error loading leads from DB:', err);
     } finally {
-      if (!isSilent) setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    // If cached leads exist in memory, perform a silent background refresh without blocking UI
-    const hasCache = typeof window !== 'undefined' && Boolean(sessionStorage.getItem('sendit_cached_leads'));
-    fetchLeads(!hasCache ? false : true);
+    fetchLeads();
   }, []);
 
   // Convert Moroccan phone to WhatsApp international format (212...)
@@ -394,7 +378,7 @@ export default function LeadsConfirmationPage() {
     const phone = formatPhoneForWhatsApp(customWhatsAppLead.phone);
     const encoded = encodeURIComponent(whatsAppMessageText);
     const url = `https://wa.me/${phone}?text=${encoded}`;
-    window.open(url, '_blank');
+    safeOpenExternalUrl(url);
 
     // Update lead notes
     setLeads((prev) =>

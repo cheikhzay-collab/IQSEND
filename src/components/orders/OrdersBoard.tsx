@@ -32,6 +32,7 @@ import { CreateOrderModal } from './CreateOrderModal';
 import { QuickCallModal } from './QuickCallModal';
 import { AgentInterventionModal } from './AgentInterventionModal';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 // 4 STAGES EXACTLY MATCHING THE RED BOX IN THE USER'S SCREENSHOT
 interface ColumnConfig {
@@ -220,7 +221,7 @@ export function OrdersBoard() {
     const stageConfig = getStageMessageConfig(order.status);
     const intlPhone = formatPhoneForWhatsApp(order.phone);
     const msg = encodeURIComponent(stageConfig.darija(order));
-    window.open(`https://wa.me/${intlPhone}?text=${msg}`, '_blank');
+    safeOpenExternalUrl(`https://wa.me/${intlPhone}?text=${msg}`);
   };
 
   const handleCreateOrder = (newOrder: OrderItem) => {
@@ -634,7 +635,7 @@ export function OrdersBoard() {
         onSendWhatsApp={(order, msg) => {
           const phoneClean = order.phone.replace(/\D/g, '');
           const intlPhone = phoneClean.startsWith('0') ? '212' + phoneClean.slice(1) : phoneClean;
-          window.open(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+          safeOpenExternalUrl(`https://wa.me/${intlPhone}?text=${encodeURIComponent(msg)}`);
         }}
       />
 

@@ -688,18 +688,7 @@ interface OrderLifecycleContextType {
 const OrderLifecycleContext = createContext<OrderLifecycleContextType | undefined>(undefined);
 
 export function OrderLifecycleProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<LifecycleOrder[]>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const cached = sessionStorage.getItem('sendit_cached_orders');
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return INITIAL_LIFECYCLE_ORDERS;
-  });
+  const [orders, setOrders] = useState<LifecycleOrder[]>(INITIAL_LIFECYCLE_ORDERS);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   // Sync stage to MySQL Database
@@ -713,7 +702,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     } catch {}
   };
 
-  // Fetch persisted orders from Hostinger MySQL Database on mount (SWR pattern)
+  // Fetch persisted orders from Hostinger MySQL Database on mount
   useEffect(() => {
     let isMounted = true;
     const fetchDbOrders = async () => {
@@ -723,9 +712,6 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         const data = await res.json();
         if (data.success && Array.isArray(data.orders) && data.orders.length > 0 && isMounted) {
           setOrders(data.orders);
-          try {
-            sessionStorage.setItem('sendit_cached_orders', JSON.stringify(data.orders));
-          } catch {}
         }
       } catch (err) {
         console.warn('[OrderLifecycleContext] DB fetch fallback to local:', err);

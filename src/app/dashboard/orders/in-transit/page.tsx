@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Truck,
   Search,
@@ -24,6 +25,7 @@ import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 export default function InTransitOrdersPage() {
   const {
@@ -147,6 +149,14 @@ export default function InTransitOrdersPage() {
               <option value="Amana Express">Amana Express</option>
               <option value="DHL Morocco">DHL Morocco</option>
             </select>
+
+            <Link
+              href="/dashboard/tracking"
+              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors shadow-xs shrink-0"
+            >
+              <span>Kanban Chauffeurs Sendit</span>
+              <Truck className="w-3.5 h-3.5" />
+            </Link>
           </div>
         </div>
 
@@ -196,9 +206,8 @@ export default function InTransitOrdersPage() {
                         onClick={() => {
                           const item = lifecycleToOrderItem(order);
                           const conf = getStageMessageConfig(item.status);
-                          window.open(
-                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                            '_blank'
+                          safeOpenExternalUrl(
+                            `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                           );
                         }}
                         className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] font-bold transition-colors active:scale-95"
@@ -451,9 +460,8 @@ export default function InTransitOrdersPage() {
                             onClick={() => {
                               const item = lifecycleToOrderItem(order);
                               const conf = getStageMessageConfig(item.status);
-                              window.open(
-                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                                '_blank'
+                              safeOpenExternalUrl(
+                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                               );
                             }}
                             className="p-1.5 rounded-lg text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 border border-indigo-200 hover:border-indigo-300 transition-colors"

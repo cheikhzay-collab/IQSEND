@@ -123,7 +123,7 @@ export default function NewOrderPage() {
     e.preventDefault();
 
     if (!customerName.trim() || !phone.trim()) {
-      alert('Veuillez renseigner le nom et le téléphone du client.');
+      showToast('Veuillez renseigner le nom et le téléphone du client.', 'error');
       return;
     }
 

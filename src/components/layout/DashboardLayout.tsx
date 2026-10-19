@@ -31,7 +31,9 @@ import {
   Menu,
   X,
   Compass,
-  ArrowRight
+  ArrowRight,
+  PackageCheck,
+  Banknote
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -58,7 +60,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/dashboard/orders') ||
     pathname === '/';
 
-  // Navigation Links Definition
   const mainNavItems = [
     {
       label: 'Tableau de bord',
@@ -67,19 +68,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       exact: true,
     },
     {
+      label: 'Leads & Capture IA',
+      href: '/dashboard/leads',
+      icon: Sparkles,
+    },
+    {
       label: 'Centres d\'appels',
       href: '/dashboard/call-center',
       icon: Headphones,
-    },
-    {
-      label: 'Produits & Stock',
-      href: '/dashboard/products',
-      icon: Package,
-    },
-    {
-      label: 'Clients',
-      href: '/dashboard/customers',
-      icon: Users,
+      badge: pendingCount > 0 ? pendingCount : undefined,
     },
     {
       label: 'Messagerie (WhatsApp)',
@@ -89,10 +86,37 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       isWhatsapp: true,
     },
     {
-      label: 'Agents IA (Gemini)',
+      label: 'Agents IA (Gemini Darija)',
       href: '/dashboard/ai-agents',
       icon: Bot,
       highlight: true,
+    },
+    {
+      label: 'Station d\'Emballage (AWB)',
+      href: '/dashboard/packing',
+      icon: PackageCheck,
+      badge: processingCount > 0 ? processingCount : undefined,
+    },
+    {
+      label: 'Suivi Chauffeurs Sendit',
+      href: '/dashboard/tracking',
+      icon: Truck,
+      badge: inTransitCount > 0 ? inTransitCount : undefined,
+    },
+    {
+      label: 'Produits & Stock Hubs',
+      href: '/dashboard/products',
+      icon: Package,
+    },
+    {
+      label: 'Clients & CRM',
+      href: '/dashboard/customers',
+      icon: Users,
+    },
+    {
+      label: 'Finances & Virements COD',
+      href: '/dashboard/finance',
+      icon: Banknote,
     },
     {
       label: 'Automatisations',
@@ -100,19 +124,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       icon: Zap,
     },
     {
-      label: 'Intégrations',
+      label: 'Intégrations & API',
       href: '/dashboard/integrations',
       icon: Puzzle,
-    },
-    {
-      label: 'Suivi Chauffeurs Sendit',
-      href: '/dashboard/tracking',
-      icon: Truck,
-    },
-    {
-      label: 'Contenu & Templates',
-      href: '/dashboard/content',
-      icon: Folder,
     },
   ];
 
@@ -166,16 +180,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       <header className="hidden md:flex h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 lg:px-5 items-center justify-between sticky top-0 z-40 transition-shadow duration-200 shadow-2xs gap-4">
         {/* Left: Brand Logo & Search (if not orders) */}
         <div className="flex items-center gap-4 shrink-0">
-          <Link href="/dashboard/orders" className="flex items-center gap-2.5 group shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-slate-900 to-slate-800 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
-              ◧
+          <Link href="/dashboard" className="flex items-center gap-2.5 group shrink-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
+              IQ
             </div>
             <div className="flex flex-col">
               <span className="font-black text-base tracking-tight text-slate-900 leading-none">
-                SENDIT <span className="text-teal-600 font-extrabold text-xs ml-0.5">COD</span>
+                IQ<span className="text-teal-600 font-extrabold text-xs ml-0.5">SEND</span>
               </span>
               <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
-                Logistique Maroc
+                COD Suite Maroc • Sendit.ma
               </span>
             </div>
           </Link>
@@ -299,12 +313,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
-              ◧
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+              IQ
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-sm tracking-tight text-slate-900">
-                SENDIT
+                IQSEND
               </span>
               <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-1.5 py-0.2 rounded">
                 COD
@@ -426,12 +440,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-slate-900 text-white flex items-center justify-center font-black text-xs">
-                    ◧
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                    IQ
                   </div>
                   <div>
-                    <h2 className="font-black text-sm text-slate-900">SENDIT COD</h2>
-                    <p className="text-[10px] text-slate-400">Navigation Complète</p>
+                    <h2 className="font-black text-sm text-slate-900">IQSEND COD</h2>
+                    <p className="text-[10px] text-slate-400">Suite Complète Logistique Maroc</p>
                   </div>
                 </Link>
 
@@ -694,41 +708,45 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* Other Sidebar Links */}
+            {/* Leads & Ingestion */}
+            <Link
+              href="/dashboard/leads"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/leads'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>Leads & Capture IA</span>
+              </div>
+            </Link>
+
+            {/* SECTION 2: CONFIRMATION & VENTE */}
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Confirmation & Vente
+              </span>
+            </div>
+
             <Link
               href="/dashboard/call-center"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                 pathname === '/dashboard/call-center'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <Headphones className="w-4 h-4 text-slate-500" />
-              <span>Centres d'appels</span>
-            </Link>
-
-            <Link
-              href="/dashboard/products"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/products'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Package className="w-4 h-4 text-slate-500" />
-              <span>Produits & Stock</span>
-            </Link>
-
-            <Link
-              href="/dashboard/customers"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/customers'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-4 h-4 text-slate-500" />
-              <span>Clients</span>
+              <div className="flex items-center gap-3">
+                <Headphones className="w-4 h-4 text-amber-600" />
+                <span>Centre d'appels</span>
+              </div>
+              {pendingCount > 0 && (
+                <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full shadow-2xs">
+                  {pendingCount}
+                </span>
+              )}
             </Link>
 
             {/* Inbox WhatsApp */}
@@ -742,7 +760,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center gap-3">
                 <Inbox className="w-4 h-4 text-emerald-600" />
-                <span>Messagerie</span>
+                <span>Messagerie WhatsApp</span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] font-bold text-slate-400">4</span>
@@ -764,7 +782,106 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               }`}
             >
               <Bot className="w-4 h-4 text-teal-600" />
-              <span>Agents IA</span>
+              <span>Agents IA (Gemini Darija)</span>
+            </Link>
+
+            {/* SECTION 3: FULFILLMENT & LOGISTIQUE SENDIT */}
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Logistique Sendit.ma
+              </span>
+            </div>
+
+            {/* Packing Station */}
+            <Link
+              href="/dashboard/packing"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/packing'
+                  ? 'bg-blue-50 text-blue-950 font-bold border border-blue-200/80'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <PackageCheck className="w-4 h-4 text-blue-600" />
+                <span>Station d'Emballage (AWB)</span>
+              </div>
+              {processingCount > 0 && (
+                <span className="text-[10px] font-black bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                  {processingCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Tracking Drivers */}
+            <Link
+              href="/dashboard/tracking"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/tracking'
+                  ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200/80'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Truck className="w-4 h-4 text-indigo-600" />
+                <span>Suivi Chauffeurs Sendit</span>
+              </div>
+              {inTransitCount > 0 && (
+                <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
+                  {inTransitCount}
+                </span>
+              )}
+            </Link>
+
+            {/* SECTION 4: CATALOGUE & CLIENTS */}
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Catalogue & CRM
+              </span>
+            </div>
+
+            <Link
+              href="/dashboard/products"
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/products'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Package className="w-4 h-4 text-slate-500" />
+              <span>Produits & Stock Hubs</span>
+            </Link>
+
+            <Link
+              href="/dashboard/customers"
+              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/customers'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <Users className="w-4 h-4 text-slate-500" />
+              <span>Clients & CRM</span>
+            </Link>
+
+            {/* SECTION 5: FINANCES & AUTOMATISATIONS */}
+            <div className="pt-3 pb-1 px-3">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                Finances & Pilotage
+              </span>
+            </div>
+
+            <Link
+              href="/dashboard/finance"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/finance'
+                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Banknote className="w-4 h-4 text-emerald-600" />
+                <span>Finances & Virements COD</span>
+              </div>
             </Link>
 
             <Link
@@ -788,64 +905,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               }`}
             >
               <Puzzle className="w-4 h-4 text-slate-500" />
-              <span>Intégrations</span>
+              <span>Intégrations & API Sendit</span>
             </Link>
-
-            <Link
-              href="/dashboard/tracking"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/tracking'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Truck className="w-4 h-4 text-slate-500" />
-              <span>Suivi Chauffeurs</span>
-            </Link>
-
-            {/* Marketing (Collapsible) */}
-            <div>
-              <Link
-                href="/dashboard/marketing"
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  pathname === '/dashboard/marketing'
-                    ? 'bg-slate-100 text-slate-900 font-bold'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Megaphone className="w-4 h-4 text-slate-500" />
-                  <span>Marketing</span>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setMarketingOpen(!marketingOpen);
-                  }}
-                  className="p-1 hover:bg-slate-200 rounded"
-                >
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 text-slate-400 transition-transform ${
-                      marketingOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-              </Link>
-
-              {marketingOpen && (
-                <div className="ml-8 mt-1 space-y-1 text-xs">
-                  <Link href="/dashboard/marketing" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
-                    Campagnes WhatsApp
-                  </Link>
-                  <Link href="/dashboard/content" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
-                    Modèles de Vente
-                  </Link>
-                  <Link href="/dashboard/finance" className="block py-1 text-slate-500 hover:text-slate-900 font-medium">
-                    Dépenses & ROI
-                  </Link>
-                </div>
-              )}
-            </div>
 
           </div>
 

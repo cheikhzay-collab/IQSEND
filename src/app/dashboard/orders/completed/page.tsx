@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Link from 'next/link';
 import {
   CheckCircle2,
   Search,
@@ -23,6 +24,7 @@ import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
+import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 export default function CompletedOrdersPage() {
   const {
@@ -213,9 +215,8 @@ export default function CompletedOrdersPage() {
                     onClick={() => {
                       const item = lifecycleToOrderItem(order);
                       const conf = getStageMessageConfig(item.status);
-                      window.open(
-                        `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                        '_blank'
+                      safeOpenExternalUrl(
+                        `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                       );
                     }}
                     className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-[11px] font-bold transition-colors active:scale-95"
@@ -406,9 +407,8 @@ export default function CompletedOrdersPage() {
                             onClick={() => {
                               const item = lifecycleToOrderItem(order);
                               const conf = getStageMessageConfig(item.status);
-                              window.open(
-                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`,
-                                '_blank'
+                              safeOpenExternalUrl(
+                                `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
                               );
                             }}
                             className="p-1.5 rounded-lg text-amber-600 hover:text-amber-800 hover:bg-amber-50 border border-amber-200 hover:border-amber-300 transition-colors"

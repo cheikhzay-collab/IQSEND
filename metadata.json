@@ -1,0 +1,8 @@
+{
+  "name": "IQSEND - COD & Logistics Suite for Morocco",
+  "description": "Unified COD e-commerce management platform for Morocco: multi-stage order lifecycle, Darija AI confirmation agents, WhatsApp live inbox, packing workstation, and Sendit logistics integration.",
+  "prompt": "Unified COD e-commerce platform with Moroccan Darija AI agents, WhatsApp integration, Sendit logistics, packing, and order lifecycle management.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
