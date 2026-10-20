@@ -205,6 +205,39 @@ export async function POST(req: NextRequest) {
       };
 
       addInboundOrder(order);
+
+      // Persist directly into Hostinger MySQL Database
+      try {
+        const { getMysqlPool } = await import('@/lib/db');
+        const pool = getMysqlPool();
+
+        await pool.execute(
+          `INSERT INTO order_leads (
+            id, order_number, customer_name, phone_number, city, address, total_amount, status,
+            risk_score, risk_level, ai_confirmation_status, store_source, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Sync', ?)
+          ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
+          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, notes]
+        );
+
+        await pool.execute(
+          `INSERT INTO order_items (id, order_id, product_name, sku, quantity, price)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [`it-${order.id}`, order.id, productName, `GS-${productName.slice(0, 3).toUpperCase()}-01`, quantity, amount]
+        );
+
+        await pool.execute(
+          `INSERT INTO customers (id, phone_number, name, city, address, total_orders, trust_score, notes)
+           VALUES (?, ?, ?, ?, ?, 1, 'NOUVEAU', ?)
+           ON DUPLICATE KEY UPDATE
+             name = VALUES(name), city = VALUES(city), address = VALUES(address),
+             total_orders = total_orders + 1, updated_at = CURRENT_TIMESTAMP`,
+          [`cust-${(phone || '0000').slice(-4)}`, phone || '0600000000', customerName, city, address, notes]
+        );
+      } catch (dbErr: any) {
+        console.warn(`[Sync] Note persisting order ${order.orderNumber} to MySQL:`, dbErr.message);
+      }
+
       // Trigger Pillar 1 instant interactive WhatsApp confirmation + upselling
       try {
         await triggerOrderConfirmationOutreach(order);
@@ -212,6 +245,39 @@ export async function POST(req: NextRequest) {
         console.warn(`[Sync] WhatsApp confirmation outreach failed for ${order.orderNumber}:`, err.message);
       }
       importedOrders.push(order);
+    }
+
+    // Record sync operation in google_sheets_sync_logs and store_settings
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+
+      await pool.execute(
+        `INSERT INTO google_sheets_sync_logs (id, spreadsheet_id, sheet_name, rows_synced, status, details)
+         VALUES (?, ?, 'Feuille 1', ?, 'SUCCESS', ?)`,
+        [`log-sync-${Date.now()}`, sheetIdTag, importedOrders.length, `Importation réussie de ${importedOrders.length} lignes Google Sheets`]
+      );
+
+      if (sheetUrl && sheetUrl !== 'DEMO') {
+        await pool.execute(
+          `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+           VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+          [sheetUrl]
+        );
+      }
+
+      const { realtimeHub } = await import('@/lib/realtime-events');
+      realtimeHub.broadcast({
+        eventType: 'ORDER_CREATED',
+        entityType: 'ORDER',
+        entityId: 'BATCH_GOOGLE_SHEETS',
+        title: `Mise à jour Google Sheets (${importedOrders.length} nouvelles commandes)`,
+        payload: { count: importedOrders.length },
+        source: 'GOOGLE_SHEETS_SYNC',
+      }).catch(() => {});
+    } catch (logErr) {
+      console.warn('[Sync] Note saving sync log:', logErr);
     }
 
     return NextResponse.json({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { senditService, SenditWebhookPayload } from '@/lib/sendit-service';
 import { getInboundOrders } from '@/lib/orders-store';
 import { trackingEventBus } from '@/lib/tracking-events';
+import { realtimeHub } from '@/lib/realtime-events';
 import {
   triggerNeedsAttentionRescue,
   triggerOutForDeliveryNotice,
@@ -87,6 +88,20 @@ export async function POST(req: NextRequest) {
       counterUnreachable: payload.counterUnreachable,
       proofImage: payload.proofImage,
     });
+
+    realtimeHub.broadcast({
+      eventType: 'SHIPMENT_STATUS_UPDATED',
+      entityType: 'PARCEL',
+      entityId: trackingCode,
+      title: `Sendit: Colis ${trackingCode} → ${processed.mappedStatus}`,
+      payload: {
+        senditStatus: processed.newStatus,
+        mappedStatus: processed.mappedStatus,
+        message: payload.message,
+        counterUnreachable: payload.counterUnreachable,
+      },
+      source: 'SENDIT_WEBHOOK',
+    }).catch(() => {});
 
     // ── 5. تحديث قاعدة البيانات (Hostinger MySQL) ────────────────────
     try {

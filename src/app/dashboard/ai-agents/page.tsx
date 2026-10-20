@@ -259,6 +259,19 @@ export default function AiAgentsPage() {
   ]);
   const [newKeyword, setNewKeyword] = useState('');
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [systemPromptText, setSystemPromptText] = useState(
+    `أنت "سارة"، مساعدة ذكية متخصصة في تأكيد وتتبع طلبيات التجارة الإلكترونية والدفع عند الاستلام (COD) في المغرب.
+تتحدثين بالدارجة المغربية بلهجة طبيعية، مهذبة، وودودة جداً ("أخي / أختي"، "الله يحفظك"، "مرحبا بك").
+
+### 🎯 أهدافك ومهمتك الأساسية:
+1. الترحيب بالزبون باسمه وتأكيد اختياره للمنتج والمقاس والمدينة.
+2. اقتراح الترقية الذكية (Upsell) بقطعة ثانية بتخفيض مميز (مثال: Pack Duo -30%).
+3. تدقيق العنوان وطلب موقع الـ WhatsApp GPS Location للأحياء الصعبة أو غير الدقيقة.
+4. استدعاء الدوال فوراً (Function Calling):
+   - confirm_order_and_address فور التأكيد الصريح.
+   - update_order_details عند تغيير المقاس أو اللون.
+   - save_gps_location عند مشاركة رابط الموقع.`
+  );
 
   // 🤖 Live Gemini LLM API State (Configurable dans /dashboard/integrations)
   const [geminiConfigured, setGeminiConfigured] = useState(false);
@@ -266,7 +279,7 @@ export default function AiAgentsPage() {
   const [isSimulatingApi, setIsSimulatingApi] = useState(false);
   const [activeModelName, setActiveModelName] = useState('gemini-1.5-flash');
 
-  // Check Gemini API Key status on load
+  // Check Gemini API Key and AI Agent Configuration from MySQL on load
   useEffect(() => {
     fetch('/api/settings/gemini')
       .then((res) => res.json())
@@ -275,6 +288,15 @@ export default function AiAgentsPage() {
           setGeminiConfigured(data.isConfigured);
           if (data.maskedKey) setGeminiMaskedKey(data.maskedKey);
           if (data.model) setActiveModelName(data.model);
+        }
+      })
+      .catch(() => {});
+
+    fetch('/api/ai-agents')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.config?.systemPrompt) {
+          setSystemPromptText(data.config.systemPrompt);
         }
       })
       .catch(() => {});
@@ -448,14 +470,33 @@ export default function AiAgentsPage() {
           </Link>
 
           <button
-            onClick={() => {
-              setSavedSuccess(true);
-              setTimeout(() => setSavedSuccess(false), 2500);
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/ai-agents', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    agentName: 'Sarah (AI COD Specialist)',
+                    systemPrompt: systemPromptText,
+                    autoConfirmThreshold: 70,
+                    geminiModel: activeModelName,
+                    tone: 'Darija Professional & Courteous',
+                    language: 'ar-MA',
+                  }),
+                });
+                const data = await res.json();
+                if (data.success) {
+                  setSavedSuccess(true);
+                  setTimeout(() => setSavedSuccess(false), 3000);
+                }
+              } catch (err) {
+                console.error('Error saving AI config to DB:', err);
+              }
             }}
             className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
             <Save className="w-3.5 h-3.5" />
-            {savedSuccess ? 'Configuration Enregistrée !' : 'Sauvegarder la Configuration'}
+            {savedSuccess ? '✅ Enregistré dans MySQL !' : 'Sauvegarder dans MySQL'}
           </button>
         </div>
       </div>
@@ -982,17 +1023,8 @@ export default function AiAgentsPage() {
           <textarea
             rows={14}
             className="w-full font-mono text-xs p-4 bg-slate-50 border border-slate-200 rounded-xl leading-relaxed text-slate-800 focus:outline-hidden focus:bg-white"
-            defaultValue={`أنت "سارة"، مساعدة ذكية متخصصة في تأكيد وتتبع طلبيات التجارة الإلكترونية والدفع عند الاستلام (COD) في المغرب.
-تتحدثين بالدارجة المغربية بلهجة طبيعية، مهذبة، وودودة جداً ("أخي / أختي"، "الله يحفظك"، "مرحبا بك").
-
-### 🎯 أهدافك ومهمتك الأساسية:
-1. الترحيب بالزبون باسمه وتأكيد اختياره للمنتج والمقاس والمدينة.
-2. اقتراح الترقية الذكية (Upsell) بقطعة ثانية بتخفيض مميز (مثال: Pack Duo -30%).
-3. تدقيق العنوان وطلب موقع الـ WhatsApp GPS Location للأحياء الصعبة أو غير الدقيقة.
-4. استدعاء الدوال فوراً (Function Calling):
-   - confirm_order_and_address فور التأكيد الصريح.
-   - update_order_details عند تغيير المقاس أو اللون.
-   - save_gps_location عند مشاركة رابط الموقع.`}
+            value={systemPromptText}
+            onChange={(e) => setSystemPromptText(e.target.value)}
           />
         </div>
       )}

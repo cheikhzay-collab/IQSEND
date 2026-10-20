@@ -260,6 +260,30 @@ export default function SettingsPage() {
     }
   };
 
+  const [isSavingAll, setIsSavingAll] = useState(false);
+
+  const handleSaveAllSettings = async () => {
+    setIsSavingAll(true);
+    try {
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          SENDIT_WEBHOOK_SECRET: senditWebhookSecret,
+          WHATSAPP_ROTATION_ACTIVE: String(rotationActive),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('✅ Tous les paramètres de la plateforme sont enregistrés dans MySQL !');
+      }
+    } catch {
+      showToast('Erreur lors de la sauvegarde des paramètres');
+    } finally {
+      setIsSavingAll(false);
+    }
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-4xl relative">
       {/* Toast Notification Banner */}
@@ -284,8 +308,13 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        <button className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors">
-          <Save className="w-3.5 h-3.5" /> Enregistrer les Paramètres
+        <button
+          onClick={handleSaveAllSettings}
+          disabled={isSavingAll}
+          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+        >
+          <Save className="w-3.5 h-3.5" />
+          {isSavingAll ? 'Enregistrement...' : 'Enregistrer les Paramètres'}
         </button>
       </div>
 
@@ -882,9 +911,9 @@ export default function SettingsPage() {
               Nom de la Base & Utilisateur
             </span>
             <span className="text-xs font-mono font-bold text-slate-800 mt-1 block truncate">
-              {dbStatus?.database || 'u663560985_vC9mY'}
+              {dbStatus?.database || 'u663560985_sendit'}
             </span>
-            <span className="text-[10px] text-slate-500">User: u663560985_hjwut</span>
+            <span className="text-[10px] text-slate-500">User: u663560985_sendit_usr</span>
           </div>
 
           <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
@@ -892,7 +921,7 @@ export default function SettingsPage() {
               Tables Créées & Actives
             </span>
             <span className="text-xs font-mono font-bold text-blue-600 mt-1 block">
-              {dbStatus?.tablesCount ?? 10} Tables COD
+              {dbStatus?.tablesCount ?? 22} Tables COD Actives
             </span>
             <span className="text-[10px] text-slate-500">Prisma Client & MySQL2 Pool</span>
           </div>

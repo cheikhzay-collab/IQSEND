@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { addTimelineEventToDb } from '@/lib/db-service';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -121,6 +122,25 @@ export async function PATCH(request: Request) {
         `UPDATE order_leads SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? OR order_number = ?`,
         [newStatus, orderId, orderId]
       );
+
+      // Upsert packing_tasks
+      await pool.execute(
+        `INSERT INTO packing_tasks (id, order_id, status, packed_at)
+         VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE status = VALUES(status), packed_at = CURRENT_TIMESTAMP`,
+        [`pack-${orderId}`, orderId, isPacked ? 'PACKED' : 'PENDING']
+      );
+
+      // 🔴 Real-time broadcast
+      realtimeHub.broadcast({
+        eventType: 'PACKING_UPDATED',
+        entityType: 'PACKING',
+        entityId: orderId,
+        title: isPacked ? `Colis emballé avec succès: ${orderId}` : `Colis remis en préparation: ${orderId}`,
+        payload: { orderId, isPacked, status: newStatus },
+        source: 'PACKING_STATION',
+      }).catch(() => {});
+
       return NextResponse.json({ success: true, isPacked });
     }
 
@@ -151,6 +171,12 @@ export async function PATCH(request: Request) {
         [`ship-${orderId}`, orderId, tracking]
       );
 
+      // Update packing task status to DISPATCHED
+      await pool.execute(
+        `UPDATE packing_tasks SET status = 'DISPATCHED', updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+        [orderId]
+      );
+
       // Add timeline
       await addTimelineEventToDb({
         orderId,
@@ -159,6 +185,16 @@ export async function PATCH(request: Request) {
         details: `Colis étiqueté avec le code de suivi ${tracking} et prêt pour ramassage Hub Express`,
         actor: 'SENDIT',
       });
+
+      // 🔴 Real-time broadcast
+      realtimeHub.broadcast({
+        eventType: 'SHIPMENT_STATUS_UPDATED',
+        entityType: 'PARCEL',
+        entityId: tracking,
+        title: `Bordereau Sendit généré: ${tracking} (${orderId})`,
+        payload: { orderId, tracking, status: 'READY_FOR_PICKUP' },
+        source: 'PACKING_STATION',
+      }).catch(() => {});
 
       return NextResponse.json({
         success: true,

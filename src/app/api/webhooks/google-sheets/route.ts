@@ -206,6 +206,59 @@ export async function POST(req: NextRequest) {
     // Store in inbound queue
     addInboundOrder(newOrder);
 
+    // Persist directly to Hostinger MySQL Database
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+
+      // 1. Insert order into order_leads
+      await pool.execute(
+        `INSERT INTO order_leads (
+          id, order_number, customer_name, phone_number, city, address, total_amount, status,
+          risk_score, risk_level, ai_confirmation_status, store_source, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 10, 'LOW', 'PENDING', 'Google Sheets Webhook', ?)
+        ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
+        [orderId, orderNumber, newOrder.customer.name, cleanedPhone, newOrder.customer.city, newOrder.customer.address, newOrder.payment.amount, notes]
+      );
+
+      // 2. Insert line item into order_items
+      await pool.execute(
+        `INSERT INTO order_items (id, order_id, product_name, sku, quantity, price)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [`it-${orderId}`, orderId, newOrder.items[0].name, newOrder.items[0].sku, quantity, price]
+      );
+
+      // 3. Upsert customer profile in customers table
+      await pool.execute(
+        `INSERT INTO customers (id, phone_number, name, city, address, total_orders, trust_score, notes)
+         VALUES (?, ?, ?, ?, ?, 1, 'NOUVEAU', ?)
+         ON DUPLICATE KEY UPDATE
+           name = VALUES(name), city = VALUES(city), address = VALUES(address),
+           total_orders = total_orders + 1, updated_at = CURRENT_TIMESTAMP`,
+        [`cust-${cleanedPhone.slice(-4)}`, cleanedPhone, newOrder.customer.name, newOrder.customer.city, newOrder.customer.address, notes]
+      );
+
+      // 4. Log sync execution in google_sheets_sync_logs
+      await pool.execute(
+        `INSERT INTO google_sheets_sync_logs (id, spreadsheet_id, sheet_name, rows_synced, status, details)
+         VALUES (?, 'webhook-live', 'Google Sheets Inbound Webhook', 1, 'SUCCESS', ?)`,
+        [`log-gs-${Date.now()}`, `Commande ${orderNumber} (${newOrder.customer.name} - ${cleanedPhone})`]
+      );
+
+      // 5. Broadcast real-time event to all open tabs and dashboards
+      const { realtimeHub } = await import('@/lib/realtime-events');
+      realtimeHub.broadcast({
+        eventType: 'ORDER_CREATED',
+        entityType: 'ORDER',
+        entityId: orderId,
+        title: `Nouvelle commande Google Sheet (${orderNumber})`,
+        payload: newOrder,
+        source: 'GOOGLE_SHEETS_WEBHOOK',
+      }).catch(() => {});
+    } catch (dbErr: any) {
+      console.warn('[Google Sheets Webhook] DB persistence note:', dbErr.message);
+    }
+
     // Trigger instant interactive WhatsApp confirmation outreach if available
     try {
       await triggerOrderConfirmationOutreach(newOrder);

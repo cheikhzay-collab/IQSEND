@@ -390,11 +390,64 @@ export default function CustomersPage() {
                 </p>
               </div>
 
-              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs">
-                <span className="text-[11px] text-slate-400 block">Notes d'expérience de livraison</span>
-                <p className="text-slate-700 italic mt-1 leading-relaxed">
-                  "{selectedCustomer.notes}"
-                </p>
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs space-y-2">
+                <label className="text-[11px] font-bold text-slate-700 block">
+                  Score de Fiabilité Client & Anti-Fraude (Base de Données) :
+                </label>
+                <select
+                  value={selectedCustomer.reliabilityScore}
+                  onChange={async (e) => {
+                    const newScore = e.target.value as any;
+                    setSelectedCustomer({ ...selectedCustomer, reliabilityScore: newScore });
+                    setCustomers((prev) =>
+                      prev.map((c) => (c.phone === selectedCustomer.phone ? { ...c, reliabilityScore: newScore } : c))
+                    );
+                    try {
+                      await fetch('/api/customers', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: selectedCustomer.phone, trustScore: newScore }),
+                      });
+                    } catch (err) {
+                      console.error('Failed to update customer score:', err);
+                    }
+                  }}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-800"
+                >
+                  <option value="VIP">⭐ VIP & Ambassadeur</option>
+                  <option value="FIABLE">✅ Client Fiable</option>
+                  <option value="NOUVEAU">🆕 Nouveau Client</option>
+                  <option value="RISQUE">⚠️ Risque d'Échec</option>
+                  <option value="BLACKLIST">⛔ Liste Noire (Refus Abusifs)</option>
+                </select>
+              </div>
+
+              <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-100 text-xs space-y-1.5">
+                <label className="text-[11px] font-bold text-slate-700 block">
+                  Notes d'expérience de livraison & Commentaires :
+                </label>
+                <textarea
+                  value={selectedCustomer.notes}
+                  onChange={(e) => setSelectedCustomer({ ...selectedCustomer, notes: e.target.value })}
+                  onBlur={async () => {
+                    try {
+                      await fetch('/api/customers', {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ phone: selectedCustomer.phone, notes: selectedCustomer.notes }),
+                      });
+                      setCustomers((prev) =>
+                        prev.map((c) => (c.phone === selectedCustomer.phone ? { ...c, notes: selectedCustomer.notes } : c))
+                      );
+                    } catch (err) {
+                      console.error('Failed to update customer notes:', err);
+                    }
+                  }}
+                  rows={2}
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-teal-600"
+                  placeholder="Ajouter une note persistante..."
+                />
+                <span className="text-[10px] text-slate-400 block">Enregistrement automatique dans MySQL dès que vous quittez le champ.</span>
               </div>
 
               <div className="pt-2 flex items-center justify-between border-t border-slate-100">

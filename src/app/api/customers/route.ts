@@ -1,6 +1,7 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { cleanMoroccanPhone } from '@/lib/orders-store';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +24,17 @@ export async function GET() {
   try {
     const pool = getMysqlPool();
 
-    const [rows]: any = await pool.execute(`
+    // 1. Fetch from customers table first
+    const [custRows]: any = await pool.execute(`
+      SELECT 
+        id, phone_number, name, city, address, total_orders, delivered_orders, refused_orders,
+        total_spent, trust_score, notes, updated_at, created_at
+      FROM customers
+      ORDER BY updated_at DESC
+    `);
+
+    // 2. Also aggregate stats from order_leads to make sure any incoming orders are captured
+    const [leadRows]: any = await pool.execute(`
       SELECT 
         phone_number as phone,
         MAX(customer_name) as name,
@@ -38,64 +49,98 @@ export async function GET() {
       FROM order_leads
       WHERE phone_number IS NOT NULL AND phone_number != ''
       GROUP BY phone_number
-      ORDER BY lastOrderDate DESC
     `);
 
-    if (!Array.isArray(rows) || rows.length === 0) {
-      return NextResponse.json({
-        success: true,
-        source: 'empty',
-        customers: [],
-        total: 0,
-      });
+    const leadMap = new Map<string, any>();
+    if (Array.isArray(leadRows)) {
+      for (const r of leadRows) {
+        leadMap.set(r.phone, r);
+      }
     }
 
-    const customers: CustomerItem[] = rows.map((r: any, idx: number) => {
-      const totalOrders = Number(r.totalOrders) || 1;
-      const deliveredOrders = Number(r.deliveredOrders) || 0;
-      const refusedOrders = Number(r.refusedOrders) || 0;
-      const totalSpent = Number(r.totalSpent) || 0;
+    // Combine or populate customers table
+    const customersMap = new Map<string, CustomerItem>();
 
-      // Calculate score
-      let reliabilityScore: CustomerItem['reliabilityScore'] = 'NOUVEAU';
-      if (refusedOrders >= 2 && deliveredOrders === 0) {
-        reliabilityScore = 'BLACKLIST';
-      } else if (refusedOrders > deliveredOrders) {
-        reliabilityScore = 'RISQUE';
-      } else if (totalOrders >= 3 && deliveredOrders >= 2) {
-        reliabilityScore = 'VIP';
-      } else if (deliveredOrders >= 1) {
-        reliabilityScore = 'FIABLE';
-      }
+    if (Array.isArray(custRows) && custRows.length > 0) {
+      for (const c of custRows) {
+        const leadData = leadMap.get(c.phone_number);
+        const totalOrders = Math.max(Number(c.total_orders) || 0, Number(leadData?.totalOrders) || 1);
+        const deliveredOrders = Math.max(Number(c.delivered_orders) || 0, Number(leadData?.deliveredOrders) || 0);
+        const refusedOrders = Math.max(Number(c.refused_orders) || 0, Number(leadData?.refusedOrders) || 0);
+        const totalSpent = Math.max(Number(c.total_spent) || 0, Number(leadData?.totalSpent) || 0);
 
-      // Format date
-      let lastOrderDate = 'Récemment';
-      if (r.lastOrderDate) {
-        const d = new Date(r.lastOrderDate);
-        lastOrderDate = d.toLocaleDateString('fr-FR', {
-          day: 'numeric',
-          month: 'short',
-          year: 'numeric',
+        let lastOrderDate = 'Récemment';
+        if (c.updated_at || leadData?.lastOrderDate) {
+          const d = new Date(c.updated_at || leadData.lastOrderDate);
+          lastOrderDate = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        customersMap.set(c.phone_number, {
+          id: c.id,
+          name: c.name || leadData?.name || 'Client',
+          phone: c.phone_number,
+          city: c.city || leadData?.city || 'Maroc',
+          address: c.address || leadData?.address || 'Adresse non renseignée',
+          totalOrders,
+          deliveredOrders,
+          refusedOrders,
+          totalSpent,
+          lastOrderDate,
+          reliabilityScore: (c.trust_score as any) || 'NOUVEAU',
+          notes: c.notes || leadData?.notes || 'Client enregistré dans la base MySQL',
         });
       }
+    }
 
-      const noteText = r.notes || (deliveredOrders > 0 ? 'Client livré avec succès via Sendit Express' : 'Nouveau client enregistré');
+    // Add any leads that are not yet in customers table
+    if (Array.isArray(leadRows)) {
+      for (const r of leadRows) {
+        if (!customersMap.has(r.phone)) {
+          const totalOrders = Number(r.totalOrders) || 1;
+          const deliveredOrders = Number(r.deliveredOrders) || 0;
+          const refusedOrders = Number(r.refusedOrders) || 0;
+          const totalSpent = Number(r.totalSpent) || 0;
 
-      return {
-        id: `cust-${idx + 1}-${r.phone.replace(/\D/g, '').slice(-4)}`,
-        name: r.name || 'Client',
-        phone: r.phone,
-        city: r.city || 'Maroc',
-        address: r.address || 'Adresse non renseignée',
-        totalOrders,
-        deliveredOrders,
-        refusedOrders,
-        totalSpent,
-        lastOrderDate,
-        reliabilityScore,
-        notes: noteText,
-      };
-    });
+          let score: CustomerItem['reliabilityScore'] = 'NOUVEAU';
+          if (refusedOrders >= 2 && deliveredOrders === 0) score = 'BLACKLIST';
+          else if (refusedOrders > deliveredOrders) score = 'RISQUE';
+          else if (totalOrders >= 3 && deliveredOrders >= 2) score = 'VIP';
+          else if (deliveredOrders >= 1) score = 'FIABLE';
+
+          const custId = `cust-${Date.now()}-${r.phone.replace(/\D/g, '').slice(-4)}`;
+          const custItem: CustomerItem = {
+            id: custId,
+            name: r.name || 'Client',
+            phone: r.phone,
+            city: r.city || 'Maroc',
+            address: r.address || 'Adresse non renseignée',
+            totalOrders,
+            deliveredOrders,
+            refusedOrders,
+            totalSpent,
+            lastOrderDate: r.lastOrderDate ? new Date(r.lastOrderDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Récemment',
+            reliabilityScore: score,
+            notes: r.notes || 'Synchronisé depuis les commandes',
+          };
+
+          customersMap.set(r.phone, custItem);
+
+          // Persist to customers table asynchronously
+          pool.execute(
+            `INSERT INTO customers (id, phone_number, name, city, address, total_orders, delivered_orders, refused_orders, total_spent, trust_score, notes)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE
+               total_orders = VALUES(total_orders),
+               delivered_orders = VALUES(delivered_orders),
+               total_spent = VALUES(total_spent),
+               updated_at = CURRENT_TIMESTAMP`,
+            [custId, r.phone, custItem.name, custItem.city, custItem.address, totalOrders, deliveredOrders, refusedOrders, totalSpent, score, custItem.notes]
+          ).catch(() => {});
+        }
+      }
+    }
+
+    const customers = Array.from(customersMap.values());
 
     return NextResponse.json({
       success: true,
@@ -104,60 +149,129 @@ export async function GET() {
       total: customers.length,
       stats: {
         totalCustomers: customers.length,
-        vipCount: customers.filter(c => c.reliabilityScore === 'VIP' || c.reliabilityScore === 'FIABLE').length,
-        blacklistCount: customers.filter(c => c.reliabilityScore === 'BLACKLIST' || c.reliabilityScore === 'RISQUE').length,
+        vipCount: customers.filter((c) => c.reliabilityScore === 'VIP' || c.reliabilityScore === 'FIABLE').length,
+        blacklistCount: customers.filter((c) => c.reliabilityScore === 'BLACKLIST' || c.reliabilityScore === 'RISQUE').length,
         totalRevenue: customers.reduce((sum, c) => sum + c.totalSpent, 0),
-      }
+      },
     });
   } catch (error: any) {
-    console.warn('[API Customers GET] DB error, using unified store fallback:', error.message);
-    const { getInboundOrders } = await import('@/lib/orders-store');
-    const inbound = getInboundOrders();
+    console.error('[API Customers GET] Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message, customers: [] },
+      { status: 500 }
+    );
+  }
+}
 
-    const customerMap = new Map<string, CustomerItem>();
-    inbound.forEach((o, idx) => {
-      const phone = o.customer.phone;
-      if (!customerMap.has(phone)) {
-        customerMap.set(phone, {
-          id: `cust-${idx + 1}`,
-          name: o.customer.name,
-          phone,
-          city: o.customer.city,
-          address: o.customer.address,
-          totalOrders: 1,
-          deliveredOrders: o.stage === 'DELIVERED' ? 1 : 0,
-          refusedOrders: o.stage === 'CANCELLED' ? 1 : 0,
-          totalSpent: o.stage === 'DELIVERED' ? o.payment.amount : 0,
-          lastOrderDate: 'Récemment',
-          reliabilityScore: o.stage === 'DELIVERED' ? 'FIABLE' : o.stage === 'CANCELLED' ? 'RISQUE' : 'NOUVEAU',
-          notes: o.customer.notes || 'Client enregistré via le système unifié',
-        });
-      } else {
-        const existing = customerMap.get(phone)!;
-        existing.totalOrders += 1;
-        if (o.stage === 'DELIVERED') {
-          existing.deliveredOrders += 1;
-          existing.totalSpent += o.payment.amount;
-          existing.reliabilityScore = existing.deliveredOrders >= 2 ? 'VIP' : 'FIABLE';
-        } else if (o.stage === 'CANCELLED') {
-          existing.refusedOrders += 1;
-        }
-      }
-    });
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { name, phone, city, address, trustScore, notes } = body;
 
-    const fallbackCustomers = Array.from(customerMap.values());
+    if (!phone || !name) {
+      return NextResponse.json(
+        { success: false, error: 'Nom et téléphone requis' },
+        { status: 400 }
+      );
+    }
+
+    const cleanPhone = cleanMoroccanPhone(phone) || phone;
+    const pool = getMysqlPool();
+    const id = body.id || `cust-${Date.now()}-${cleanPhone.slice(-4)}`;
+
+    await pool.execute(
+      `INSERT INTO customers (id, phone_number, name, city, address, trust_score, notes)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         name = VALUES(name),
+         city = VALUES(city),
+         address = VALUES(address),
+         trust_score = VALUES(trust_score),
+         notes = VALUES(notes),
+         updated_at = CURRENT_TIMESTAMP`,
+      [
+        id,
+        cleanPhone,
+        name.trim(),
+        city || 'Maroc',
+        address || 'Adresse',
+        trustScore || 'NOUVEAU',
+        notes || '',
+      ]
+    );
+
+    realtimeHub.broadcast({
+      eventType: 'CUSTOMER_UPDATED',
+      entityType: 'CUSTOMER',
+      entityId: cleanPhone,
+      title: `Fiche client ${name} enregistrée`,
+      payload: { phone: cleanPhone, name, trustScore },
+      source: 'CUSTOMERS_API',
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      source: 'memory_fallback',
-      customers: fallbackCustomers,
-      total: fallbackCustomers.length,
-      stats: {
-        totalCustomers: fallbackCustomers.length,
-        vipCount: fallbackCustomers.filter((c) => c.reliabilityScore === 'VIP' || c.reliabilityScore === 'FIABLE').length,
-        blacklistCount: fallbackCustomers.filter((c) => c.reliabilityScore === 'BLACKLIST' || c.reliabilityScore === 'RISQUE').length,
-        totalRevenue: fallbackCustomers.reduce((sum, c) => sum + c.totalSpent, 0),
-      },
+      message: 'Client enregistré avec succès dans la base de données',
+      customerId: id,
     });
+  } catch (error: any) {
+    console.error('[API Customers POST] Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { phone, trustScore, notes, address, city } = body;
+
+    if (!phone) {
+      return NextResponse.json({ success: false, error: 'Numéro de téléphone requis' }, { status: 400 });
+    }
+
+    const pool = getMysqlPool();
+
+    // 1. Update customers table
+    await pool.execute(
+      `UPDATE customers
+       SET 
+         trust_score = IFNULL(?, trust_score),
+         notes = IFNULL(?, notes),
+         address = IFNULL(?, address),
+         city = IFNULL(?, city),
+         updated_at = CURRENT_TIMESTAMP
+       WHERE phone_number = ?`,
+      [trustScore || null, notes || null, address || null, city || null, phone]
+    );
+
+    // 2. If blacklist or risk, also update risk_level in order_leads
+    if (trustScore === 'BLACKLIST' || trustScore === 'RISQUE') {
+      const riskLevel = trustScore === 'BLACKLIST' ? 'BLACK_LISTED' : 'HIGH';
+      await pool.execute(
+        `UPDATE order_leads
+         SET risk_level = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE phone_number = ?`,
+        [riskLevel, phone]
+      );
+    }
+
+    realtimeHub.broadcast({
+      eventType: 'CUSTOMER_UPDATED',
+      entityType: 'CUSTOMER',
+      entityId: phone,
+      title: `Score de fiabilité client mis à jour (${trustScore || 'Modifié'})`,
+      payload: { phone, trustScore, notes },
+      source: 'CUSTOMERS_API',
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      message: 'Statut client mis à jour avec succès dans MySQL !',
+      phone,
+      trustScore,
+    });
+  } catch (error: any) {
+    console.error('[API Customers PATCH] Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

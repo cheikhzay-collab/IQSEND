@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getOrdersFromDb, saveOrderToDb, updateOrderStageInDb } from '@/lib/db-service';
 import { getInboundOrders, addInboundOrder, IngestedOrder } from '@/lib/orders-store';
 import { LifecycleOrder } from '@/context/OrderLifecycleContext';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,6 +55,16 @@ export async function POST(req: Request) {
     // Keep in-memory store in sync
     addInboundOrder(body as IngestedOrder);
 
+    // 🔴 Broadcast real-time order creation
+    realtimeHub.broadcast({
+      eventType: 'ORDER_CREATED',
+      entityType: 'ORDER',
+      entityId: body.id || body.orderNumber,
+      title: `Nouvelle commande: ${body.orderNumber} (${body.customer?.name || 'Client'})`,
+      payload: body,
+      source: 'STORE_API',
+    }).catch(() => {});
+
     return NextResponse.json({
       success: true,
       message: 'Order saved to database successfully',
@@ -88,6 +99,16 @@ export async function PATCH(req: Request) {
     const updated = await updateOrderStageInDb(orderId, stage);
     const { updateOrderStatus } = await import('@/lib/orders-store');
     updateOrderStatus(orderId, stage);
+
+    // 🔴 Broadcast real-time stage change
+    realtimeHub.broadcast({
+      eventType: 'ORDER_STATUS_CHANGED',
+      entityType: 'ORDER',
+      entityId: orderId,
+      title: `Commande ${orderId}: Étape passée à ${stage}`,
+      payload: { orderId, stage },
+      source: 'DASHBOARD_UI',
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

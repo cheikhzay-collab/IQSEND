@@ -11,9 +11,9 @@ declare global {
 
 const DEFAULT_HOST = '195.35.53.99'; // Direct IPv4 of srv977.hstgr.io to prevent IPv6 Access Denied
 const DEFAULT_PORT = 3306;
-const DEFAULT_USER = 'u663560985_hjwut';
-const DEFAULT_PASSWORD = 'SenditMorocco2026@Hostinger!';
-const DEFAULT_DATABASE = 'u663560985_vC9mY';
+const DEFAULT_USER = 'u663560985_sendit_usr';
+const DEFAULT_PASSWORD = 'Sendit2026MoroccoLive';
+const DEFAULT_DATABASE = 'u663560985_sendit';
 
 function cleanSecret(val?: string | null): string {
   if (!val) return '';

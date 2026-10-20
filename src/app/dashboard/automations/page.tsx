@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Zap,
   Play,
@@ -139,11 +139,39 @@ const RECENT_LOGS = [
 
 export default function AutomationsPage() {
   const [automations, setAutomations] = useState<AutomationRule[]>(INITIAL_AUTOMATIONS);
+  const [isLiveDb, setIsLiveDb] = useState(false);
 
-  const toggleAutomation = (id: string) => {
+  useEffect(() => {
+    fetch('/api/automations')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.rules)) {
+          setAutomations(data.rules);
+          setIsLiveDb(true);
+        }
+      })
+      .catch((e) => console.warn('Automations fetch note:', e));
+  }, []);
+
+  const toggleAutomation = async (id: string) => {
+    const target = automations.find((a) => a.id === id);
+    if (!target) return;
+    const nextState = !target.active;
+
+    // Optimistic UI update
     setAutomations((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, active: !a.active } : a))
+      prev.map((a) => (a.id === id ? { ...a, active: nextState } : a))
     );
+
+    try {
+      await fetch('/api/automations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, key: (target as any).key, active: nextState }),
+      });
+    } catch (err) {
+      console.error('Error saving automation toggle to MySQL:', err);
+    }
   };
 
   const activeCount = automations.filter((a) => a.active).length;
@@ -157,12 +185,17 @@ export default function AutomationsPage() {
           <div className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full mb-2">
             <Zap className="w-3.5 h-3.5 text-amber-600" />
             Moteur de Déclencheurs & Webhooks Sendit.ma
+            {isLiveDb && (
+              <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300">
+                MySQL Actif
+              </span>
+            )}
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Automatisations & Scénarios COD
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Gestion des 6 scénarios clés de conversion, réduction des retours et sauvetage des livraisons par WhatsApp.
+            Gestion des 6 scénarios clés de conversion, réduction des retours et sauvetage des livraisons sauvegardés en direct dans store_settings.
           </p>
         </div>
 

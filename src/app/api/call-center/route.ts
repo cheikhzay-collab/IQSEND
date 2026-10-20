@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { addTimelineEventToDb } from '@/lib/db-service';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -173,6 +174,16 @@ export async function POST(request: Request) {
       );
     }
 
+    // Map outcome to CallResult enum
+    const callResultEnum = outcome === 'CONFIRMED' ? 'CONFIRMED_MANUALLY' : outcome === 'CANCELED' ? 'CANCELED_BY_CLIENT' : 'CALLBACK_REQUESTED';
+
+    // Insert into call_logs table
+    await pool.execute(
+      `INSERT INTO call_logs (id, order_id, user_id, result, notes)
+       VALUES (?, ?, 'usr-agent-01', ?, ?)`,
+      [`call-${Date.now()}`, orderId, callResultEnum, notes || outcome]
+    ).catch(() => {});
+
     // Record timeline event
     await addTimelineEventToDb({
       orderId,
@@ -181,6 +192,16 @@ export async function POST(request: Request) {
       details: notes || `Résultat de l'appel: ${outcome}`,
       actor: 'AGENT',
     });
+
+    // 🔴 Real-time broadcast
+    realtimeHub.broadcast({
+      eventType: 'CALL_LOGGED',
+      entityType: 'CALL',
+      entityId: orderId,
+      title: `${timelineTitle}: ${orderId}`,
+      payload: { orderId, outcome, notes, newStatus },
+      source: 'CALL_CENTER',
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

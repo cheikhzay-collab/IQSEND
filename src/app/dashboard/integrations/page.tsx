@@ -17,7 +17,8 @@ import {
   Sparkles,
   Send,
   RotateCcw,
-  Smartphone
+  Smartphone,
+  Save
 } from 'lucide-react';
 
 export default function IntegrationsPage() {
@@ -76,6 +77,24 @@ export default function IntegrationsPage() {
           setGeminiConfigured(data.isConfigured);
           if (data.maskedKey) setGeminiMaskedKey(data.maskedKey);
           if (data.model) setActiveModelName(data.model);
+        }
+      })
+      .catch(() => {});
+
+    // Load all platform settings from MySQL
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.settings) {
+          const s = data.settings;
+          if (s.GOOGLE_SHEET_URL) setGoogleSheetUrl(s.GOOGLE_SHEET_URL);
+          if (s.WHATSAPP_PHONE_ID) setMetaPhoneId(s.WHATSAPP_PHONE_ID);
+          if (s.WHATSAPP_API_TOKEN) setMetaToken(s.WHATSAPP_API_TOKEN);
+          if (s.WHATSAPP_INSTANCE) setEvoInstance(s.WHATSAPP_INSTANCE);
+          if (s.WHATSAPP_ANTI_BAN_DELAY) setEvoAntiBanDelay(parseInt(s.WHATSAPP_ANTI_BAN_DELAY, 10));
+          if (s.WHATSAPP_PROVIDER) setSelectedProvider(s.WHATSAPP_PROVIDER === 'EVOLUTION_API_QR' ? 'EVOLUTION_API_QR' : 'META_CLOUD_API');
+          if (s.SENDIT_PUBLIC_KEY && s.SENDIT_PUBLIC_KEY.length > 5) setSenditPublic(s.SENDIT_PUBLIC_KEY);
+          if (s.SENDIT_WEBHOOK_SECRET) setSenditWebhookSecret(s.SENDIT_WEBHOOK_SECRET);
         }
       })
       .catch(() => {});
@@ -515,13 +534,26 @@ export default function IntegrationsPage() {
             </div>
             <div className="flex justify-end">
               <button
-                onClick={() => {
-                  setWaSaveSuccess(true);
-                  setTimeout(() => setWaSaveSuccess(false), 2000);
+                onClick={async () => {
+                  try {
+                    await fetch('/api/settings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        WHATSAPP_PROVIDER: 'META_CLOUD_API',
+                        WHATSAPP_PHONE_ID: metaPhoneId,
+                        WHATSAPP_API_TOKEN: metaToken,
+                      }),
+                    });
+                    setWaSaveSuccess(true);
+                    setTimeout(() => setWaSaveSuccess(false), 2500);
+                  } catch (err) {
+                    console.error('Failed to save Meta settings:', err);
+                  }
                 }}
                 className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
               >
-                {waSaveSuccess ? '✅ Paramètres Meta Sauvegardés' : 'Enregistrer les identifiants Meta'}
+                {waSaveSuccess ? '✅ Identifiants Meta Enregistrés dans MySQL !' : 'Enregistrer les identifiants Meta'}
               </button>
             </div>
           </div>
@@ -780,8 +812,27 @@ export default function IntegrationsPage() {
               className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-slate-50/50 focus:outline-teal-600"
             />
             <button
+              onClick={async () => {
+                try {
+                  await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ GOOGLE_SHEET_URL: googleSheetUrl }),
+                  });
+                  setCopiedKey('gsheet_saved');
+                  setTimeout(() => setCopiedKey(null), 2500);
+                } catch (e) {
+                  console.error('Error saving Google Sheet URL:', e);
+                }
+              }}
+              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs shrink-0"
+            >
+              {copiedKey === 'gsheet_saved' ? <Check className="w-3.5 h-3.5 text-white" /> : <Save className="w-3.5 h-3.5" />}
+              {copiedKey === 'gsheet_saved' ? 'Enregistré dans MySQL !' : 'Enregistrer'}
+            </button>
+            <button
               onClick={() => copyToClipboard(googleSheetUrl, 'gsheet')}
-              className="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1.5"
+              className="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1.5 shrink-0"
             >
               {copiedKey === 'gsheet' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
               {copiedKey === 'gsheet' ? 'Copié' : 'Copier'}

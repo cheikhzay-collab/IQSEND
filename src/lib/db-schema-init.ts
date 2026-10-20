@@ -1,24 +1,47 @@
 import { getMysqlPool } from './db';
 import { getProducts } from './products-store';
-import { getInboundOrders } from './orders-store';
 
 /**
- * SQL DDL Statements to create comprehensive MySQL schema for SENDIT COD platform on Hostinger
+ * Complete and Comprehensive SQL DDL Statements for Hostinger Cloud MySQL
+ * Covering all 20 modules of the SENDIT COD Platform.
  */
 export const CREATE_TABLES_SQL = [
-  // 1. Users table (Admins, Confirmation Agents, Packers, Delivery Tracking staff)
+  // 1. Users table (Admins, Confirmation Agents, Warehouse Packers, Delivery Tracking staff, Call Center Agents)
   `CREATE TABLE IF NOT EXISTS users (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('ADMIN', 'CONFIRMATION_AGENT', 'PACKER', 'TRACKING_AGENT') DEFAULT 'CONFIRMATION_AGENT',
+    role ENUM('ADMIN', 'CONFIRMATION_AGENT', 'PACKER', 'TRACKING_AGENT', 'CALL_AGENT') DEFAULT 'CONFIRMATION_AGENT',
+    phone VARCHAR(50),
+    avatar_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 2. Products table (COD catalog with specs and AI Knowledge Base)
+  // 2. Customers table (Dedicated customer profiles with trust scoring and delivery stats)
+  `CREATE TABLE IF NOT EXISTS customers (
+    id VARCHAR(36) PRIMARY KEY,
+    phone_number VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    alt_phone_number VARCHAR(50),
+    city VARCHAR(100) NOT NULL,
+    address TEXT NOT NULL,
+    total_orders INT DEFAULT 1,
+    delivered_orders INT DEFAULT 0,
+    refused_orders INT DEFAULT 0,
+    total_spent DECIMAL(10, 2) DEFAULT 0.00,
+    trust_score ENUM('VIP', 'FIABLE', 'NOUVEAU', 'RISQUE', 'BLACKLIST') DEFAULT 'NOUVEAU',
+    notes TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_cust_phone (phone_number),
+    INDEX idx_cust_city (city),
+    INDEX idx_cust_trust (trust_score)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 3. Products table (Catalog with specs, Darija descriptions, and AI Knowledge Base)
   `CREATE TABLE IF NOT EXISTS products (
     id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -37,13 +60,52 @@ export const CREATE_TABLES_SQL = [
     upsell_bundles JSON,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_prod_sku (sku),
+    INDEX idx_prod_cat (category)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 3. Order Leads table (Full Moroccan COD Order Lifecycle)
+  // 4. Product Variants table (Sizes, Colors, Barcodes)
+  `CREATE TABLE IF NOT EXISTS product_variants (
+    id VARCHAR(36) PRIMARY KEY,
+    product_id VARCHAR(36) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    sku VARCHAR(100) UNIQUE NOT NULL,
+    attributes JSON,
+    price_extra DECIMAL(10, 2) DEFAULT 0.00,
+    stock_quantity INT DEFAULT 0,
+    barcode VARCHAR(100),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_var_sku (sku),
+    INDEX idx_var_prod (product_id),
+    CONSTRAINT fk_var_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 5. Stock Movements table (Inventory Audit Trail: IN, OUT, RETURN, DAMAGE, ADJUSTMENT)
+  `CREATE TABLE IF NOT EXISTS stock_movements (
+    id VARCHAR(36) PRIMARY KEY,
+    product_id VARCHAR(36) NOT NULL,
+    sku VARCHAR(100) NOT NULL,
+    type ENUM('IN', 'OUT', 'RETURN', 'DAMAGE', 'ADJUSTMENT') NOT NULL,
+    quantity INT NOT NULL,
+    previous_stock INT NOT NULL,
+    new_stock INT NOT NULL,
+    reason VARCHAR(255),
+    order_id VARCHAR(36),
+    created_by VARCHAR(100) DEFAULT 'SYSTEM',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_stock_prod (product_id),
+    INDEX idx_stock_type (type),
+    CONSTRAINT fk_stock_prod FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 6. Order Leads table (Full Moroccan COD Lifecycle)
   `CREATE TABLE IF NOT EXISTS order_leads (
     id VARCHAR(36) PRIMARY KEY,
     order_number VARCHAR(100) UNIQUE NOT NULL,
+    customer_id VARCHAR(36),
     customer_name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(50) NOT NULL,
     alt_phone_number VARCHAR(50),
@@ -76,10 +138,11 @@ export const CREATE_TABLES_SQL = [
     INDEX idx_phone (phone_number),
     INDEX idx_status (status),
     INDEX idx_city (city),
-    INDEX idx_rescue (rescue_status)
+    INDEX idx_rescue (rescue_status),
+    INDEX idx_created_at (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 4. Order Items table
+  // 7. Order Items table
   `CREATE TABLE IF NOT EXISTS order_items (
     id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) NOT NULL,
@@ -94,7 +157,7 @@ export const CREATE_TABLES_SQL = [
     CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 5. Shipment Details table (Sendit.ma Logistics & Tracking Integration)
+  // 8. Shipment Details table (Sendit.ma Logistics & Tracking)
   `CREATE TABLE IF NOT EXISTS shipment_details (
     id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) UNIQUE NOT NULL,
@@ -127,7 +190,53 @@ export const CREATE_TABLES_SQL = [
     CONSTRAINT fk_shipment_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 6. WhatsApp Messages table (Omnichannel Chat History)
+  // 9. Packing Tasks table (Warehouse Packing Station & Barcode verification)
+  `CREATE TABLE IF NOT EXISTS packing_tasks (
+    id VARCHAR(36) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL,
+    packer_id VARCHAR(36),
+    box_type VARCHAR(50) DEFAULT 'Standard Carton',
+    barcode_scanned VARCHAR(100),
+    items_verified BOOLEAN DEFAULT TRUE,
+    notes TEXT,
+    status ENUM('PENDING', 'PACKING', 'PACKED', 'DISPATCHED') DEFAULT 'PENDING',
+    packed_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_pack_order (order_id),
+    INDEX idx_pack_status (status),
+    CONSTRAINT fk_pack_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 10. Call Logs table (Call Center Queue & Confirmation Calls)
+  `CREATE TABLE IF NOT EXISTS call_logs (
+    id VARCHAR(36) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL,
+    user_id VARCHAR(36),
+    result ENUM('NO_ANSWER_1', 'NO_ANSWER_2', 'OUT_OF_COVERAGE', 'CALLBACK_REQUESTED', 'BUSY', 'CONFIRMED_MANUALLY', 'CANCELED_BY_CLIENT') NOT NULL,
+    call_duration_sec INT DEFAULT 0,
+    notes TEXT,
+    callback_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_call_order (order_id),
+    INDEX idx_call_result (result),
+    CONSTRAINT fk_call_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 11. WhatsApp Instances table (Gateway connection status & QR state)
+  `CREATE TABLE IF NOT EXISTS whatsapp_instances (
+    id VARCHAR(100) PRIMARY KEY,
+    instance_name VARCHAR(100) NOT NULL,
+    phone_number VARCHAR(50),
+    status ENUM('CONNECTING', 'CONNECTED', 'DISCONNECTED', 'QR_READY') DEFAULT 'DISCONNECTED',
+    qr_code TEXT,
+    battery_level INT DEFAULT 100,
+    last_connected_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 12. WhatsApp Messages table (Omnichannel Chat History & Voice Audio)
   `CREATE TABLE IF NOT EXISTS whatsapp_messages (
     id VARCHAR(100) PRIMARY KEY,
     order_id VARCHAR(36),
@@ -145,22 +254,11 @@ export const CREATE_TABLES_SQL = [
     delivery_status VARCHAR(50) DEFAULT 'sent',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_msg_order (order_id),
-    INDEX idx_msg_phone (phone)
+    INDEX idx_msg_phone (phone),
+    INDEX idx_msg_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 7. Call Logs table (Call Center & Manual Confirmations)
-  `CREATE TABLE IF NOT EXISTS call_logs (
-    id VARCHAR(36) PRIMARY KEY,
-    order_id VARCHAR(36) NOT NULL,
-    user_id VARCHAR(36),
-    result ENUM('NO_ANSWER_1', 'NO_ANSWER_2', 'OUT_OF_COVERAGE', 'CALLBACK_REQUESTED', 'BUSY', 'CONFIRMED_MANUALLY', 'CANCELED_BY_CLIENT') NOT NULL,
-    notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_call_order (order_id),
-    CONSTRAINT fk_call_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
-  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
-
-  // 8. Order Timelines table (Audit Log)
+  // 13. Order Timelines table (Comprehensive Audit Trail)
   `CREATE TABLE IF NOT EXISTS order_timelines (
     id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) NOT NULL,
@@ -173,14 +271,96 @@ export const CREATE_TABLES_SQL = [
     CONSTRAINT fk_timeline_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 9. Store Settings table (Key-Value Platform Configuration)
+  // 14. Realtime Events Stream table (Live synchronization log)
+  `CREATE TABLE IF NOT EXISTS realtime_events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    event_type VARCHAR(100) NOT NULL,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(100) NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    payload JSON,
+    source VARCHAR(100) DEFAULT 'SYSTEM',
+    is_broadcast BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_evt_type (event_type),
+    INDEX idx_evt_entity (entity_type, entity_id),
+    INDEX idx_evt_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 15. Notifications table (Platform alerts, SLA breaches, failures)
+  `CREATE TABLE IF NOT EXISTS notifications (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('ORDER', 'DELIVERY_FAILED', 'SLA_BREACH', 'OUT_OF_STOCK', 'WHATSAPP_HANDOVER', 'SYSTEM') DEFAULT 'ORDER',
+    priority ENUM('LOW', 'MEDIUM', 'HIGH', 'CRITICAL') DEFAULT 'MEDIUM',
+    link_url VARCHAR(255),
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notif_unread (is_read),
+    INDEX idx_notif_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 16. Delivery Rescues table (Failed delivery outreach & recovery cases)
+  `CREATE TABLE IF NOT EXISTS delivery_rescues (
+    id VARCHAR(36) PRIMARY KEY,
+    order_id VARCHAR(36) NOT NULL,
+    tracking_number VARCHAR(100),
+    failure_reason VARCHAR(255) NOT NULL,
+    attempt_number INT DEFAULT 1,
+    outreach_channel ENUM('WHATSAPP', 'CALL', 'SMS') DEFAULT 'WHATSAPP',
+    outreach_status ENUM('PENDING', 'SENT', 'RESPONDED', 'RESOLVED', 'ABANDONED') DEFAULT 'PENDING',
+    new_delivery_date DATE,
+    new_address TEXT,
+    resolution_notes TEXT,
+    resolved_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_rescue_order (order_id),
+    CONSTRAINT fk_rescue_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 17. Finance Transactions table (COD settlements, remittances & fees)
+  `CREATE TABLE IF NOT EXISTS finance_transactions (
+    id VARCHAR(36) PRIMARY KEY,
+    reference VARCHAR(100) UNIQUE NOT NULL,
+    transaction_type ENUM('COD_REMITTANCE', 'SHIPPING_FEE_DEDUCTION', 'RETURN_PENALTY', 'BANK_PAYOUT') DEFAULT 'COD_REMITTANCE',
+    amount DECIMAL(10, 2) NOT NULL,
+    carrier VARCHAR(100) DEFAULT 'Sendit.ma',
+    order_count INT DEFAULT 0,
+    period_start DATE,
+    period_end DATE,
+    status ENUM('PENDING', 'PROCESSED', 'RECONCILED', 'DISPUTED') DEFAULT 'PENDING',
+    bank_account VARCHAR(255),
+    receipt_url TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_fin_ref (reference),
+    INDEX idx_fin_status (status)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 18. Store Settings table (Key-Value Platform Configuration)
   `CREATE TABLE IF NOT EXISTS store_settings (
     setting_key VARCHAR(100) PRIMARY KEY,
     setting_value TEXT NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
-  // 10. Google Sheets Sync Logs table
+  // 19. AI Agent Configurations table (Prompts, Persona, Rules)
+  `CREATE TABLE IF NOT EXISTS ai_agent_configs (
+    id VARCHAR(36) PRIMARY KEY,
+    agent_name VARCHAR(100) NOT NULL DEFAULT 'Sarah (AI COD Specialist)',
+    role_title VARCHAR(100) DEFAULT 'Spécialiste Confirmation & Vente Additionnelle',
+    system_prompt TEXT NOT NULL,
+    tone VARCHAR(50) DEFAULT 'Darija Professional & Courteous',
+    language VARCHAR(50) DEFAULT 'ar-MA',
+    auto_confirm_threshold INT DEFAULT 70,
+    gemini_model VARCHAR(100) DEFAULT 'gemini-1.5-flash',
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 20. Google Sheets Sync Logs table
   `CREATE TABLE IF NOT EXISTS google_sheets_sync_logs (
     id VARCHAR(36) PRIMARY KEY,
     spreadsheet_id VARCHAR(255) NOT NULL,
@@ -189,6 +369,34 @@ export const CREATE_TABLES_SQL = [
     status VARCHAR(50) DEFAULT 'SUCCESS',
     details TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 21. Compatibility table: alerts
+  `CREATE TABLE IF NOT EXISTS alerts (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id VARCHAR(36),
+    tracking VARCHAR(100),
+    alert_type VARCHAR(100),
+    priority VARCHAR(50) DEFAULT 'medium',
+    message TEXT,
+    is_read INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 22. Compatibility table: events
+  `CREATE TABLE IF NOT EXISTS events (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    order_id VARCHAR(36),
+    tracking VARCHAR(100),
+    event_type VARCHAR(100),
+    old_status VARCHAR(100),
+    new_status VARCHAR(100),
+    raw_payload TEXT,
+    received_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    status VARCHAR(100),
+    reason VARCHAR(255),
+    note TEXT,
+    timestamp VARCHAR(50)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
@@ -201,15 +409,27 @@ export async function initializeDatabase(forceReset: boolean = false) {
 
   const tableNames = [
     'users',
+    'customers',
     'products',
+    'product_variants',
+    'stock_movements',
     'order_leads',
     'order_items',
     'shipment_details',
-    'whatsapp_messages',
+    'packing_tasks',
     'call_logs',
+    'whatsapp_instances',
+    'whatsapp_messages',
     'order_timelines',
+    'realtime_events',
+    'notifications',
+    'delivery_rescues',
+    'finance_transactions',
     'store_settings',
+    'ai_agent_configs',
     'google_sheets_sync_logs',
+    'alerts',
+    'events',
   ];
 
   // 1. Create all tables sequentially
@@ -224,19 +444,51 @@ export async function initializeDatabase(forceReset: boolean = false) {
     }
   }
 
-  // 2. Seed default admin user
+  // 2. Seed default users
   try {
-    const [existingUsers]: any = await pool.query('SELECT COUNT(*) as cnt FROM users WHERE email = ?', ['admin@sendit.ma']);
-    if (existingUsers[0]?.cnt === 0) {
+    const users = [
+      {
+        id: 'usr-admin-01',
+        name: 'Admin Principal Sendit',
+        email: 'admin@sendit.ma',
+        role: 'ADMIN',
+        phone: '0661000000',
+      },
+      {
+        id: 'usr-agent-01',
+        name: 'Sarah - Agent Confirmation',
+        email: 'sarah@sendit.ma',
+        role: 'CONFIRMATION_AGENT',
+        phone: '0661000001',
+      },
+      {
+        id: 'usr-packer-01',
+        name: 'Mohamed - Responsable Emballage',
+        email: 'mohamed@sendit.ma',
+        role: 'PACKER',
+        phone: '0661000002',
+      },
+      {
+        id: 'usr-track-01',
+        name: 'Yassine - Suivi & Sauvetage',
+        email: 'yassine@sendit.ma',
+        role: 'TRACKING_AGENT',
+        phone: '0661000003',
+      },
+    ];
+
+    for (const u of users) {
       await pool.query(
-        `INSERT INTO users (id, name, email, password_hash, role, is_active) 
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO users (id, name, email, password_hash, role, phone, is_active) 
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role), phone = VALUES(phone)`,
         [
-          'usr-admin-01',
-          'Admin Principal Sendit',
-          'admin@sendit.ma',
+          u.id,
+          u.name,
+          u.email,
           '$2a$12$K8j7m9v9zX1Qp4u2w8e7Y.SenditCODHashSecure2026',
-          'ADMIN',
+          u.role,
+          u.phone,
           true,
         ]
       );
@@ -245,344 +497,104 @@ export async function initializeDatabase(forceReset: boolean = false) {
     console.warn('[DB Init] User seed note:', e.message);
   }
 
-  // 3. Seed Product Catalog (only if table is empty or on forceReset)
+  // 3. Seed Product Catalog & Variants
   try {
-    const [existingCount]: any = await pool.query('SELECT COUNT(*) as cnt FROM products');
-    const isTableEmpty = !existingCount || existingCount[0]?.cnt === 0;
+    const products = getProducts();
+    for (const p of products) {
+      await pool.query(
+        `INSERT INTO products 
+         (id, name, name_ar, sku, base_price, cost_price, stock_quantity, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           name = VALUES(name),
+           name_ar = VALUES(name_ar),
+           base_price = VALUES(base_price),
+           cost_price = VALUES(cost_price),
+           stock_quantity = VALUES(stock_quantity)`,
+        [
+          p.id,
+          p.name,
+          p.nameAr,
+          p.sku,
+          p.sellingPrice,
+          p.costPrice,
+          p.totalStock,
+          p.category,
+          p.descriptionAr,
+          p.descriptionAr,
+          JSON.stringify(p.keywords || []),
+          JSON.stringify([]),
+          p.status !== 'OUT_OF_STOCK',
+        ]
+      );
 
-    if (forceReset || isTableEmpty) {
-      const products = getProducts();
-      for (const p of products) {
-        const [existing]: any = await pool.query('SELECT COUNT(*) as cnt FROM products WHERE sku = ?', [p.sku]);
-        if (existing[0]?.cnt === 0) {
-          await pool.query(
-            `INSERT INTO products 
-             (id, name, name_ar, sku, base_price, cost_price, stock_quantity, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [
-              p.id,
-              p.name,
-              p.nameAr,
-              p.sku,
-              p.sellingPrice,
-              p.costPrice,
-              p.totalStock,
-              p.category,
-              p.descriptionAr,
-              p.descriptionAr,
-              JSON.stringify(p.keywords || []),
-              JSON.stringify([]),
-              p.status !== 'OUT_OF_STOCK',
-            ]
-          );
-        }
-      }
+      // Seed product variant
+      await pool.query(
+        `INSERT INTO product_variants 
+         (id, product_id, title, sku, attributes, price_extra, stock_quantity, barcode, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE title = VALUES(title), stock_quantity = VALUES(stock_quantity)`,
+        [
+          `var-${p.sku}-std`,
+          p.id,
+          `${p.name} - Format Standard`,
+          `${p.sku}-STD`,
+          JSON.stringify({ taille: 'Standard', couleur: 'Original' }),
+          0.00,
+          p.totalStock,
+          `611${Math.floor(1000000000 + Math.random() * 9000000000)}`,
+          true,
+        ]
+      );
     }
   } catch (e: any) {
     console.warn('[DB Init] Products seed note:', e.message);
   }
 
-  // 4. Seed initial orders across all 4 COD lifecycle stages if empty or requested
-  try {
-    const [ordersCount]: any = await pool.query('SELECT COUNT(*) as cnt FROM order_leads');
-    const [statusDist]: any = await pool.query('SELECT DISTINCT status FROM order_leads');
-    
-    // Check if we need to seed: either empty or less than 10 or missing stages
-    const needSeed = forceReset || ordersCount[0]?.cnt === 0 || (Array.isArray(statusDist) && statusDist.length < 3);
+  // 4. Operational tables (orders, customers, shipments, messages, finances)
+  // are left completely clean for authentic live data from Sendit, Google Sheets & Store Webhooks.
 
-    if (needSeed) {
-      if (forceReset || (Array.isArray(statusDist) && statusDist.length < 3)) {
-        await pool.query('DELETE FROM shipment_details');
-        await pool.query('DELETE FROM order_items');
-        await pool.query('DELETE FROM order_leads');
-      }
-
-      const COMPREHENSIVE_COD_ORDERS = [
-        // ── 1. EN ATTENTE DE CONFIRMATION (PENDING_CONFIRMATION) ──
-        {
-          id: 'ord-1044',
-          order_number: '#AT1044',
-          customer_name: 'Omar El Amrani',
-          phone_number: '0661223344',
-          city: 'Tanger',
-          address: 'Boulevard Pasteur, Tanger Centre, Résidence Al Majd Appt 4',
-          total_amount: 349.00,
-          status: 'NEW',
-          risk_score: 18,
-          ai_confirmation_status: 'PENDING',
-          notes: 'Rappeler vers 16h pour confirmer la taille L',
-          item: { name: 'Black Bomber Jacket Luxury', sku: 'BMB-BLK-L', qty: 1, price: 349.00 },
-        },
-        {
-          id: 'ord-1047',
-          order_number: '#AT1047',
-          customer_name: 'Fatima Zahra Idrissi',
-          phone_number: '0663889900',
-          city: 'Casablanca',
-          address: 'Corniche Ain Diab, Villa 12, Casablanca',
-          total_amount: 490.00,
-          status: 'AI_CHATTING',
-          risk_score: 12,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Adresse validée automatiquement par GPS WhatsApp.',
-          item: { name: 'Robe Traditionnelle Soie Brodée', sku: 'ROB-SOIE-M', qty: 1, price: 490.00 },
-        },
-        {
-          id: 'ord-1049',
-          order_number: '#AT1049',
-          customer_name: 'Mehdi Bennani',
-          phone_number: '0670114455',
-          city: 'Rabat',
-          address: 'Avenue de France, Agdal, Rabat',
-          total_amount: 650.00,
-          status: 'NEW',
-          risk_score: 5,
-          ai_confirmation_status: 'VERIFIED',
-          notes: 'Paiement CMI prépayé en ligne vérifié avec succès.',
-          item: { name: 'Montre Chronographe Homme', sku: 'WTC-CHRONO-SLV', qty: 1, price: 650.00 },
-        },
-        {
-          id: 'ord-1052',
-          order_number: '#AT1052',
-          customer_name: 'Soukaina Tazi',
-          phone_number: '0655443322',
-          city: 'Marrakech',
-          address: 'Rue Mohammed El Beqal, Gueliz, Marrakech',
-          total_amount: 598.00,
-          status: 'NEW',
-          risk_score: 28,
-          ai_confirmation_status: 'PENDING',
-          notes: 'Premier achat - Appel de courtoisie suggéré.',
-          item: { name: 'Pack Soins Visage Huile d’Argan Pure', sku: 'ARG-CARE-PK', qty: 2, price: 299.00 },
-        },
-
-        // ── 2. EN PRÉPARATION (PROCESSING) ──
-        {
-          id: 'ord-1045',
-          order_number: '#AT1045',
-          customer_name: 'Noura Sbihi',
-          phone_number: '0677112299',
-          city: 'Agadir',
-          address: 'Avenue Hassan II, Immeuble Al Amal, Agadir',
-          total_amount: 299.00,
-          status: 'CONFIRMED',
-          risk_score: 8,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Validé par agent call center. Préparation Hub Casa.',
-          item: { name: 'Amber Perfume Intense 50ml', sku: 'PRF-AMB-50', qty: 1, price: 299.00 },
-        },
-        {
-          id: 'ord-1041',
-          order_number: '#AT1041',
-          customer_name: 'Karim Tazi',
-          phone_number: '0661448899',
-          city: 'Fès',
-          address: 'Boulevard Allal Ben Abdellah, Atlas, Fès',
-          total_amount: 399.00,
-          status: 'PACKING',
-          risk_score: 10,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Emballage en cours - Bordereau imprimé.',
-          item: { name: 'Sneakers Cuir Minimalistes Blanc', sku: 'SNK-WHT-LTHR', qty: 1, price: 399.00 },
-        },
-        {
-          id: 'ord-1037',
-          order_number: '#AT1037',
-          customer_name: 'Houda Mansouri',
-          phone_number: '0662334455',
-          city: 'Kenitra',
-          address: 'Avenue Diouri, Résidence Ryad, Kenitra',
-          total_amount: 450.00,
-          status: 'CONFIRMED',
-          risk_score: 15,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Prêt pour ramassage livreur Sendit.ma.',
-          item: { name: 'Sac à Main Artisanal Cuir Maroquin', sku: 'SAC-CUIR-BRN', qty: 1, price: 450.00 },
-        },
-
-        // ── 3. EN COURS DE LIVRAISON (IN_TRANSIT) ──
-        {
-          id: 'ord-1038',
-          order_number: '#AT1038',
-          customer_name: 'Amine Tahiri',
-          phone_number: '0661123456',
-          city: 'Casablanca',
-          address: '24 Rue Abou Al Alaa, Maarif, Casablanca',
-          total_amount: 399.00,
-          status: 'OUT_FOR_DELIVERY',
-          risk_score: 10,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Colis sorti en tournée de livraison avec Mohamed Tazi.',
-          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819204', status: 'OUT_FOR_DELIVERY' },
-          item: { name: 'White Leather Sneakers Classic', sku: 'SNK-WHT-42', qty: 1, price: 399.00 },
-        },
-        {
-          id: 'ord-1039',
-          order_number: '#AT1039',
-          customer_name: 'Khadija El Amrani',
-          phone_number: '0655819033',
-          city: 'Marrakech',
-          address: 'Résidence Jnane Gueliz, Appt 14, Marrakech',
-          total_amount: 249.00,
-          status: 'IN_TRANSIT',
-          risk_score: 14,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'En transit inter-villes vers Marrakech.',
-          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819205', status: 'IN_TRANSIT' },
-          item: { name: 'Robe Brodée Traditionnelle', sku: 'ROB-BRD-BLU', qty: 1, price: 249.00 },
-        },
-        {
-          id: 'ord-1040',
-          order_number: '#AT1040',
-          customer_name: 'Tariq Bakkali',
-          phone_number: '0663990011',
-          city: 'Tanger',
-          address: 'Route Malabata, Complexe Al Khaima, Tanger',
-          total_amount: 550.00,
-          status: 'OUT_FOR_DELIVERY',
-          risk_score: 6,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Chauffeur Yassine Drissi en cours de distribution.',
-          tracking: { carrier: 'DHL Morocco', number: 'DHL-48293170', status: 'OUT_FOR_DELIVERY' },
-          item: { name: 'Chaussures Ville Derby Cuir', sku: 'CHS-DRB-43', qty: 1, price: 550.00 },
-        },
-
-        // ── 4. LIVRÉES & ENCAISSÉES (COMPLETED) ──
-        {
-          id: 'ord-1033',
-          order_number: '#AT1033',
-          customer_name: 'Samira Belkacem',
-          phone_number: '0663412099',
-          city: 'Rabat',
-          address: 'Avenue Fal Ould Oumeir, Agdal, Rabat',
-          total_amount: 450.00,
-          status: 'DELIVERED_PAID',
-          risk_score: 2,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Livré et fonds encaissés (Virement VIR-SENDIT-89410).',
-          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819207', status: 'DELIVERED_PAID' },
-          item: { name: 'Montre Automatique Édition Noire', sku: 'WTC-AUTO-BLK', qty: 1, price: 450.00 },
-        },
-        {
-          id: 'ord-1034',
-          order_number: '#AT1034',
-          customer_name: 'Hamza Chraibi',
-          phone_number: '0661228844',
-          city: 'Casablanca',
-          address: 'Boulevard Ghandi, Résidence Les Fleurs, Casablanca',
-          total_amount: 798.00,
-          status: 'DELIVERED_PAID',
-          risk_score: 3,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Signature client et OTP validés.',
-          tracking: { carrier: 'Sendit.ma Express', number: 'SND-819201', status: 'DELIVERED_PAID' },
-          item: { name: 'Pack Duo Smart Watch S2 + Écouteurs', sku: 'PK-SW2-EAR', qty: 1, price: 798.00 },
-        },
-        {
-          id: 'ord-1036',
-          order_number: '#AT1036',
-          customer_name: 'Ibtissam Berrada',
-          phone_number: '0662771199',
-          city: 'Fès',
-          address: 'Route d’Ain Chkef, Fès',
-          total_amount: 310.00,
-          status: 'DELIVERED_PAID',
-          risk_score: 5,
-          ai_confirmation_status: 'CONFIRMED',
-          notes: 'Finition artisanale validée par la cliente.',
-          tracking: { carrier: 'Cathedis Maroc', number: 'CAT-481902', status: 'DELIVERED_PAID' },
-          item: { name: 'Sac à Main Artisanal en Cuir Maroquin', sku: 'SAC-CUIR-BRN', qty: 1, price: 310.00 },
-        },
-      ];
-
-      for (const ord of COMPREHENSIVE_COD_ORDERS) {
-        await pool.query(
-          `INSERT INTO order_leads 
-           (id, order_number, customer_name, phone_number, city, address, total_amount, status, risk_score, ai_confirmation_status, store_source, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE 
-             status = VALUES(status), 
-             total_amount = VALUES(total_amount),
-             customer_name = VALUES(customer_name),
-             city = VALUES(city),
-             address = VALUES(address),
-             notes = VALUES(notes)`,
-          [
-            ord.id,
-            ord.order_number,
-            ord.customer_name,
-            ord.phone_number,
-            ord.city,
-            ord.address,
-            ord.total_amount,
-            ord.status,
-            ord.risk_score,
-            ord.ai_confirmation_status,
-            'Direct Store',
-            ord.notes,
-          ]
-        );
-
-        // Insert item
-        await pool.query(
-          `INSERT INTO order_items (id, order_id, product_id, product_name, sku, quantity, price)
-           VALUES (?, ?, ?, ?, ?, ?, ?)
-           ON DUPLICATE KEY UPDATE product_name = VALUES(product_name), price = VALUES(price)`,
-          [
-            'item-' + ord.id,
-            ord.id,
-            'prod-' + ord.item.sku,
-            ord.item.name,
-            ord.item.sku,
-            ord.item.qty,
-            ord.item.price,
-          ]
-        );
-
-        // Insert shipment if tracking exists
-        if ((ord as any).tracking) {
-          const trk = (ord as any).tracking;
-          await pool.query(
-            `INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, status, shipping_fee, cod_amount_collected)
-             VALUES (?, ?, ?, ?, ?, ?, ?)
-             ON DUPLICATE KEY UPDATE carrier = VALUES(carrier), sendit_tracking_number = VALUES(sendit_tracking_number), status = VALUES(status)`,
-            [
-              'ship-' + ord.id,
-              ord.id,
-              trk.carrier,
-              trk.number,
-              trk.status,
-              35.00,
-              ord.total_amount,
-            ]
-          );
-        }
-      }
-    }
-  } catch (e: any) {
-    console.warn('[DB Init] Orders seed note:', e.message);
-  }
-
-  // 5. Seed default store settings
+  // 9. Seed Store Settings & AI Agent Config
   try {
     const defaultSettings = [
       { key: 'PLATFORM_NAME', value: 'SENDIT Morocco COD Management' },
-      { key: 'DEFAULT_CARRIER', value: 'Sendit.ma' },
+      { key: 'DEFAULT_CARRIER', value: 'Sendit.ma Express' },
       { key: 'DEFAULT_SHIPPING_FEE', value: '35' },
       { key: 'COD_ONLY_MODE', value: 'true' },
       { key: 'AI_CONFIRMATION_AUTO_ENABLED', value: 'true' },
-      { key: 'DATABASE_VERSION', value: '1.0.0-hostinger-mysql' },
+      { key: 'SENDIT_PUBLIC_KEY', value: '3d4232babb11df9a39165b4fcaf88057' },
+      { key: 'SENDIT_PRIVATE_KEY', value: 'RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ' },
+      { key: 'SENDIT_WEBHOOK_SECRET', value: 'RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ' },
+      { key: 'DATABASE_VERSION', value: '2.0.0-hostinger-mysql-complete' },
     ];
 
     for (const s of defaultSettings) {
       await pool.query(
         `INSERT INTO store_settings (setting_key, setting_value) 
-         VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = ?`,
-        [s.key, s.value, s.value]
+         VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)`,
+        [s.key, s.value]
       );
     }
+
+    await pool.query(
+      `INSERT INTO ai_agent_configs 
+       (id, agent_name, role_title, system_prompt, tone, language, auto_confirm_threshold, gemini_model, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE system_prompt = VALUES(system_prompt)`,
+      [
+        'agent-sarah-01',
+        'Sarah (AI COD Specialist)',
+        'Spécialiste Confirmation & Vente Additionnelle',
+        'Nti Sarah, assistante d confirmation dial boutique Sendit COD Maroc. Khedma dialk t2akdi talabat b Darija m2adba w t-optimisi l-livraison.',
+        'Darija Courtoise & Professionnelle',
+        'ar-MA',
+        75,
+        'gemini-1.5-flash',
+        true,
+      ]
+    );
   } catch (e: any) {
-    console.warn('[DB Init] Settings seed note:', e.message);
+    console.warn('[DB Init] Settings/Agent seed note:', e.message);
   }
 
   return {
@@ -600,14 +612,15 @@ export async function getDatabaseStatus() {
     const [tables]: any = await pool.query(
       `SELECT table_name AS tableName, table_rows AS rowCount, data_length AS dataSize
        FROM information_schema.tables 
-       WHERE table_schema = DATABASE()`
+       WHERE table_schema = DATABASE()
+       ORDER BY table_name ASC`
     );
 
     const [dbInfo]: any = await pool.query('SELECT DATABASE() as dbName, VERSION() as version');
 
     return {
       connected: true,
-      database: dbInfo[0]?.dbName || 'u663560985_vC9mY',
+      database: dbInfo[0]?.dbName || 'u663560985_sendit',
       version: dbInfo[0]?.version,
       tablesCount: tables.length,
       tables: tables.map((t: any) => ({
@@ -620,7 +633,7 @@ export async function getDatabaseStatus() {
     return {
       connected: false,
       error: err.message,
-      database: process.env.DB_NAME || 'u663560985_vC9mY',
+      database: process.env.DB_NAME || 'u663560985_sendit',
     };
   }
 }

@@ -7,6 +7,7 @@ import {
 } from '@/lib/inbox-store';
 import { sendWhatsAppDirectMessage } from '@/lib/whatsapp/baileys-service';
 import { getMysqlPool } from '@/lib/db';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -162,6 +163,16 @@ export async function POST(request: Request) {
       text,
       sender: 'AGENT',
     });
+
+    // 🔴 Real-time broadcast
+    realtimeHub.broadcast({
+      eventType: 'WHATSAPP_MESSAGE',
+      entityType: 'WHATSAPP',
+      entityId: phone,
+      title: `Message WhatsApp envoyé à ${phone}`,
+      payload: { phone, text, sender: 'AGENT' },
+      source: 'INBOX_AGENT',
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,

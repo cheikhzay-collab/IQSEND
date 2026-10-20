@@ -35,15 +35,20 @@ import {
   PackageCheck,
   Banknote,
   XCircle,
-  RotateCcw
+  RotateCcw,
+  Shield,
+  ShieldCheck,
+  UserCheck
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
+import { useAuth } from '@/context/AuthContext';
+import { TeamPresenceWidget } from '@/components/layout/TeamPresenceWidget';
+import { AccessDeniedScreen } from '@/components/layout/AccessDeniedScreen';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
-  const [marketingOpen, setMarketingOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -58,92 +63,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     clearToast,
   } = useOrderLifecycle();
 
+  const { currentUser, hasPermission, canAccessRoute } = useAuth();
+
   const isOrdersActive =
     pathname === '/dashboard/orders' ||
     pathname.startsWith('/dashboard/orders') ||
     pathname === '/';
-
-  const mainNavItems = [
-    {
-      label: 'Tableau de bord',
-      href: '/dashboard',
-      icon: Home,
-      exact: true,
-    },
-    {
-      label: 'Leads & Capture IA',
-      href: '/dashboard/leads',
-      icon: Sparkles,
-    },
-    {
-      label: 'Centres d\'appels',
-      href: '/dashboard/call-center',
-      icon: Headphones,
-      badge: pendingCount > 0 ? pendingCount : undefined,
-    },
-    {
-      label: 'Messagerie (WhatsApp)',
-      href: '/dashboard/inbox',
-      icon: Inbox,
-      badge: 4,
-      isWhatsapp: true,
-    },
-    {
-      label: 'Agents IA (Gemini Darija)',
-      href: '/dashboard/ai-agents',
-      icon: Bot,
-      highlight: true,
-    },
-    {
-      label: 'Station d\'Emballage (AWB)',
-      href: '/dashboard/packing',
-      icon: PackageCheck,
-      badge: processingCount > 0 ? processingCount : undefined,
-    },
-    {
-      label: '3. En livraison (Sendit)',
-      href: '/dashboard/tracking',
-      icon: Truck,
-      badge: inTransitCount > 0 ? inTransitCount : undefined,
-    },
-    {
-      label: '4. Livrées & Encaissées',
-      href: '/dashboard/orders/completed',
-      icon: CheckCircle2,
-      badge: completedCount > 0 ? completedCount : undefined,
-    },
-    {
-      label: 'Retours & Refusés',
-      href: '/dashboard/orders/returns',
-      icon: RotateCcw,
-      badge: returnedCount > 0 ? returnedCount : undefined,
-    },
-    {
-      label: 'Produits & Stock Hubs',
-      href: '/dashboard/products',
-      icon: Package,
-    },
-    {
-      label: 'Clients & CRM',
-      href: '/dashboard/customers',
-      icon: Users,
-    },
-    {
-      label: 'Finances & Virements COD',
-      href: '/dashboard/finance',
-      icon: Banknote,
-    },
-    {
-      label: 'Automatisations',
-      href: '/dashboard/automations',
-      icon: Zap,
-    },
-    {
-      label: 'Intégrations & API',
-      href: '/dashboard/integrations',
-      icon: Puzzle,
-    },
-  ];
 
   const orderStages = [
     {
@@ -166,6 +91,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     },
   ];
 
+  const isRouteAllowed = canAccessRoute(pathname);
+
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-800 antialiased selection:bg-teal-500 selection:text-white">
 
@@ -175,7 +102,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       
       {/* 1A. DESKTOP HEADER (MD & UP) */}
       <header className="hidden md:flex h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 lg:px-5 items-center justify-between sticky top-0 z-40 transition-shadow duration-200 shadow-2xs gap-4">
-        {/* Left: Brand Logo & Search (if not orders) */}
+        {/* Left: Brand Logo & Search */}
         <div className="flex items-center gap-4 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group shrink-0">
             <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
@@ -216,46 +143,34 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        {/* Right: Team, Balance, Assistant IA, Messages, Notifications, Workspace */}
+        {/* Right: Team Presence Widget, Assistant IA, Messages, Notifications, Workspace */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Team Members Overlapping Avatars */}
-          <div className="flex items-center -space-x-1.5">
-            <img
-              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80"
-              alt="Team"
-              className="w-6 h-6 rounded-full border border-white object-cover"
-            />
-            <img
-              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80"
-              alt="Team"
-              className="w-6 h-6 rounded-full border border-white object-cover"
-            />
-            <div className="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-[10px] font-bold flex items-center justify-center border border-white">
-              A
-            </div>
-            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center border border-white">
-              +2
-            </div>
-          </div>
+          
+          {/* Team Members Overlapping Avatars with Online Status Indicator */}
+          <TeamPresenceWidget />
 
           {/* AI Sparkles */}
-          <Link
-            href="/dashboard/ai-agents"
-            className="p-1.5 rounded-xl text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
-            title="Assistant IA Gemini"
-          >
-            <Sparkles className="w-4 h-4 text-slate-500 hover:text-teal-600" />
-          </Link>
+          {hasPermission('canAccessAiAgents') && (
+            <Link
+              href="/dashboard/ai-agents"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+              title="Assistant IA Gemini"
+            >
+              <Sparkles className="w-4 h-4 text-slate-500 hover:text-teal-600" />
+            </Link>
+          )}
 
           {/* Messages with notification dot */}
-          <Link
-            href="/dashboard/inbox"
-            className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 relative transition-colors"
-            title="Messagerie WhatsApp"
-          >
-            <MessageSquare className="w-4 h-4" />
-            <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1 right-1 ring-2 ring-white animate-pulse" />
-          </Link>
+          {hasPermission('canAccessInbox') && (
+            <Link
+              href="/dashboard/inbox"
+              className="p-1.5 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 relative transition-colors"
+              title="Messagerie WhatsApp"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1 right-1 ring-2 ring-white animate-pulse" />
+            </Link>
+          )}
 
           {/* Bell Notifications with count badge (38) */}
           <button
@@ -306,9 +221,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        {/* Right: Quick Search, Balance Chip & Notification */}
+        {/* Right: Quick Presence Widget & Notifications */}
         <div className="flex items-center gap-2">
-          {/* Quick search button */}
+          <TeamPresenceWidget />
+
           <button
             onClick={() => setMobileSearchOpen(true)}
             className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
@@ -316,15 +232,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           >
             <Search className="w-4 h-4" />
           </button>
-
-          {/* Notifications bell */}
-          <Link
-            href="/dashboard/inbox"
-            className="p-1.5 text-slate-600 hover:text-slate-900 relative rounded-xl"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="w-2 h-2 rounded-full bg-rose-500 absolute top-1 right-1 ring-2 ring-white" />
-          </Link>
         </div>
       </header>
 
@@ -360,34 +267,42 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="pt-1 flex flex-wrap gap-1.5">
-              <Link
-                href="/dashboard/orders/pending"
-                onClick={() => setMobileSearchOpen(false)}
-                className="text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg"
-              >
-                1. À confirmer ({pendingCount})
-              </Link>
-              <Link
-                href="/dashboard/orders/processing"
-                onClick={() => setMobileSearchOpen(false)}
-                className="text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg"
-              >
-                2. En préparation ({processingCount})
-              </Link>
-              <Link
-                href="/dashboard/orders/in-transit"
-                onClick={() => setMobileSearchOpen(false)}
-                className="text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-lg"
-              >
-                3. En livraison ({inTransitCount})
-              </Link>
-              <Link
-                href="/dashboard/inbox"
-                onClick={() => setMobileSearchOpen(false)}
-                className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg"
-              >
-                💬 WhatsApp Inbox
-              </Link>
+              {hasPermission('canAccessConfirmation') && (
+                <Link
+                  href="/dashboard/orders/pending"
+                  onClick={() => setMobileSearchOpen(false)}
+                  className="text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-1 rounded-lg"
+                >
+                  1. À confirmer ({pendingCount})
+                </Link>
+              )}
+              {hasPermission('canAccessPacking') && (
+                <Link
+                  href="/dashboard/orders/processing"
+                  onClick={() => setMobileSearchOpen(false)}
+                  className="text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg"
+                >
+                  2. En préparation ({processingCount})
+                </Link>
+              )}
+              {hasPermission('canAccessTracking') && (
+                <Link
+                  href="/dashboard/tracking"
+                  onClick={() => setMobileSearchOpen(false)}
+                  className="text-[11px] font-bold bg-indigo-50 text-indigo-800 border border-indigo-200 px-2.5 py-1 rounded-lg"
+                >
+                  3. En livraison ({inTransitCount})
+                </Link>
+              )}
+              {hasPermission('canAccessInbox') && (
+                <Link
+                  href="/dashboard/inbox"
+                  onClick={() => setMobileSearchOpen(false)}
+                  className="text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-1 rounded-lg"
+                >
+                  💬 WhatsApp Inbox
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -419,7 +334,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </div>
                   <div>
                     <h2 className="font-black text-sm text-slate-900">IQSEND COD</h2>
-                    <p className="text-[10px] text-slate-400">Suite Complète Logistique Maroc</p>
+                    <p className="text-[10px] text-slate-400">
+                      Connecté : {currentUser?.name ? currentUser.name.split(' ')[0] : 'Admin'}
+                    </p>
                   </div>
                 </Link>
 
@@ -432,8 +349,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
 
-              {/* Navigation Links Scrollable */}
+              {/* Navigation Links Scrollable (Filtered by Permissions) */}
               <div className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+                
                 {/* 1. Home */}
                 <Link
                   href="/dashboard"
@@ -448,106 +366,209 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <span>Tableau de bord</span>
                 </Link>
 
-                {/* 2. Orders with sub-stages */}
-                <div className="pt-1">
+                {/* 2. Orders (Filtered by canAccessOrders) */}
+                {hasPermission('canAccessOrders') && (
+                  <div className="pt-1">
+                    <Link
+                      href="/dashboard/orders"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
+                        isOrdersActive
+                          ? 'bg-teal-50 text-teal-950 font-black border border-teal-200/80'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <ShoppingBag className="w-4 h-4 text-teal-700 shrink-0" />
+                        <span>Toutes les Commandes</span>
+                      </div>
+                      {pendingCount > 0 && (
+                        <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                          {pendingCount}
+                        </span>
+                      )}
+                    </Link>
+
+                    {/* Submenu */}
+                    <div className="ml-4 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
+                      {orderStages.map((stage) => {
+                        const Icon = stage.icon;
+                        const isActive = pathname === stage.href;
+                        return (
+                          <Link
+                            key={stage.href}
+                            href={stage.href}
+                            onClick={() => setMobileMenuOpen(false)}
+                            className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
+                              isActive
+                                ? stage.activeClass
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 truncate">
+                              <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
+                              <span className="truncate">{stage.label}</span>
+                            </div>
+                            {stage.count > 0 && (
+                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${stage.countClass}`}>
+                                {stage.count}
+                              </span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Other Filtered Modules */}
+                {hasPermission('canAccessLeads') && (
                   <Link
-                    href="/dashboard/orders"
+                    href="/dashboard/leads"
                     onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
-                      isOrdersActive
-                        ? 'bg-teal-50 text-teal-950 font-black border border-teal-200/80'
-                        : 'text-slate-700 hover:bg-slate-100'
-                    }`}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Leads & Capture IA</span>
+                  </Link>
+                )}
+
+                {hasPermission('canAccessConfirmation') && (
+                  <Link
+                    href="/dashboard/call-center"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     <div className="flex items-center gap-3">
-                      <ShoppingBag className="w-4 h-4 text-teal-700 shrink-0" />
-                      <span>Toutes les Commandes</span>
+                      <Headphones className="w-4 h-4 text-amber-600" />
+                      <span>Centre d'appels</span>
                     </div>
                     {pendingCount > 0 && (
-                      <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs">
+                      <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
                         {pendingCount}
                       </span>
                     )}
                   </Link>
+                )}
 
-                  {/* 4 Stages Submenu */}
-                  <div className="ml-4 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
-                    {orderStages.map((stage) => {
-                      const Icon = stage.icon;
-                      const isActive = pathname === stage.href;
-                      return (
-                        <Link
-                          key={stage.href}
-                          href={stage.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
-                            isActive
-                              ? stage.activeClass
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold'
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 truncate">
-                            <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
-                            <span className="truncate">{stage.label}</span>
-                          </div>
-                          {stage.count > 0 && (
-                            <span
-                              className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${stage.countClass}`}
-                            >
-                              {stage.count}
-                            </span>
-                          )}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
+                {hasPermission('canAccessInbox') && (
+                  <Link
+                    href="/dashboard/inbox"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Inbox className="w-4 h-4 text-emerald-600" />
+                    <span>Messagerie WhatsApp</span>
+                  </Link>
+                )}
 
-                {/* Other Main Links */}
-                <div className="pt-2 border-t border-slate-100 space-y-1">
-                  {mainNavItems.slice(1).map((item) => {
-                    const Icon = item.icon;
-                    const isActive = pathname === item.href;
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={() => setMobileMenuOpen(false)}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                          isActive
-                            ? 'bg-slate-100 text-slate-900 font-bold'
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Icon className={`w-4 h-4 ${item.highlight ? 'text-teal-600' : 'text-slate-500'}`} />
-                          <span className={item.highlight ? 'font-bold text-teal-900' : ''}>
-                            {item.label}
-                          </span>
-                        </div>
-                        {item.badge && (
-                          <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-                </div>
+                {hasPermission('canAccessAiAgents') && (
+                  <Link
+                    href="/dashboard/ai-agents"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-teal-800 hover:bg-teal-50"
+                  >
+                    <Bot className="w-4 h-4 text-teal-600" />
+                    <span>Agents IA (Gemini)</span>
+                  </Link>
+                )}
+
+                {hasPermission('canAccessPacking') && (
+                  <Link
+                    href="/dashboard/packing"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <PackageCheck className="w-4 h-4 text-blue-600" />
+                      <span>Station d'Emballage (AWB)</span>
+                    </div>
+                    {processingCount > 0 && (
+                      <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {processingCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
+
+                {hasPermission('canAccessTracking') && (
+                  <Link
+                    href="/dashboard/tracking"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Truck className="w-4 h-4 text-indigo-600" />
+                      <span>3. En livraison (Sendit)</span>
+                    </div>
+                    {inTransitCount > 0 && (
+                      <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
+                        {inTransitCount}
+                      </span>
+                    )}
+                  </Link>
+                )}
+
+                {hasPermission('canAccessProducts') && (
+                  <Link
+                    href="/dashboard/products"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Package className="w-4 h-4 text-slate-500" />
+                    <span>Produits & Stock Hubs</span>
+                  </Link>
+                )}
+
+                {hasPermission('canAccessCustomers') && (
+                  <Link
+                    href="/dashboard/customers"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Users className="w-4 h-4 text-slate-500" />
+                    <span>Clients & CRM</span>
+                  </Link>
+                )}
+
+                {hasPermission('canAccessFinance') && (
+                  <Link
+                    href="/dashboard/finance"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    <Banknote className="w-4 h-4 text-emerald-600" />
+                    <span>Finances & Virements COD</span>
+                  </Link>
+                )}
+
+                {hasPermission('canAccessTeam') && (
+                  <Link
+                    href="/dashboard/team"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 hover:bg-purple-50"
+                  >
+                    <Shield className="w-4 h-4 text-purple-600" />
+                    <span>Équipe & Permissions (RBAC)</span>
+                  </Link>
+                )}
+
               </div>
             </div>
 
             {/* Drawer Footer */}
-            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
-              <Link
-                href="/dashboard/settings"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
-              >
-                <Settings className="w-4 h-4 text-slate-500" />
-                <span>Paramètres & Passerelles</span>
-              </Link>
-            </div>
+            {hasPermission('canAccessSettings') && (
+              <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+                <Link
+                  href="/dashboard/settings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+                >
+                  <Settings className="w-4 h-4 text-slate-500" />
+                  <span>Paramètres & Passerelles</span>
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -575,358 +596,382 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <span>Tableau de bord</span>
             </Link>
 
-            {/* Orders (Active Parent) */}
-            <div>
+            {/* Commandes Section (Filtered by canAccessOrders) */}
+            {hasPermission('canAccessOrders') && (
+              <div>
+                <Link
+                  href="/dashboard/orders"
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    isOrdersActive
+                      ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200/60'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <ShoppingBag className="w-4 h-4 text-teal-700" />
+                    <span>Commandes</span>
+                  </div>
+                  {pendingCount > 0 && (
+                    <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
+                      {pendingCount}
+                    </span>
+                  )}
+                </Link>
+
+                {/* Submenu for Orders (Desktop) */}
+                {isOrdersActive && (
+                  <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
+                    {orderStages.map((stage) => {
+                      const Icon = stage.icon;
+                      const isActive = pathname === stage.href;
+                      return (
+                        <Link
+                          key={stage.href}
+                          href={stage.href}
+                          className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                            isActive
+                              ? stage.activeClass
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
+                            <span className="truncate">{stage.label}</span>
+                          </div>
+                          {stage.count > 0 && (
+                            <span className={`shrink-0 ml-1.5 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs ${stage.countClass}`}>
+                              {stage.count}
+                            </span>
+                          )}
+                        </Link>
+                      );
+                    })}
+
+                    {/* Annulées */}
+                    <Link
+                      href="/dashboard/orders/canceled"
+                      className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                        pathname === '/dashboard/orders/canceled'
+                          ? 'bg-rose-50 text-rose-950 font-bold border border-rose-200/80'
+                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span className="truncate">Annulées</span>
+                      </div>
+                      {canceledCount > 0 && (
+                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
+                          {canceledCount}
+                        </span>
+                      )}
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Leads & Ingestion */}
+            {hasPermission('canAccessLeads') && (
               <Link
-                href="/dashboard/orders"
+                href="/dashboard/leads"
                 className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  isOrdersActive
-                    ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200/60'
+                  pathname === '/dashboard/leads'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <ShoppingBag className="w-4 h-4 text-teal-700" />
-                  <span>Commandes</span>
+                  <Sparkles className="w-4 h-4 text-amber-500" />
+                  <span>Leads & Capture IA</span>
+                </div>
+              </Link>
+            )}
+
+            {/* SECTION 2: CONFIRMATION & VENTE */}
+            {(hasPermission('canAccessConfirmation') || hasPermission('canAccessInbox') || hasPermission('canAccessAiAgents')) && (
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Confirmation & Vente
+                </span>
+              </div>
+            )}
+
+            {hasPermission('canAccessConfirmation') && (
+              <Link
+                href="/dashboard/call-center"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/call-center'
+                    ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Headphones className="w-4 h-4 text-amber-600" />
+                  <span>Centre d'appels</span>
                 </div>
                 {pendingCount > 0 && (
-                  <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs">
+                  <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full shadow-2xs">
                     {pendingCount}
                   </span>
                 )}
               </Link>
-
-              {/* Submenu for Orders (Desktop) */}
-              {isOrdersActive && (
-                <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
-                  {orderStages.map((stage) => {
-                    const Icon = stage.icon;
-                    const isActive = stage.href === '/dashboard/tracking'
-                      ? (pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit')
-                      : pathname === stage.href;
-                    return (
-                      <Link
-                        key={stage.href}
-                        href={stage.href}
-                        className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                          isActive
-                            ? stage.activeClass
-                            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2 truncate">
-                          <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
-                          <span className="truncate">{stage.label}</span>
-                        </div>
-                        {stage.count > 0 && (
-                          <span
-                            className={`shrink-0 ml-1.5 text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs ${stage.countClass}`}
-                          >
-                            {stage.count}
-                          </span>
-                        )}
-                      </Link>
-                    );
-                  })}
-
-                  {/* Annulées (Avant expédition) */}
-                  <Link
-                    href="/dashboard/orders/canceled"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/canceled'
-                        ? 'bg-rose-50 text-rose-950 font-bold border border-rose-200/80'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                      <span className="truncate">Annulées (Confirmation)</span>
-                    </div>
-                    {canceledCount > 0 && (
-                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
-                        {canceledCount}
-                      </span>
-                    )}
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            {/* Leads & Ingestion */}
-            <Link
-              href="/dashboard/leads"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/leads'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Sparkles className="w-4 h-4 text-amber-500" />
-                <span>Leads & Capture IA</span>
-              </div>
-            </Link>
-
-            {/* SECTION 2: CONFIRMATION & VENTE */}
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Confirmation & Vente
-              </span>
-            </div>
-
-            <Link
-              href="/dashboard/call-center"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/call-center'
-                  ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Headphones className="w-4 h-4 text-amber-600" />
-                <span>Centre d'appels</span>
-              </div>
-              {pendingCount > 0 && (
-                <span className="text-[10px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full shadow-2xs">
-                  {pendingCount}
-                </span>
-              )}
-            </Link>
+            )}
 
             {/* Inbox WhatsApp */}
-            <Link
-              href="/dashboard/inbox"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/inbox'
-                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Inbox className="w-4 h-4 text-emerald-600" />
-                <span>Messagerie WhatsApp</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400">4</span>
-                <div className="w-4 h-4 rounded-full bg-[#25D366] text-white flex items-center justify-center shrink-0">
-                  <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24">
-                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.529 1.838.805 2.791.805h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.769-5.767zm3.364 8.204c-.14.394-.809.734-1.121.78-.31.047-.704.067-1.139-.074-.27-.087-.621-.202-1.071-.399-1.905-.829-3.14-2.76-3.235-2.888-.094-.128-.775-1.03-.775-1.964 0-.935.49-1.393.664-1.583.174-.19.38-.238.507-.238.127 0 .254.002.364.007.117.006.273-.044.428.328.16.38.547 1.332.595 1.429.047.097.079.21.016.335-.063.125-.095.203-.189.314-.094.111-.198.247-.283.332-.095.095-.194.198-.083.388.111.19.493.813 1.057 1.315.727.646 1.34.846 1.53.941.19.095.301.079.412-.048.111-.127.476-.554.603-.744.127-.19.254-.159.428-.095.174.063 1.109.523 1.299.618.19.095.317.143.364.222.048.079.048.459-.092.853z" />
-                  </svg>
+            {hasPermission('canAccessInbox') && (
+              <Link
+                href="/dashboard/inbox"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/inbox'
+                    ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Inbox className="w-4 h-4 text-emerald-600" />
+                  <span>Messagerie WhatsApp</span>
                 </div>
-              </div>
-            </Link>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-slate-400">4</span>
+                  <div className="w-4 h-4 rounded-full bg-[#25D366] text-white flex items-center justify-center shrink-0">
+                    <svg className="w-2.5 h-2.5 fill-current" viewBox="0 0 24 24">
+                      <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.529 1.838.805 2.791.805h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.769-5.767zm3.364 8.204c-.14.394-.809.734-1.121.78-.31.047-.704.067-1.139-.074-.27-.087-.621-.202-1.071-.399-1.905-.829-3.14-2.76-3.235-2.888-.094-.128-.775-1.03-.775-1.964 0-.935.49-1.393.664-1.583.174-.19.38-.238.507-.238.127 0 .254.002.364.007.117.006.273-.044.428.328.16.38.547 1.332.595 1.429.047.097.079.21.016.335-.063.125-.095.203-.189.314-.094.111-.198.247-.283.332-.095.095-.194.198-.083.388.111.19.493.813 1.057 1.315.727.646 1.34.846 1.53.941.19.095.301.079.412-.048.111-.127.476-.554.603-.744.127-.19.254-.159.428-.095.174.063 1.109.523 1.299.618.19.095.317.143.364.222.048.079.048.459-.092.853z" />
+                    </svg>
+                  </div>
+                </div>
+              </Link>
+            )}
 
             {/* AI Agents */}
-            <Link
-              href="/dashboard/ai-agents"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/ai-agents'
-                  ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Bot className="w-4 h-4 text-teal-600" />
-              <span>Agents IA (Gemini Darija)</span>
-            </Link>
+            {hasPermission('canAccessAiAgents') && (
+              <Link
+                href="/dashboard/ai-agents"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/ai-agents'
+                    ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Bot className="w-4 h-4 text-teal-600" />
+                <span>Agents IA (Gemini Darija)</span>
+              </Link>
+            )}
 
             {/* SECTION 3: FULFILLMENT & LOGISTIQUE SENDIT */}
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Logistique Sendit.ma
-              </span>
-            </div>
+            {(hasPermission('canAccessPacking') || hasPermission('canAccessTracking')) && (
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Logistique Sendit.ma
+                </span>
+              </div>
+            )}
 
             {/* Packing Station */}
-            <Link
-              href="/dashboard/packing"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/packing'
-                  ? 'bg-blue-50 text-blue-950 font-bold border border-blue-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <PackageCheck className="w-4 h-4 text-blue-600" />
-                <span>Station d'Emballage (AWB)</span>
-              </div>
-              {processingCount > 0 && (
-                <span className="text-[10px] font-black bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
-                  {processingCount}
-                </span>
-              )}
-            </Link>
+            {hasPermission('canAccessPacking') && (
+              <Link
+                href="/dashboard/packing"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/packing'
+                    ? 'bg-blue-50 text-blue-950 font-bold border border-blue-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <PackageCheck className="w-4 h-4 text-blue-600" />
+                  <span>Station d'Emballage (AWB)</span>
+                </div>
+                {processingCount > 0 && (
+                  <span className="text-[10px] font-black bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
+                    {processingCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* 3. En livraison (Sendit) */}
-            <Link
-              href="/dashboard/tracking"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit'
-                  ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Truck className="w-4 h-4 text-indigo-600" />
-                <span>3. En livraison (Sendit)</span>
-              </div>
-              {inTransitCount > 0 && (
-                <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
-                  {inTransitCount}
-                </span>
-              )}
-            </Link>
+            {hasPermission('canAccessTracking') && (
+              <Link
+                href="/dashboard/tracking"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit'
+                    ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Truck className="w-4 h-4 text-indigo-600" />
+                  <span>3. En livraison (Sendit)</span>
+                </div>
+                {inTransitCount > 0 && (
+                  <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
+                    {inTransitCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* 4. Livrées & Encaissées */}
-            <Link
-              href="/dashboard/orders/completed"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/orders/completed'
-                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>4. Livrées & Encaissées</span>
-              </div>
-              {completedCount > 0 && (
-                <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
-                  {completedCount}
-                </span>
-              )}
-            </Link>
+            {(hasPermission('canAccessTracking') || hasPermission('canAccessOrders')) && (
+              <Link
+                href="/dashboard/orders/completed"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/orders/completed'
+                    ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>4. Livrées & Encaissées</span>
+                </div>
+                {completedCount > 0 && (
+                  <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
+                    {completedCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Retours & Refusés */}
-            <Link
-              href="/dashboard/orders/returns"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/orders/returns'
-                  ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <RotateCcw className="w-4 h-4 text-amber-600" />
-                <span>Retours & Refusés</span>
-              </div>
-              {returnedCount > 0 && (
-                <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
-                  {returnedCount}
-                </span>
-              )}
-            </Link>
+            {(hasPermission('canAccessTracking') || hasPermission('canAccessOrders')) && (
+              <Link
+                href="/dashboard/orders/returns"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/orders/returns'
+                    ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <RotateCcw className="w-4 h-4 text-amber-600" />
+                  <span>Retours & Refusés</span>
+                </div>
+                {returnedCount > 0 && (
+                  <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
+                    {returnedCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* SECTION 4: CATALOGUE & CLIENTS */}
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Catalogue & CRM
-              </span>
-            </div>
-
-            <Link
-              href="/dashboard/products"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/products'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Package className="w-4 h-4 text-slate-500" />
-              <span>Produits & Stock Hubs</span>
-            </Link>
-
-            <Link
-              href="/dashboard/customers"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/customers'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Users className="w-4 h-4 text-slate-500" />
-              <span>Clients & CRM</span>
-            </Link>
-
-            {/* Paniers abandonnés */}
-            <Link
-              href="/dashboard/orders/abandoned"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/orders/abandoned'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShoppingCart className="w-4 h-4 text-rose-500" />
-                <span>Paniers abandonnés</span>
+            {(hasPermission('canAccessProducts') || hasPermission('canAccessCustomers')) && (
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Catalogue & CRM
+                </span>
               </div>
-              <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200">
-                3
-              </span>
-            </Link>
+            )}
 
-            {/* Avis clients */}
-            <Link
-              href="/dashboard/orders/reviews"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/orders/reviews'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Star className="w-4 h-4 text-amber-500" />
-                <span>Avis clients</span>
-              </div>
-              <span className="text-[10px] font-bold text-amber-600">
-                ★ 4.9
-              </span>
-            </Link>
+            {hasPermission('canAccessProducts') && (
+              <Link
+                href="/dashboard/products"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/products'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Package className="w-4 h-4 text-slate-500" />
+                <span>Produits & Stock Hubs</span>
+              </Link>
+            )}
+
+            {hasPermission('canAccessCustomers') && (
+              <Link
+                href="/dashboard/customers"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/customers'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Users className="w-4 h-4 text-slate-500" />
+                <span>Clients & CRM</span>
+              </Link>
+            )}
 
             {/* SECTION 5: FINANCES & AUTOMATISATIONS */}
-            <div className="pt-3 pb-1 px-3">
-              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                Finances & Pilotage
-              </span>
-            </div>
-
-            <Link
-              href="/dashboard/finance"
-              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/finance'
-                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <Banknote className="w-4 h-4 text-emerald-600" />
-                <span>Finances & Virements COD</span>
+            {(hasPermission('canAccessFinance') || hasPermission('canAccessAutomations') || hasPermission('canAccessIntegrations')) && (
+              <div className="pt-3 pb-1 px-3">
+                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                  Finances & Pilotage
+                </span>
               </div>
-            </Link>
+            )}
 
-            <Link
-              href="/dashboard/automations"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/automations'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Zap className="w-4 h-4 text-slate-500" />
-              <span>Automatisations</span>
-            </Link>
+            {hasPermission('canAccessFinance') && (
+              <Link
+                href="/dashboard/finance"
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/finance'
+                    ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                  <span>Finances & Virements COD</span>
+                </div>
+              </Link>
+            )}
 
-            <Link
-              href="/dashboard/integrations"
-              className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/integrations'
-                  ? 'bg-slate-100 text-slate-900 font-bold'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              }`}
-            >
-              <Puzzle className="w-4 h-4 text-slate-500" />
-              <span>Intégrations & API Sendit</span>
-            </Link>
+            {hasPermission('canAccessAutomations') && (
+              <Link
+                href="/dashboard/automations"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/automations'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Zap className="w-4 h-4 text-slate-500" />
+                <span>Automatisations</span>
+              </Link>
+            )}
+
+            {hasPermission('canAccessIntegrations') && (
+              <Link
+                href="/dashboard/integrations"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/integrations'
+                    ? 'bg-slate-100 text-slate-900 font-bold'
+                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                }`}
+              >
+                <Puzzle className="w-4 h-4 text-slate-500" />
+                <span>Intégrations & API Sendit</span>
+              </Link>
+            )}
+
+            {/* SECTION 6: ADMINISTRATION & ÉQUIPE RBAC */}
+            {hasPermission('canAccessTeam') && (
+              <>
+                <div className="pt-3 pb-1 px-3">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                    Équipe & Rôles
+                  </span>
+                </div>
+
+                <Link
+                  href="/dashboard/team"
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                    pathname === '/dashboard/team' || pathname === '/dashboard/users'
+                      ? 'bg-purple-50 text-purple-950 font-bold border border-purple-200/80'
+                      : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Shield className="w-4 h-4 text-purple-600" />
+                    <span>Membres & Permissions</span>
+                  </div>
+                  <span className="text-[10px] font-black bg-purple-100 text-purple-800 px-1.5 py-0.5 rounded-full">
+                    RBAC
+                  </span>
+                </Link>
+              </>
+            )}
 
           </div>
 
@@ -939,20 +984,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </p>
             </div>
 
-            <Link
-              href="/dashboard/settings"
-              className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
-            >
-              <Settings className="w-4 h-4 text-slate-500" />
-              <span>Paramètres</span>
-            </Link>
+            {hasPermission('canAccessSettings') && (
+              <Link
+                href="/dashboard/settings"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-900 transition-colors"
+              >
+                <Settings className="w-4 h-4 text-slate-500" />
+                <span>Paramètres</span>
+              </Link>
+            )}
           </div>
 
         </aside>
 
-        {/* MAIN VIEW CONTENT CONTAINER */}
+        {/* MAIN VIEW CONTENT CONTAINER (With Route Protection) */}
         <main className="flex-1 min-w-0 overflow-x-auto pb-20 md:pb-6">
-          {children}
+          {isRouteAllowed ? children : <AccessDeniedScreen pathname={pathname} />}
         </main>
 
       </div>
@@ -976,49 +1023,67 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         {/* Tab 2: Orders */}
-        <Link
-          href="/dashboard/orders"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
-            isOrdersActive
-              ? 'text-teal-700 font-bold scale-105'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <ShoppingBag className={`w-5 h-5 ${isOrdersActive ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px]">Commandes</span>
-          {pendingCount > 0 && (
-            <span className="absolute -top-0.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-pulse">
-              {pendingCount}
-            </span>
-          )}
-        </Link>
+        {hasPermission('canAccessOrders') && (
+          <Link
+            href="/dashboard/orders"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
+              isOrdersActive
+                ? 'text-teal-700 font-bold scale-105'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <ShoppingBag className={`w-5 h-5 ${isOrdersActive ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px]">Commandes</span>
+            {pendingCount > 0 && (
+              <span className="absolute -top-0.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-pulse">
+                {pendingCount}
+              </span>
+            )}
+          </Link>
+        )}
 
         {/* Tab 3: WhatsApp Inbox */}
-        <Link
-          href="/dashboard/inbox"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
-            pathname === '/dashboard/inbox'
-              ? 'text-emerald-700 font-bold scale-105'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <MessageSquare className={`w-5 h-5 ${pathname === '/dashboard/inbox' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px]">Messages</span>
-          <span className="absolute -top-0.5 right-2 w-2 h-2 rounded-full bg-[#25D366] ring-2 ring-white" />
-        </Link>
+        {hasPermission('canAccessInbox') && (
+          <Link
+            href="/dashboard/inbox"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
+              pathname === '/dashboard/inbox'
+                ? 'text-emerald-700 font-bold scale-105'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <MessageSquare className={`w-5 h-5 ${pathname === '/dashboard/inbox' ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px]">Messages</span>
+            <span className="absolute -top-0.5 right-2 w-2 h-2 rounded-full bg-[#25D366] ring-2 ring-white" />
+          </Link>
+        )}
 
-        {/* Tab 4: AI Agents */}
-        <Link
-          href="/dashboard/ai-agents"
-          className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
-            pathname === '/dashboard/ai-agents'
-              ? 'text-teal-700 font-bold scale-105'
-              : 'text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          <Bot className={`w-5 h-5 ${pathname === '/dashboard/ai-agents' ? 'stroke-[2.5]' : ''}`} />
-          <span className="text-[10px]">Agents IA</span>
-        </Link>
+        {/* Tab 4: Packing Station or AI Agents */}
+        {hasPermission('canAccessPacking') ? (
+          <Link
+            href="/dashboard/packing"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+              pathname === '/dashboard/packing'
+                ? 'text-blue-700 font-bold scale-105'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <PackageCheck className={`w-5 h-5 ${pathname === '/dashboard/packing' ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px]">Emballage</span>
+          </Link>
+        ) : hasPermission('canAccessAiAgents') ? (
+          <Link
+            href="/dashboard/ai-agents"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+              pathname === '/dashboard/ai-agents'
+                ? 'text-teal-700 font-bold scale-105'
+                : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            <Bot className={`w-5 h-5 ${pathname === '/dashboard/ai-agents' ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px]">Agents IA</span>
+          </Link>
+        ) : null}
 
         {/* Tab 5: Menu / More */}
         <button

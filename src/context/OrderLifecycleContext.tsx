@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import { useRealtimeSync } from '@/hooks/useRealtimeSync';
 
 export type LifecycleStage =
   | 'PENDING_CONFIRMATION'
@@ -130,29 +131,42 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
   };
 
   // Fetch persisted orders from Hostinger MySQL Database on mount
-  useEffect(() => {
-    let isMounted = true;
-    const fetchDbOrders = async () => {
-      try {
-        setIsLoading(true);
-        const res = await fetch('/api/orders');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.success && Array.isArray(data.orders) && isMounted) {
-          setOrders(data.orders);
-        }
-      } catch (err) {
-        console.warn('[OrderLifecycleContext] DB fetch fallback to local:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+  // Fetch persisted orders from Hostinger MySQL Database
+  const fetchDbOrders = useCallback(async (silent = false) => {
+    try {
+      if (!silent) setIsLoading(true);
+      const res = await fetch('/api/orders');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && Array.isArray(data.orders)) {
+        setOrders(data.orders);
       }
-    };
-
-    fetchDbOrders();
-    return () => {
-      isMounted = false;
-    };
+    } catch (err) {
+      console.warn('[OrderLifecycleContext] DB fetch fallback to local:', err);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
   }, []);
+
+  // Initial load on mount + fallback polling
+  useEffect(() => {
+    fetchDbOrders();
+    const interval = setInterval(() => {
+      fetchDbOrders(true);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [fetchDbOrders]);
+
+  // 🔴 Real-Time Synchronization via SSE Stream from Hostinger MySQL
+  useRealtimeSync({
+    onEvent: (event) => {
+      console.log('[OrderLifecycleContext] 📡 Real-time update received:', event.eventType, event.entityId);
+      fetchDbOrders(true);
+      if (event.title) {
+        showToast(event.title, 'info');
+      }
+    },
+  });
 
     const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
     setToast({ message, type });

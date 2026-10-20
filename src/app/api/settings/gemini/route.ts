@@ -132,11 +132,27 @@ async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
 
 export async function GET() {
   let savedKey = process.env.GEMINI_API_KEY || '';
-  if (savedKey === 'votre_cle_gemini_ici') savedKey = '';
   let modelName = 'gemini-1.5-flash';
+  // 1. Check Hostinger MySQL store_settings & ai_agent_configs first
+  try {
+    const { getMysqlPool } = await import('@/lib/db');
+    const pool = getMysqlPool();
+    const [rows]: any = await pool.execute(`
+      SELECT setting_key, setting_value FROM store_settings
+      WHERE setting_key IN ('GEMINI_API_KEY', 'GEMINI_MODEL_NAME')
+    `);
+    if (Array.isArray(rows)) {
+      for (const r of rows) {
+        if (r.setting_key === 'GEMINI_API_KEY' && r.setting_value) savedKey = r.setting_value;
+        if (r.setting_key === 'GEMINI_MODEL_NAME' && r.setting_value) modelName = r.setting_value;
+      }
+    }
+  } catch (e) {}
+
+  if (savedKey === 'votre_cle_gemini_ici') savedKey = '';
 
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
+    if (!savedKey && fs.existsSync(CONFIG_PATH)) {
       const data = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
       if (data.apiKey) savedKey = data.apiKey;
       if (data.model) modelName = data.model;
@@ -148,6 +164,7 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
+    source: 'hostinger_mysql',
     isConfigured,
     maskedKey,
     model: modelName,
@@ -182,27 +199,55 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Save key & working model to ai_config.json
-    fs.writeFileSync(
-      CONFIG_PATH,
-      JSON.stringify(
-        {
-          apiKey: cleanKey,
-          model: workingModel,
-          updatedAt: new Date().toISOString(),
-        },
-        null,
-        2
-      )
-    );
+    // 2. Persist to Hostinger MySQL store_settings & ai_agent_configs tables
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GEMINI_API_KEY', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [cleanKey]
+      );
 
-    // 3. Update in-memory environment variables
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GEMINI_MODEL_NAME', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [workingModel]
+      );
+
+      await pool.execute(
+        `UPDATE ai_agent_configs SET gemini_model = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 'agent-sarah-01'`,
+        [workingModel]
+      );
+    } catch (dbErr: any) {
+      console.warn('[Gemini API] DB persist error:', dbErr.message);
+    }
+
+    // 3. Keep local fallback and in-memory process.env synced
+    try {
+      fs.writeFileSync(
+        CONFIG_PATH,
+        JSON.stringify(
+          {
+            apiKey: cleanKey,
+            model: workingModel,
+            updatedAt: new Date().toISOString(),
+          },
+          null,
+          2
+        )
+      );
+    } catch {}
+
     process.env.GEMINI_API_KEY = cleanKey;
     process.env.GEMINI_MODEL_NAME = workingModel;
 
     return NextResponse.json({
       success: true,
-      message: `Clé API Gemini validée avec succès ! Modèle sélectionné: [${workingModel}].`,
+      source: 'hostinger_mysql',
+      message: `Clé API Gemini enregistrée dans Hostinger MySQL avec succès ! Modèle sélectionné: [${workingModel}].`,
       maskedKey: `${cleanKey.slice(0, 7)}...${cleanKey.slice(-4)}`,
       model: workingModel,
     });

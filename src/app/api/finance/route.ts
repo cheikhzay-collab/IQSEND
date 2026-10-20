@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
+import { realtimeHub } from '@/lib/realtime-events';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,27 +30,30 @@ export async function GET() {
     const totalFeesDeducted = deliveredCount * shippingFeePerColis;
     const netPayout = Math.max(0, deliveredRevenue - totalFeesDeducted);
 
-    // Dynamic settlement records from DB
-    const settlements = [
-      {
-        ref: 'SND-PAY-2026-LIVE',
-        period: 'Semaine en cours (14 Oct - 20 Oct 2026)',
-        colisCount: deliveredCount,
-        feesDeducted: totalFeesDeducted,
-        netAmount: netPayout,
-        status: deliveredCount > 0 ? 'En cours de virement' : 'En attente',
-        bankAccount: 'Attijariwafa Bank (RIB: 007 780 0001234567890123 45)',
-      },
-      {
-        ref: 'SND-PAY-2026-ARCHIVE',
-        period: 'Semaine précédente (07 Oct - 13 Oct 2026)',
-        colisCount: Math.max(5, Math.floor(deliveredCount * 0.7)),
-        feesDeducted: Math.max(175, Math.floor(deliveredCount * 0.7) * 35),
-        netAmount: Math.max(1400, Math.floor(deliveredRevenue * 0.65)),
-        status: 'Viré sur compte ✓',
-        bankAccount: 'Attijariwafa Bank',
-      },
-    ];
+    // 2. Fetch recorded settlements from finance_transactions table
+    const [transRows]: any = await pool.execute(`
+      SELECT 
+        id, reference as ref, transaction_type, amount as netAmount, carrier, order_count as colisCount,
+        status, bank_account as bankAccount, receipt_url, created_at
+      FROM finance_transactions
+      ORDER BY created_at DESC
+    `);
+
+    let settlements: any[] = [];
+
+    if (Array.isArray(transRows) && transRows.length > 0) {
+      settlements = transRows.map((t: any) => ({
+        id: t.id,
+        ref: t.ref,
+        period: t.created_at ? `Relevé du ${new Date(t.created_at).toLocaleDateString('fr-FR')}` : 'Période en cours',
+        colisCount: t.colisCount,
+        feesDeducted: t.colisCount * 35,
+        netAmount: Number(t.netAmount),
+        status: t.status === 'RECONCILED' ? 'Viré sur compte ✓' : t.status === 'PROCESSED' ? 'En cours de virement' : 'En attente',
+        bankAccount: t.bankAccount || 'Attijariwafa Bank (RIB: 007 780 0001234567890123 45)',
+      }));
+      settlements = [];
+    }
 
     return NextResponse.json({
       success: true,
@@ -70,50 +74,99 @@ export async function GET() {
       settlements,
     });
   } catch (error: any) {
-    console.warn('[API Finance GET] DB error, using unified store fallback:', error.message);
-    const { getInboundOrders } = await import('@/lib/orders-store');
-    const inbound = getInboundOrders();
+    console.error('[API Finance GET] Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
+  }
+}
 
-    const delivered = inbound.filter((o) => o.stage === 'DELIVERED');
-    const inTransit = inbound.filter((o) => o.stage === 'IN_TRANSIT');
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { reference, amount, orderCount, carrier, bankAccount, status } = body;
 
-    const deliveredRevenue = delivered.reduce((sum, o) => sum + (o.payment?.amount || 0), 0);
-    const deliveredCount = delivered.length;
-    const inTransitRevenue = inTransit.reduce((sum, o) => sum + (o.payment?.amount || 0), 0);
-    const inTransitCount = inTransit.length;
+    if (!reference || amount === undefined) {
+      return NextResponse.json(
+        { success: false, error: 'Référence et montant requis' },
+        { status: 400 }
+      );
+    }
 
-    const totalFeesDeducted = deliveredCount * 35;
-    const netPayout = Math.max(0, deliveredRevenue - totalFeesDeducted);
+    const pool = getMysqlPool();
+    const id = body.id || `fin-${Date.now()}`;
 
-    const settlements = [
-      {
-        ref: 'SND-PAY-2026-LIVE',
-        period: 'Semaine en cours (14 Oct - 20 Oct 2026)',
-        colisCount: deliveredCount,
-        feesDeducted: totalFeesDeducted,
-        netAmount: netPayout,
-        status: deliveredCount > 0 ? 'En cours de virement' : 'En attente',
-        bankAccount: 'Attijariwafa Bank (RIB: 007 780 0001234567890123 45)',
-      },
-    ];
+    await pool.execute(
+      `INSERT INTO finance_transactions (
+        id, reference, transaction_type, amount, carrier, order_count, status, bank_account
+      ) VALUES (?, ?, 'COD_REMITTANCE', ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        amount = VALUES(amount),
+        order_count = VALUES(order_count),
+        status = VALUES(status),
+        bank_account = VALUES(bank_account)`,
+      [
+        id,
+        reference,
+        parseFloat(amount),
+        carrier || 'Sendit.ma',
+        parseInt(orderCount || 0, 10),
+        status || 'PENDING',
+        bankAccount || 'Attijariwafa Bank',
+      ]
+    );
+
+    realtimeHub.broadcast({
+      eventType: 'FINANCE_UPDATED',
+      entityType: 'FINANCE',
+      entityId: reference,
+      title: `Bordereau financier ${reference} enregistré (${amount} MAD)`,
+      payload: { reference, amount, status },
+      source: 'FINANCE_API',
+    }).catch(() => {});
 
     return NextResponse.json({
       success: true,
-      source: 'memory_fallback',
-      kpis: {
-        totalDeliveredCOD: deliveredRevenue,
-        totalDeliveredFormatted: `${deliveredRevenue.toLocaleString('fr-FR')} MAD`,
-        deliveredCount,
-        shippingFees: totalFeesDeducted,
-        shippingFeesFormatted: `${totalFeesDeducted.toLocaleString('fr-FR')} MAD`,
-        netPayout,
-        netPayoutFormatted: `${netPayout.toLocaleString('fr-FR')} MAD`,
-        inTransitRevenue,
-        inTransitCount,
-        recoverySavings: 14600,
-        recoverySavingsFormatted: '+14,600 MAD',
-      },
-      settlements,
+      message: 'Transaction financière enregistrée avec succès dans MySQL !',
+      id,
     });
+  } catch (error: any) {
+    console.error('[API Finance POST] Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { reference, status } = body;
+
+    if (!reference || !status) {
+      return NextResponse.json({ success: false, error: 'Référence et nouveau statut requis' }, { status: 400 });
+    }
+
+    const pool = getMysqlPool();
+    await pool.execute(
+      `UPDATE finance_transactions SET status = ? WHERE reference = ? OR id = ?`,
+      [status, reference, reference]
+    );
+
+    realtimeHub.broadcast({
+      eventType: 'FINANCE_UPDATED',
+      entityType: 'FINANCE',
+      entityId: reference,
+      title: `Bordereau ${reference} mis à jour : ${status}`,
+      payload: { reference, status },
+      source: 'FINANCE_API',
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      message: `Statut du bordereau mis à jour vers "${status}" avec succès !`,
+    });
+  } catch (error: any) {
+    console.error('[API Finance PATCH] Error:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

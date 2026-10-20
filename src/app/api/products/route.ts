@@ -133,6 +133,76 @@ export async function POST(req: Request) {
       ]
     );
 
+    // Also persist individual variants into product_variants table if provided
+    if (Array.isArray(variants) && variants.length > 0) {
+      for (let i = 0; i < variants.length; i++) {
+        const vg = variants[i];
+        if (Array.isArray(vg.options)) {
+          for (let j = 0; j < vg.options.length; j++) {
+            const opt = vg.options[j];
+            const varId = `var-${id.replace('prod-', '')}-${i}-${j}`;
+            const varSku = `${sku}-${(vg.type || 'V').slice(0, 1).toUpperCase()}${j + 1}`;
+            try {
+              await pool.execute(
+                `INSERT INTO product_variants (
+                  id, product_id, title, sku, attributes, price_extra, stock_quantity, barcode, is_active
+                ) VALUES (?, ?, ?, ?, ?, 0.00, ?, ?, TRUE)
+                ON DUPLICATE KEY UPDATE
+                  title = VALUES(title),
+                  attributes = VALUES(attributes),
+                  stock_quantity = VALUES(stock_quantity),
+                  updated_at = CURRENT_TIMESTAMP`,
+                [
+                  varId,
+                  id,
+                  `${name} - ${vg.name || vg.type}: ${opt}`,
+                  varSku,
+                  JSON.stringify({ group: vg.name || vg.type, option: opt }),
+                  Math.max(1, Math.floor(parseInt(finalStock, 10) / (vg.options.length || 1))),
+                  `BAR-${sku}-${j + 1}`,
+                ]
+              );
+            } catch (varErr) {
+              console.warn('[API Products POST] Variant upsert note:', varErr);
+            }
+          }
+        }
+      }
+    }
+
+    // Record inventory audit trail into stock_movements table
+    try {
+      const movementId = `mov-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      await pool.execute(
+        `INSERT INTO stock_movements (
+          id, product_id, sku, type, quantity, previous_stock, new_stock, reason, created_by
+        ) VALUES (?, ?, ?, 'ADJUSTMENT', ?, 0, ?, ?, 'CATALOG_EDITOR')`,
+        [
+          movementId,
+          id,
+          sku,
+          parseInt(finalStock, 10),
+          parseInt(finalStock, 10),
+          'Mise à jour du stock catalogue via l interface produit',
+        ]
+      );
+    } catch (movErr) {
+      console.warn('[API Products POST] Stock movement log note:', movErr);
+    }
+
+    // Broadcast live update across all connected dashboards
+    try {
+      const { realtimeHub } = await import('@/lib/realtime-events');
+      realtimeHub.broadcast({
+        eventType: 'PRODUCT_UPDATED',
+        entityType: 'PRODUCT',
+        entityId: id,
+        title: `Produit "${name}" mis à jour dans le catalogue`,
+        payload: { id, name, sku, price: parseFloat(finalPrice), stock: parseInt(finalStock, 10) },
+        source: 'PRODUCTS_API',
+      }).catch(() => {});
+    } catch {}
+
     // Also update in-memory catalog
     saveOrUpdateProductInStore({
       id,
@@ -158,7 +228,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: 'Produit et directives IA enregistrés avec succès dans MySQL !',
+      message: 'Produit, déclinaisons et directives IA enregistrés avec succès dans MySQL !',
       productId: id,
     });
   } catch (error) {
