@@ -11,7 +11,9 @@ import {
   FileText,
   ShoppingCart,
   Star,
-  Kanban
+  Kanban,
+  XCircle,
+  RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
@@ -21,7 +23,14 @@ interface OrderLifecycleTabsProps {
 
 export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps) {
   const pathname = usePathname();
-  const { pendingCount, processingCount, inTransitCount, completedCount } = useOrderLifecycle();
+  const {
+    pendingCount,
+    processingCount,
+    inTransitCount,
+    completedCount,
+    canceledCount,
+    returnedCount
+  } = useOrderLifecycle();
 
   const tabs = [
     {
@@ -74,8 +83,24 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     {
       id: 'drafts',
       href: '/dashboard/orders/drafts',
-      label: 'Brouillons',
+      label: 'Drafts',
       icon: FileText,
+    },
+    {
+      id: 'canceled',
+      href: '/dashboard/orders/canceled',
+      label: 'Annulées',
+      icon: XCircle,
+      badge: canceledCount,
+      badgeColor: 'bg-rose-500 text-white',
+    },
+    {
+      id: 'returns',
+      href: '/dashboard/orders/returns',
+      label: 'Retours & Refusés',
+      icon: RotateCcw,
+      badge: returnedCount,
+      badgeColor: 'bg-amber-600 text-white',
     },
     {
       id: 'abandoned',

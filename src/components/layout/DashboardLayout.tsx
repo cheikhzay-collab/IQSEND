@@ -33,7 +33,9 @@ import {
   Compass,
   ArrowRight,
   PackageCheck,
-  Banknote
+  Banknote,
+  XCircle,
+  RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -51,6 +53,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     processingCount,
     inTransitCount,
     completedCount,
+    canceledCount,
+    returnedCount,
     toast,
     clearToast,
   } = useOrderLifecycle();
@@ -98,7 +102,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       badge: processingCount > 0 ? processingCount : undefined,
     },
     {
-      label: 'Suivi Chauffeurs Sendit',
+      label: 'Suivi Colis',
       href: '/dashboard/tracking',
       icon: Truck,
       badge: inTransitCount > 0 ? inTransitCount : undefined,
@@ -666,7 +670,47 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     }`}
                   >
                     <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Brouillons</span>
+                    <span>Drafts</span>
+                  </Link>
+
+                  {/* Annulées (Confirmation) */}
+                  <Link
+                    href="/dashboard/orders/canceled"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/canceled'
+                        ? 'bg-rose-50 text-rose-950 font-bold border border-rose-200/80'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                      <span className="truncate">Annulées (Confirmation)</span>
+                    </div>
+                    {canceledCount > 0 && (
+                      <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
+                        {canceledCount}
+                      </span>
+                    )}
+                  </Link>
+
+                  {/* Retours & Refusés (Livraison) */}
+                  <Link
+                    href="/dashboard/orders/returns"
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
+                      pathname === '/dashboard/orders/returns'
+                        ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 truncate">
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="truncate">Retours & Refusés</span>
+                    </div>
+                    {returnedCount > 0 && (
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0">
+                        {returnedCount}
+                      </span>
+                    )}
                   </Link>
 
                   {/* Abandoned Carts */}
@@ -812,7 +856,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             </Link>
 
-            {/* Tracking Drivers */}
+            {/* Suivi Colis */}
             <Link
               href="/dashboard/tracking"
               className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
@@ -823,7 +867,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
               <div className="flex items-center gap-3">
                 <Truck className="w-4 h-4 text-indigo-600" />
-                <span>Suivi Chauffeurs Sendit</span>
+                <span>Suivi Colis</span>
               </div>
               {inTransitCount > 0 && (
                 <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">

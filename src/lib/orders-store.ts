@@ -551,7 +551,7 @@ export function updateOrderStatus(orderId: string, stage: OrderStage | string): 
     targetStage = 'IN_TRANSIT';
   } else if (stage === 'DELIVERED' || stage === 'DELIVERED_PAID' || stage === 'COMPLETED') {
     targetStage = 'DELIVERED';
-  } else if (stage === 'CANCELED' || stage === 'CANCELLED') {
+  } else if (stage === 'CANCELED' || stage === 'CANCELLED' || stage === 'RETURNED' || stage === 'REFUSED') {
     targetStage = 'CANCELLED';
   }
 

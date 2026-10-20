@@ -7,7 +7,8 @@ export type LifecycleStage =
   | 'PROCESSING'
   | 'IN_TRANSIT'
   | 'COMPLETED'
-  | 'CANCELED';
+  | 'CANCELED'
+  | 'RETURNED';
 
 export interface OrderItemDetail {
   id: string;
@@ -658,6 +659,165 @@ const INITIAL_LIFECYCLE_ORDERS: LifecycleOrder[] = [
       returnStatus: 'NONE',
     },
   },
+
+  // ── 5. CANCELED (Annulées lors de la confirmation - Avant expédition) ───────
+  {
+    id: 'ord-1058',
+    orderNumber: '#AT1058',
+    stage: 'CANCELED',
+    createdAt: 'Il y a 3 heures',
+    customer: {
+      name: 'Younes Filali',
+      phone: '0661778899',
+      address: 'Route d’Immouzer, Résidence Les Fleurs Appt 12',
+      city: 'Fès',
+      notes: 'Annulé lors de l\'appel : Le client a changé d\'avis (Trouvé moins cher ailleurs)',
+    },
+    items: [
+      {
+        id: 'it-9',
+        name: 'Sac à Dos Cuir Véritable Vintage',
+        sku: 'BAG-LEA-BRN',
+        thumbnail: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 390,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 390,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    aiVerification: {
+      status: 'NEEDS_REVIEW',
+      riskScore: 40,
+      notes: 'Annulation confirmée par l\'agent téléphonique du call center.',
+    },
+  },
+  {
+    id: 'ord-1060',
+    orderNumber: '#AT1060',
+    stage: 'CANCELED',
+    createdAt: 'Il y a 5 heures',
+    customer: {
+      name: 'Karim Mansouri',
+      phone: '0677889900',
+      address: 'Boulevard Mohamed V, Résidence El Manar',
+      city: 'Tanger',
+      notes: 'Injoignable / Client injoignable après 3 tentatives d\'appels et WhatsApp sans réponse.',
+    },
+    items: [
+      {
+        id: 'it-10',
+        name: 'Montre Connectée Sport Waterproof',
+        sku: 'WTC-SPT-BLK',
+        thumbnail: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 299,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 299,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+  },
+
+  // ── 6. RETURNED (Colis Refusés / Retours - Chez la société de livraison) ────
+  {
+    id: 'ord-1061',
+    orderNumber: '#AT1061',
+    stage: 'RETURNED',
+    createdAt: '17 Oct 2026',
+    customer: {
+      name: 'Adil Cherif',
+      phone: '0661334455',
+      address: 'Boulevard Zerktouni, Immeuble 55, Maarif',
+      city: 'Casablanca',
+      notes: 'Colis refusé : Le client indique n\'avoir pas commandé ou ne pas disposer de la somme.',
+    },
+    items: [
+      {
+        id: 'it-11',
+        name: 'Chaussures Cuir Derby Italien',
+        sku: 'SHS-DRB-42',
+        thumbnail: 'https://images.unsplash.com/photo-1614252235316-8c857d38b5f4?w=300&auto=format&fit=crop&q=80',
+        size: '42',
+        color: 'Noir',
+        quantity: 1,
+        price: 499,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 499,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    shipping: {
+      courier: 'Sendit.ma Express',
+      trackingNumber: 'SND-892100',
+      liveStatus: 'FAILED_ATTEMPT',
+      lastUpdated: '18 Oct 16:30 (Colis en retour au Hub Ain Sebaâ)',
+      driverName: 'Rachid B.',
+      driverPhone: '0661908070',
+      failedReason: 'Client refuse le colis : Pas d\'argent liquide disponible au moment du passage.',
+      deliveryAttempts: 2,
+    },
+    completed: {
+      deliveredAt: '',
+      podType: 'CUSTOMER_SIGNATURE',
+      settlementStatus: 'PENDING_TRANSFER',
+      returnStatus: 'REQUESTED',
+    },
+  },
+  {
+    id: 'ord-1062',
+    orderNumber: '#AT1062',
+    stage: 'RETURNED',
+    createdAt: '16 Oct 2026',
+    customer: {
+      name: 'Ibtissam Alaoui',
+      phone: '0672556677',
+      address: 'Secteur 10, Hay Riad, Villa 45',
+      city: 'Rabat',
+      notes: 'Injoignable après 3 tentatives de livraison.',
+    },
+    items: [
+      {
+        id: 'it-12',
+        name: 'Robe Caftan Moderne en Soie',
+        sku: 'CFT-MDN-SLK',
+        thumbnail: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=300&auto=format&fit=crop&q=80',
+        quantity: 1,
+        price: 580,
+      },
+    ],
+    payment: {
+      method: 'COD',
+      amount: 580,
+      currency: 'MAD',
+      status: 'PENDING',
+    },
+    shipping: {
+      courier: 'Sendit.ma Express',
+      trackingNumber: 'SND-843219',
+      liveStatus: 'FAILED_ATTEMPT',
+      lastUpdated: '19 Oct 11:15 (Reçu au Hub Central)',
+      driverName: 'Hamza K.',
+      driverPhone: '0662334455',
+      failedReason: 'Client injoignable après 3 tentatives de passage du livreur.',
+      deliveryAttempts: 3,
+    },
+    completed: {
+      deliveredAt: '',
+      podType: 'CUSTOMER_SIGNATURE',
+      settlementStatus: 'PENDING_TRANSFER',
+      returnStatus: 'RETURNED',
+    },
+  },
 ];
 
 interface OrderLifecycleContextType {
@@ -666,6 +826,8 @@ interface OrderLifecycleContextType {
   processingCount: number;
   inTransitCount: number;
   completedCount: number;
+  canceledCount: number;
+  returnedCount: number;
   toast: { message: string; type: 'success' | 'info' | 'error' } | null;
   clearToast: () => void;
   showToast: (message: string, type?: 'success' | 'info' | 'error') => void;
@@ -678,6 +840,9 @@ interface OrderLifecycleContextType {
   shipOrder: (orderId: string) => void;
   rescheduleDelivery: (orderId: string, newDate: string, note?: string) => void;
   markDelivered: (orderId: string) => void;
+  markReturned: (orderId: string, reason: string) => void;
+  reactivateOrder: (orderId: string) => void;
+  reintegrateStock: (orderId: string) => void;
   requestReview: (orderId: string) => void;
   processReturn: (orderId: string, reason: string) => void;
   addOrder: (newOrder: LifecycleOrder) => void;
@@ -743,6 +908,14 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
   );
   const completedCount = useMemo(
     () => orders.filter((o) => o.stage === 'COMPLETED').length,
+    [orders]
+  );
+  const canceledCount = useMemo(
+    () => orders.filter((o) => o.stage === 'CANCELED').length,
+    [orders]
+  );
+  const returnedCount = useMemo(
+    () => orders.filter((o) => o.stage === 'RETURNED').length,
     [orders]
   );
 
@@ -998,7 +1171,79 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     showToast(`Procédure de retour/échange initiée: ticket #${orderId}-RET généré.`, 'info');
   };
 
-  // 10. Add New Inbound Order (From Google Sheets or Webhook)
+  // 10. Mark Returned / Refused during delivery
+  const markReturned = (orderId: string, reason: string) => {
+    syncStageToDb(orderId, 'RETURNED');
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          stage: 'RETURNED',
+          shipping: order.shipping
+            ? {
+                ...order.shipping,
+                liveStatus: 'FAILED_ATTEMPT',
+                failedReason: reason,
+                lastUpdated: 'Colis refusé - En retour vers le Hub',
+              }
+            : {
+                courier: 'Sendit.ma Express',
+                trackingNumber: `SND-${Math.floor(800000 + Math.random() * 99999)}`,
+                liveStatus: 'FAILED_ATTEMPT',
+                lastUpdated: 'Colis refusé - En retour vers le Hub',
+                failedReason: reason,
+                deliveryAttempts: 1,
+              },
+          completed: {
+            deliveredAt: '',
+            podType: 'CUSTOMER_SIGNATURE',
+            settlementStatus: 'PENDING_TRANSFER',
+            returnStatus: 'REQUESTED',
+          },
+        };
+      })
+    );
+    showToast(`Colis marqué comme refusé/retourné (${reason}). Transféré vers Retours.`, 'info');
+  };
+
+  // 11. Reactivate Order (Return back to confirmation stage)
+  const reactivateOrder = (orderId: string) => {
+    syncStageToDb(orderId, 'PENDING_CONFIRMATION');
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          stage: 'PENDING_CONFIRMATION',
+        };
+      })
+    );
+    showToast(`Commande ${orderId} réactivée et replacée en attente de confirmation.`, 'success');
+  };
+
+  // 12. Reintegrate Stock
+  const reintegrateStock = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((order) => {
+        if (order.id !== orderId) return order;
+        return {
+          ...order,
+          completed: {
+            ...(order.completed || {
+              deliveredAt: '',
+              podType: 'CUSTOMER_SIGNATURE',
+              settlementStatus: 'PENDING_TRANSFER',
+            }),
+            returnStatus: 'RETURNED',
+          },
+        };
+      })
+    );
+    showToast(`Articles réintégrés au stock avec succès.`, 'success');
+  };
+
+  // 13. Add New Inbound Order (From Google Sheets or Webhook)
   const addOrder = (newOrder: LifecycleOrder) => {
     setOrders((prev) => {
       if (prev.some((o) => o.id === newOrder.id || o.orderNumber === newOrder.orderNumber)) {
@@ -1019,7 +1264,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     showToast(`📦 Nouvelle commande reçue en confirmation : ${newOrder.orderNumber} (${newOrder.customer.name})`, 'success');
   };
 
-  // 11. Refresh Inbound Orders from Webhook API
+  // 14. Refresh Inbound Orders from Webhook API
   const refreshInboundOrders = async () => {
     try {
       const res = await fetch('/api/webhooks/google-sheets');
@@ -1049,7 +1294,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   };
 
-  // 12. Direct stage transition for Kanban Drag & Drop
+  // 15. Direct stage transition for Kanban Drag & Drop
   const moveOrderStage = (orderId: string, targetStage: LifecycleStage) => {
     if (targetStage === 'PROCESSING') {
       confirmOrder(orderId);
@@ -1065,6 +1310,10 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
     if (targetStage === 'CANCELED') {
       cancelOrder(orderId);
+      return;
+    }
+    if (targetStage === 'RETURNED') {
+      markReturned(orderId, 'Déplacé vers Retours & Refusés');
       return;
     }
     if (targetStage === 'PENDING_CONFIRMATION') {
@@ -1096,6 +1345,8 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         processingCount,
         inTransitCount,
         completedCount,
+        canceledCount,
+        returnedCount,
         toast,
         clearToast,
         confirmOrder,
@@ -1106,6 +1357,9 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         shipOrder,
         rescheduleDelivery,
         markDelivered,
+        markReturned,
+        reactivateOrder,
+        reintegrateStock,
         requestReview,
         processReturn,
         addOrder,

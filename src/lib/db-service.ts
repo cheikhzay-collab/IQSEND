@@ -26,6 +26,9 @@ export function mapStageToDbStatus(stage: string): string {
     case 'CANCELED':
     case 'CANCELLED':
       return 'CANCELED';
+    case 'RETURNED':
+    case 'REFUSED':
+      return 'DELIVERY_FAILED';
     default:
       return 'NEW';
   }
@@ -44,9 +47,10 @@ export function mapDbStatusToStage(status: string): LifecycleStage {
       return 'IN_TRANSIT';
     case 'DELIVERED_PAID':
       return 'COMPLETED';
+    case 'DELIVERY_FAILED':
+      return 'RETURNED';
     case 'CANCELED':
     case 'DUPLICATE':
-    case 'DELIVERY_FAILED':
       return 'CANCELED';
     default:
       return 'PENDING_CONFIRMATION';

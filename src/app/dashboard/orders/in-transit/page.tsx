@@ -16,7 +16,8 @@ import {
   Navigation,
   Sparkles,
   User,
-  Bot
+  Bot,
+  RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
@@ -32,6 +33,7 @@ export default function InTransitOrdersPage() {
     orders,
     markDelivered,
     rescheduleDelivery,
+    markReturned,
     inTransitCount,
   } = useOrderLifecycle();
 
@@ -41,6 +43,8 @@ export default function InTransitOrdersPage() {
 
   // Modals & States
   const [reschedulingOrder, setReschedulingOrder] = useState<LifecycleOrder | null>(null);
+  const [refusingOrder, setRefusingOrder] = useState<LifecycleOrder | null>(null);
+  const [refusalReason, setRefusalReason] = useState('Client refuse le colis : Pas d\'argent disponible');
   const [trackingModalOrder, setTrackingModalOrder] = useState<LifecycleOrder | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [rescueToast, setRescueToast] = useState<string | null>(null);
@@ -501,6 +505,19 @@ export default function InTransitOrdersPage() {
                             <span>Reprogrammer</span>
                           </button>
 
+                          {/* Report Refusal / Return */}
+                          <button
+                            onClick={() => {
+                              setRefusingOrder(order);
+                              setRefusalReason('Client refuse le colis : Pas d\'argent liquide disponible');
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors"
+                            title="Signaler un refus ou échec de livraison (Transférer vers Retours)"
+                          >
+                            <RotateCcw className="w-3 h-3 text-rose-600" />
+                            <span>Refus / Retour</span>
+                          </button>
+
                           {/* Mark Delivered (Primary Completion Action) */}
                           <button
                             onClick={() => markDelivered(order.id)}
@@ -616,6 +633,88 @@ export default function InTransitOrdersPage() {
                 className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl"
               >
                 Fermer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Refusal / Return Modal */}
+      {refusingOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md p-6 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <RotateCcw className="w-5 h-5 text-rose-600" />
+                <h3 className="font-black text-sm text-slate-900">
+                  Signaler un Refus / Retour — {refusingOrder.orderNumber}
+                </h3>
+              </div>
+              <button
+                onClick={() => setRefusingOrder(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600">
+              Le colis a été pris en charge par le transporteur mais le client refuse la livraison ou est injoignable. Cette commande sera transférée vers <strong>Retours & Refusés</strong>.
+            </p>
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-slate-700 block">
+                Motif du refus ou échec de livraison :
+              </label>
+              <select
+                value={refusalReason}
+                onChange={(e) => setRefusalReason(e.target.value)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-rose-500"
+              >
+                <option value="Client refuse le colis : Pas d'argent liquide disponible">
+                  Client refuse : Pas d'argent liquide disponible
+                </option>
+                <option value="Client refuse le colis : N'a pas commandé / Changement d'avis à la porte">
+                  Client refuse : N'a pas commandé / Changement d'avis
+                </option>
+                <option value="Client injoignable après multiples tentatives de passage">
+                  Client injoignable après multiples passages
+                </option>
+                <option value="Adresse erronée / Zone géographique non desservie">
+                  Adresse erronée / Hors zone
+                </option>
+                <option value="Colis endommagé lors du transport">
+                  Colis endommagé lors du transport
+                </option>
+              </select>
+            </div>
+
+            <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-[11px] text-amber-900 space-y-1">
+              <p className="font-bold">Conséquences logistiques :</p>
+              <ul className="list-disc list-inside text-[10px] text-amber-800 space-y-0.5">
+                <li>Le colis est marqué en retour vers le Hub de tri.</li>
+                <li>Le stock ne sera pas réintégré tant que le colis n'est pas physiquement réceptionné.</li>
+                <li>Montant COD ({refusingOrder.payment.amount} MAD) retiré des encaissements attendus.</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setRefusingOrder(null)}
+                className="px-4 py-2 border border-slate-200 text-slate-700 font-bold text-xs rounded-xl hover:bg-slate-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  markReturned(refusingOrder.id, refusalReason);
+                  setRefusingOrder(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
+              >
+                Confirmer Refus & Retour
               </button>
             </div>
           </div>

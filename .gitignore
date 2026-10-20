@@ -40,3 +40,7 @@ whatsapp_sessions/
 
 # scratch / temp scripts
 scratch/
+
+# local dynamic config files
+sendit_config.json
+ai_config.json
