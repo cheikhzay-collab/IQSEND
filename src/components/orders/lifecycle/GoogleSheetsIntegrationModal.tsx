@@ -10,7 +10,13 @@ import {
   X,
   Play,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  Download,
+  Link as LinkIcon,
+  RefreshCw,
+  Table,
+  Zap,
+  Info
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
@@ -20,9 +26,27 @@ interface GoogleSheetsIntegrationModalProps {
 }
 
 export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIntegrationModalProps) {
-  const { refreshInboundOrders } = useOrderLifecycle();
+  const { refreshInboundOrders, showToast } = useOrderLifecycle();
+  
+  // Tabs: 'template' | 'direct-sync' | 'webhook'
+  const [activeTab, setActiveTab] = useState<'template' | 'direct-sync' | 'webhook'>('template');
+
+  // Copy states
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedHeaders, setCopiedHeaders] = useState(false);
+  const [copiedFullTemplate, setCopiedFullTemplate] = useState(false);
+
+  // Direct Sheet Sync states
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [syncResult, setSyncResult] = useState<{
+    success: boolean;
+    message?: string;
+    count?: number;
+  } | null>(null);
+
+  // Webhook Simulation states
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationResult, setSimulationResult] = useState<{
     success: boolean;
@@ -36,59 +60,337 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
     ? `${window.location.origin}/api/webhooks/google-sheets`
     : 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets';
 
-  const scriptCode = `// ==============================================================
-// Script de synchronisation automatique avec la plateforme SENDIT COD
-// Transmet chaque commande ajoutée dans Google Sheets directement en "En attente"
-// ==============================================================
+  const headersList = ['Date', 'Nom Client', 'Téléphone', 'Ville', 'Adresse', 'Produit', 'Quantité', 'Prix COD (MAD)', 'Remarques'];
 
-function onEdit(e) {
-  // Ou configurez-le comme déclencheur "Lors de l'envoi du formulaire" (On form submit)
-  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-  var row = e ? e.range.getRow() : sheet.getLastRow();
-  if (row <= 1) return; // Ignorer la ligne d'en-tête
+  const sampleRows = [
+    {
+      date: '2026-10-20',
+      name: 'Youssef El Amrani',
+      phone: '0661998877',
+      city: 'Marrakech',
+      address: 'Guéliz, Immeuble Atlas, Appt 6',
+      product: 'Montre Luxe Or Noir',
+      qty: 1,
+      price: '349 MAD',
+      notes: 'Appeler avant 14h',
+    },
+    {
+      date: '2026-10-20',
+      name: 'Amina Benjelloun',
+      phone: '0672112233',
+      city: 'Fès',
+      address: 'Route Ain Chkef, Résidence Narjiss',
+      product: 'Pack Caftan Moderne',
+      qty: 1,
+      price: '490 MAD',
+      notes: 'Livraison express souhaitée',
+    },
+    {
+      date: '2026-10-20',
+      name: 'Tariq Alami',
+      phone: '0654334455',
+      city: 'Casablanca',
+      address: 'Bd Zerktouni, Quartier Maârif',
+      product: 'Sneakers Sport Élite',
+      qty: 2,
+      price: '598 MAD',
+      notes: 'Espèces à la livraison',
+    },
+    {
+      date: '2026-10-20',
+      name: 'Houda Tazi',
+      phone: '0663778899',
+      city: 'Tanger',
+      address: 'Tanger Balia, Complexe Ennasr',
+      product: 'Sac Cuir Artisanal',
+      qty: 1,
+      price: '380 MAD',
+      notes: 'Confirmation WhatsApp',
+    },
+    {
+      date: '2026-10-20',
+      name: 'Karim Bennani',
+      phone: '0611223344',
+      city: 'Rabat',
+      address: 'Agdal, Rue Oukaimeden, Imm 12',
+      product: 'Pack Soins Bio Maroc',
+      qty: 1,
+      price: '299 MAD',
+      notes: 'Livrer l\'après-midi',
+    },
+  ];
 
-  var data = sheet.getRange(row, 1, 1, sheet.getLastColumn()).getValues()[0];
-  
-  // Ajustez les indices de colonnes selon votre feuille (index commence à 0) :
-  // Colonne A = data[0], Colonne B = data[1], Colonne C = data[2] ...
-  var payload = {
-    name: data[1] || data[0],             // Nom du client
-    phone: data[2] || "",                 // Numéro de téléphone
-    city: data[3] || "Casablanca",        // Ville
-    address: data[4] || "",               // Adresse complète
-    product: data[5] || "Pack COD",       // Nom du produit
-    quantity: data[6] || 1,               // Quantité
-    price: data[7] || 299,                // Montant en MAD
-    notes: data[8] || "Commande Sheets"   // Remarques client
+  const copyFullTemplateToClipboard = () => {
+    const fullText = [
+      headersList.join('\t'),
+      ...sampleRows.map((r) => [r.date, r.name, r.phone, r.city, `"${r.address}"`, r.product, r.qty, r.price.replace(' MAD', ''), r.notes].join('\t')),
+    ].join('\n');
+    navigator.clipboard.writeText(fullText);
+    setCopiedFullTemplate(true);
+    setTimeout(() => setCopiedFullTemplate(false), 2500);
+    showToast('تم نسخ النموذج كاملاً! افتح Google Sheets واضغط Ctrl+V', 'success');
   };
 
-  // Transmission instantanée au webhook de confirmation
-  var options = {
-    method: "post",
-    contentType: "application/json",
-    payload: JSON.stringify(payload),
-    muteHttpExceptions: true
-  };
-
-  try {
-    var response = UrlFetchApp.fetch("${webhookUrl}", options);
-    Logger.log("Commande transmise avec succès : " + response.getContentText());
-  } catch (err) {
-    Logger.log("Erreur lors de la transmission : " + err.toString());
-  }
-}`;
-
-  const copyToClipboard = (text: string, isUrl: boolean) => {
-    navigator.clipboard.writeText(text);
-    if (isUrl) {
-      setCopiedUrl(true);
-      setTimeout(() => setCopiedUrl(false), 2000);
-    } else {
-      setCopiedCode(true);
-      setTimeout(() => setCopiedCode(false), 2000);
+  const handleDemoImport = async () => {
+    setIsSyncingSheet(true);
+    setSyncResult(null);
+    try {
+      const res = await fetch('/api/google-sheets/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isDemo: true, sheetUrl: 'DEMO' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncResult({
+          success: true,
+          count: data.importedCount,
+          message: `✅ ${data.importedCount} طلبات تجريبية تم استيرادها بنجاح إلى مرحلة التأكيد!`,
+        });
+        await refreshInboundOrders();
+        showToast(`${data.importedCount} commandes importées avec succès !`, 'success');
+      } else {
+        setSyncResult({
+          success: false,
+          message: data.error || 'Erreur lors de l\'importation de test.',
+        });
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: err.message || 'Impossible de joindre le serveur.',
+      });
+    } finally {
+      setIsSyncingSheet(false);
     }
   };
 
+  // Smart Google Apps Script with dynamic column header lookup & Auto-Trigger
+  const smartScriptCode = `// ==============================================================
+// 🚀 SENDIT COD Platform - Script Universel Google Sheets (Auto-Sync)
+// نقل الطلبات تلقائياً وفورياً إلى مرحلة التأكيد (Confirmation)
+// ==============================================================
+
+var WEBHOOK_URL = "${webhookUrl}";
+
+/**
+ * 1. إضافة قائمة تحكم علوية تلقائية في الشيت
+ */
+function onOpen() {
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('🚀 SENDIT Platform')
+    .addItem('⚡ 1. تفعيل المزامنة التلقائية (Activer Auto-Sync)', 'setupAutoSyncTrigger')
+    .addItem('🔄 2. إرسال الطلبات الجديدة الآن (Envoyer Maintenant)', 'syncNewOrders')
+    .addItem('ℹ️ 3. فحص الاتصال بالمنصة (Tester la Connexion)', 'testConnection')
+    .addToUi();
+}
+
+/**
+ * 2. تفعيل المشغل التلقائي بنقرة واحدة (Installable Trigger)
+ */
+function setupAutoSyncTrigger() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var triggers = ScriptApp.getUserTriggers(ss);
+  for (var i = 0; i < triggers.length; i++) {
+    var fn = triggers[i].getHandlerFunction();
+    if (fn === 'onSheetOrderChange' || fn === 'syncNewOrders') {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // مشغل فوري عند كتابة أو تعديل أي سطر
+  ScriptApp.newTrigger('onSheetOrderChange')
+    .forSpreadsheet(ss)
+    .onEdit()
+    .create();
+
+  // مشغل دوري كل دقيقة للتحقق من أي طلبات مجمعة
+  ScriptApp.newTrigger('syncNewOrders')
+    .timeBased()
+    .everyMinutes(1)
+    .create();
+
+  syncNewOrders();
+
+  SpreadsheetApp.getUi().alert(
+    '✅ تم تفعيل المزامنة التلقائية بنجاح !\\n\\n' +
+    'الآن أي طلب جديد يتم إدخاله سيتحول تلقائياً إلى منصة SENDIT فوراً مع تسجيل حالة المزامنة.'
+  );
+}
+
+function onSheetOrderChange(e) {
+  syncNewOrders();
+}
+
+/**
+ * 3. دالة فحص الطلبات غير المرسلة وإرسالها
+ */
+function syncNewOrders() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow <= 1 || lastCol < 1) return 0;
+
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  function findColIndex(keywords) {
+    for (var i = 0; i < headers.length; i++) {
+      var h = (headers[i] || "").toString().toLowerCase().trim();
+      for (var k = 0; k < keywords.length; k++) {
+        if (h.indexOf(keywords[k].toLowerCase()) !== -1) return i;
+      }
+    }
+    return -1;
+  }
+
+  var nameIdx = findColIndex(["nom", "client", "name", "الاسم", "اسم"]);
+  var phoneIdx = findColIndex(["tel", "téléphone", "telephone", "phone", "mobile", "الهاتف", "هاتف", "رقم"]);
+  var cityIdx = findColIndex(["ville", "city", "المدينة", "مدينة"]);
+  var addressIdx = findColIndex(["adresse", "address", "العنوان", "عنوان"]);
+  var productIdx = findColIndex(["produit", "article", "product", "item", "المنتج", "سلعة"]);
+  var qtyIdx = findColIndex(["qte", "quantité", "quantity", "qty", "الكمية"]);
+  var priceIdx = findColIndex(["prix", "montant", "total", "price", "amount", "الثمن", "المبلغ"]);
+  var noteIdx = findColIndex(["note", "remarque", "comment", "ملاحظة", "ملاحظات"]);
+
+  var statusColIdx = findColIndex(["statut sendit", "حالة المزامنة", "sync status", "statut"]);
+  if (statusColIdx === -1) {
+    statusColIdx = lastCol;
+    sheet.getRange(1, statusColIdx + 1).setValue("Statut SENDIT (حالة المزامنة)")
+      .setBackground("#065F46").setFontColor("#FFFFFF").setFontWeight("bold");
+    lastCol = statusColIdx + 1;
+  }
+
+  var dataRange = sheet.getRange(2, 1, lastRow - 1, lastCol);
+  var values = dataRange.getValues();
+  var sentCount = 0;
+
+  for (var r = 0; r < values.length; r++) {
+    var row = values[r];
+    var currentStatus = (row[statusColIdx] || "").toString().trim();
+    if (currentStatus.indexOf("✅") !== -1) continue;
+
+    var rawPhone = phoneIdx !== -1 ? (row[phoneIdx] || "").toString().trim() : "";
+    var cleanedPhone = rawPhone.replace(/[^0-9]/g, "");
+    if (cleanedPhone.length < 8) continue;
+
+    var customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].toString().trim() : ("Client #" + (r + 2));
+    var city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].toString().trim() : "Casablanca";
+    var address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx].toString().trim() : "À confirmer";
+    var product = (productIdx !== -1 && row[productIdx]) ? row[productIdx].toString().trim() : "Pack E-commerce";
+    var qty = qtyIdx !== -1 ? parseInt(row[qtyIdx] || 1, 10) : 1;
+    var price = priceIdx !== -1 ? parseFloat((row[priceIdx] || "299").toString().replace(/[^0-9.]/g, "")) : 299;
+    var notes = noteIdx !== -1 ? (row[noteIdx] || "").toString().trim() : "من شيت المبيعات";
+
+    var payload = {
+      name: customerName,
+      phone: cleanedPhone,
+      city: city,
+      address: address,
+      product: product,
+      quantity: isNaN(qty) ? 1 : qty,
+      price: isNaN(price) ? 299 : price,
+      notes: notes
+    };
+
+    try {
+      var options = {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify(payload),
+        muteHttpExceptions: true
+      };
+
+      var response = UrlFetchApp.fetch(WEBHOOK_URL, options);
+      var code = response.getResponseCode();
+      if (code >= 200 && code < 300) {
+        var parsed = JSON.parse(response.getContentText());
+        var orderNum = parsed.orderNumber || ("#GS" + (r + 2));
+        var timeStr = Utilities.formatDate(new Date(), "GMT+1", "HH:mm");
+        sheet.getRange(r + 2, statusColIdx + 1)
+          .setValue("✅ محوّل (" + orderNum + ") " + timeStr)
+          .setBackground("#D1FAE5")
+          .setFontColor("#065F46")
+          .setFontWeight("bold");
+        sentCount++;
+      }
+    } catch (err) {
+      sheet.getRange(r + 2, statusColIdx + 1)
+        .setValue("❌ خطأ: " + err.message.substring(0, 30))
+        .setBackground("#FEE2E2")
+        .setFontColor("#991B1B");
+    }
+  }
+  return sentCount;
+}
+
+function testConnection() {
+  try {
+    var response = UrlFetchApp.fetch(WEBHOOK_URL, { muteHttpExceptions: true });
+    if (response.getResponseCode() === 200) {
+      SpreadsheetApp.getUi().alert('✅ الاتصال مع منصة SENDIT يعمل 100% بنجاح ! جاهز لاستقبال الطلبات.');
+    } else {
+      SpreadsheetApp.getUi().alert('⚠️ تم الاتصال ولكن برمز استجابة: ' + response.getResponseCode());
+    }
+  } catch (err) {
+    SpreadsheetApp.getUi().alert('❌ فشل الاتصال: ' + err.message);
+  }
+}`;
+
+  const copyToClipboard = (text: string, type: 'url' | 'code' | 'headers') => {
+    navigator.clipboard.writeText(text);
+    if (type === 'url') {
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } else if (type === 'code') {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } else {
+      setCopiedHeaders(true);
+      setTimeout(() => setCopiedHeaders(false), 2000);
+    }
+  };
+
+  // Direct Google Sheet Sync (1-Click)
+  const handleDirectSync = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!sheetUrl.trim()) return;
+
+    setIsSyncingSheet(true);
+    setSyncResult(null);
+
+    try {
+      const res = await fetch('/api/google-sheets/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetUrl: sheetUrl.trim() }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSyncResult({
+          success: true,
+          count: data.importedCount,
+          message: data.message || `${data.importedCount} commandes importées avec succès !`,
+        });
+        await refreshInboundOrders();
+        showToast(`${data.importedCount} commandes importées depuis Google Sheet!`, 'success');
+      } else {
+        setSyncResult({
+          success: false,
+          message: data.error || 'Erreur lors de la synchronisation de la feuille.',
+        });
+      }
+    } catch (err: any) {
+      setSyncResult({
+        success: false,
+        message: err.message || 'Impossible de se connecter au serveur.',
+      });
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
+
+  // Live Simulation Test
   const handleSimulateOrder = async () => {
     setIsSimulating(true);
     setSimulationResult(null);
@@ -114,13 +416,14 @@ function onEdit(e) {
         setSimulationResult({
           success: true,
           orderNumber: data.orderNumber,
-          message: `Commande injectée avec succès ! N° : ${data.orderNumber} (${randomClient.name} — ${randomClient.city})`,
+          message: `Commande injectée en direct ! N° : ${data.orderNumber} (${randomClient.name} — ${randomClient.city})`,
         });
         await refreshInboundOrders();
+        showToast(`Commande ${data.orderNumber} injectée avec succès !`, 'success');
       } else {
         setSimulationResult({
           success: false,
-          message: data.error || 'Une erreur est survenue lors de l\'injection de la commande.',
+          message: data.error || 'Une erreur est survenue lors de l\'injection.',
         });
       }
     } catch (err: any) {
@@ -134,162 +437,489 @@ function onEdit(e) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-2xl w-full overflow-hidden border border-slate-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 to-teal-700 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 via-teal-700 to-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center">
+            <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center shadow-inner">
               <FileSpreadsheet className="w-5 h-5 text-emerald-200" />
             </div>
             <div>
-              <h3 className="font-black text-base tracking-tight">
-                Liaison Google Sheets & Synchronisation Live
-              </h3>
-              <p className="text-xs text-emerald-100">
-                Injection instantanée et automatique de chaque commande reçue dans la phase En attente (Pending Confirmation)
+              <div className="flex items-center gap-2">
+                <h3 className="font-black text-base tracking-tight">
+                  Intégration Google Sheets & Synchronisation COD
+                </h3>
+                <span className="bg-emerald-400/20 text-emerald-200 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-400/30">
+                  Live
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100 mt-0.5">
+                Importation directe, modèle officiel prêt à l'emploi et synchronisation en temps réel
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+            title="Fermer"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Modal Body */}
-        <div className="p-6 space-y-5 max-h-[78vh] overflow-y-auto text-xs text-slate-700">
+        {/* Tab Switcher Navigation */}
+        <div className="px-6 pt-3 pb-2 bg-slate-50 border-b border-slate-200 flex items-center gap-2 shrink-0">
+          <button
+            onClick={() => setActiveTab('template')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'template'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Table className="w-3.5 h-3.5" />
+            <span>1. Modèle Prêt à l'Emploi (نموذج العمل)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('direct-sync')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'direct-sync'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <LinkIcon className="w-3.5 h-3.5" />
+            <span>2. Mزامنة برابط الشيت (Lien Direct)</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('webhook')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'webhook'
+                ? 'bg-emerald-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
+            }`}
+          >
+            <Zap className="w-3.5 h-3.5" />
+            <span>3. الربط الآلي الفوري (Webhook & Script)</span>
+          </button>
+        </div>
+
+        {/* Modal Scrollable Content */}
+        <div className="p-6 space-y-6 overflow-y-auto text-xs text-slate-700 flex-1">
           
-          {/* Status Banner */}
-          <div className="flex items-center justify-between p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200/80">
-            <div className="flex items-center gap-2.5">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <div>
-                <span className="font-bold text-emerald-950 text-xs">Point de terminaison Webhook actif (Live Webhook Active)</span>
-                <p className="text-[11px] text-emerald-700 mt-0.5">
-                  La plateforme écoute et actualise les commandes en temps réel sans nécessiter de rechargement de page.
-                </p>
+          {/* TAB 1: MODÈLE PRÊT À L'EMPLOI */}
+          {activeTab === 'template' && (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              {/* Introduction Banner */}
+              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-black text-emerald-950 text-sm">
+                      نموذج Google Sheets المعتمد للشحن والتأكيد (COD Maroc)
+                    </span>
+                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                      Recommandé
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-800 leading-relaxed">
+                    افتح ورقة عمل جديدة في جوجل شيت فوراً أو حمّل ملف Excel/CSV المنسق مسبقاً بالأعمدة المعيارية لبدء العمل فوراً.
+                  </p>
+                </div>
+
+                {/* Primary Action Buttons */}
+                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <a
+                    href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-transform active:scale-95"
+                    title="Crée automatiquement une copie du modèle officiel dans votre Google Drive"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>عمل نسخة في حسابك (Google Drive)</span>
+                  </a>
+
+                  <a
+                    href="https://sheets.new"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold shadow-2xs transition-transform active:scale-95"
+                    title="Ouvre une nouvelle feuille Google Sheets vierge dans votre navigateur"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>شيت جديد (sheets.new)</span>
+                  </a>
+
+                  <a
+                    href="/api/google-sheets/template"
+                    download="Modele_Commandes_SENDIT_Maroc.csv"
+                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-transform active:scale-95"
+                    title="Télécharger le fichier .csv pré-rempli pour Excel et Google Sheets"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    <span>تحميل النموذج (.csv)</span>
+                  </a>
+                </div>
               </div>
-            </div>
-            <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full">
-              Connecté 100%
-            </span>
-          </div>
 
-          {/* Webhook Endpoint URL */}
-          <div className="space-y-1.5">
-            <label className="font-bold text-slate-900 block">
-              1. URL de votre Webhook d'ingestion (Webhook Ingestion Endpoint) :
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={webhookUrl}
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 select-all"
-              />
-              <button
-                onClick={() => copyToClipboard(webhookUrl, true)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                  copiedUrl
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-slate-900 hover:bg-slate-800 text-white'
-                }`}
-              >
-                {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedUrl ? 'Copié !' : 'Copier l\'URL'}</span>
-              </button>
-            </div>
-          </div>
+              {/* Quick Actions Bar */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <button
+                  onClick={copyFullTemplateToClipboard}
+                  className="flex items-center justify-center gap-2 p-3 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 rounded-xl text-emerald-950 font-bold text-xs transition-all shadow-2xs"
+                  title="Copie le tableau entier pour le coller en 1 clic dans une feuille Google Sheets vide"
+                >
+                  {copiedFullTemplate ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-emerald-600" />}
+                  <span>{copiedFullTemplate ? 'تم نسخ النموذج كاملاً !' : '📋 نسخ النموذج كاملاً (Ctrl+V)'}</span>
+                </button>
 
-          {/* Step-by-Step Instructions */}
-          <div className="space-y-2 p-3.5 bg-slate-50 rounded-2xl border border-slate-200">
-            <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Activation en 3 étapes simples dans Google Sheets :</span>
-            </h4>
-            <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed pr-1">
-              <li>Ouvrez votre document <strong>Google Sheets</strong> contenant les commandes.</li>
-              <li>Dans le menu supérieur, cliquez sur <strong>Extensions</strong> ➔ <strong>Apps Script</strong>.</li>
-              <li>Effacez le contenu existant, collez le script ci-dessous, puis cliquez sur <strong>Enregistrer</strong>.</li>
-              <li>Dans le menu latéral d'Apps Script, ouvrez <strong>Déclencheurs (Triggers)</strong> et activez l'exécution <strong>Lors de l'envoi du formulaire</strong> ou <strong>Lors de la modification</strong>.</li>
-            </ol>
-          </div>
+                <button
+                  onClick={() => copyToClipboard(headersList.join('\t'), 'headers')}
+                  className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold text-xs transition-all shadow-2xs"
+                  title="Copie uniquement les titres des colonnes"
+                >
+                  {copiedHeaders ? <Check className="w-4 h-4 text-emerald-600" /> : <Table className="w-4 h-4 text-slate-500" />}
+                  <span>{copiedHeaders ? 'تم نسخ العناوين !' : 'نسخ أسماء الأعمدة فقط'}</span>
+                </button>
 
-          {/* Google Apps Script Code block */}
-          <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="font-bold text-slate-900">
-                2. Script Google Apps Script prêt à l'emploi :
-              </label>
-              <button
-                onClick={() => copyToClipboard(scriptCode, false)}
-                className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1"
-              >
-                {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                <span>{copiedCode ? 'Code copié !' : 'Copier le script'}</span>
-              </button>
-            </div>
-            <pre className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800 leading-relaxed dir-ltr text-left">
-              {scriptCode}
-            </pre>
-          </div>
+                <button
+                  onClick={handleDemoImport}
+                  disabled={isSyncingSheet}
+                  className="flex items-center justify-center gap-2 p-3 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl text-teal-900 font-bold text-xs transition-all shadow-2xs disabled:opacity-50"
+                  title="Injecte immédiatement les 5 commandes d'exemple dans votre tableau de bord"
+                >
+                  <Sparkles className="w-4 h-4 text-teal-600" />
+                  <span>{isSyncingSheet ? 'جاري الاستيراد...' : '⚡ تجربة استيراد النموذج للمنصة'}</span>
+                </button>
+              </div>
 
-          {/* Test Simulator Section */}
-          <div className="p-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-emerald-500/10 rounded-2xl border border-teal-200 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
-                  <Play className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
-                  <span>3. Tester la connexion en direct (Live Simulation) :</span>
+              {/* Interactive Visual Spreadsheet Preview */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                    <Table className="w-4 h-4 text-emerald-600" />
+                    <span>معاينة حية للنموذج المطلوب (Structure du Modèle) :</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium">
+                    الأعمدة تتعرف عليها المنصة تلقائياً بالعربية والفرنسية والإنجليزية
+                  </span>
+                </div>
+
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
+                  <div className="overflow-x-auto no-scrollbar">
+                    <table className="w-full text-left border-collapse text-[11px]">
+                      <thead>
+                        <tr className="bg-emerald-800 text-white font-bold">
+                          <th className="py-2.5 px-3 border-r border-emerald-700/60 w-8 text-center text-emerald-200 text-[10px]">#</th>
+                          {headersList.map((header, idx) => (
+                            <th key={idx} className="py-2.5 px-3 border-r border-emerald-700/60 font-black tracking-tight whitespace-nowrap">
+                              {header}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {sampleRows.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-2 px-3 text-center text-[10px] text-slate-400 font-mono bg-slate-50 border-r border-slate-200 font-bold">
+                              {idx + 2}
+                            </td>
+                            <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-500">{row.date}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-bold text-slate-900">{row.name}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-mono font-bold text-emerald-700">{row.phone}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-800">{row.city}</td>
+                            <td className="py-2 px-3 whitespace-nowrap text-slate-600">{row.address}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-bold text-slate-800">{row.product}</td>
+                            <td className="py-2 px-3 whitespace-nowrap text-center font-bold text-slate-700">{row.qty}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-black text-emerald-800 bg-emerald-50/50">{row.price}</td>
+                            <td className="py-2 px-3 whitespace-nowrap text-slate-500 italic">{row.notes}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3 Steps Guide to use the template */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
+                <h4 className="font-black text-slate-900 text-xs flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>طريقة العمل على هذا النموذج في 3 خطوات بسيطة :</span>
                 </h4>
-                <p className="text-[11px] text-slate-500 mt-0.5">
-                  Cliquez pour simuler une commande immédiate et la voir apparaître instantanément dans votre pipeline.
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">1</span>
+                    <h5 className="font-bold text-slate-900">فتح أو استيراد</h5>
+                    <p className="text-[10px] leading-relaxed">
+                      افتح Google Sheet جديد وقم بلصق الترويسة، أو حمّل ملف CSV وافتحه عبر Google Drive.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">2</span>
+                    <h5 className="font-bold text-slate-900">إدخال الطلبات</h5>
+                    <p className="text-[10px] leading-relaxed">
+                      سجّل طلبات زبنائك اليومية (الاسم، الهاتف المغربي 06/07، المدينة، المنتج والمبلغ).
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                    <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">3</span>
+                    <h5 className="font-bold text-slate-900">المزامنة بنقرة واحدة</h5>
+                    <p className="text-[10px] leading-relaxed">
+                      انتقل للتبويب 2 والصق رابط الشيت لاستيراد جميع الطلبات فوراً إلى مرحلة التأكيد!
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: DIRECT LINK SYNC */}
+          {activeTab === 'direct-sync' && (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              <div className="p-4 bg-teal-50 rounded-2xl border border-teal-200 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <LinkIcon className="w-4 h-4 text-teal-700" />
+                  <span className="font-black text-teal-950 text-sm">
+                    المزامنة الفورية عبر رابط Google Sheet (1-Click Sync)
+                  </span>
+                </div>
+                <p className="text-[11px] text-teal-800 leading-relaxed">
+                  ألصق رابط ورقة Google Sheets الخاصة بك هنا، وستقوم المنصة بقراءة جميع صفوف الطلبات تلقائياً وحقنها مباشرة في مرحلة التأكيد (En attente de confirmation).
                 </p>
               </div>
-              <button
-                onClick={handleSimulateOrder}
-                disabled={isSimulating}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>{isSimulating ? 'Envoi en cours...' : 'Injecter commande test'}</span>
-              </button>
-            </div>
 
-            {simulationResult && (
-              <div
-                className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-bold animate-in fade-in ${
-                  simulationResult.success
-                    ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                    : 'bg-rose-50 text-rose-900 border-rose-300'
-                }`}
-              >
-                {simulationResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span>{simulationResult.message}</span>
+              {/* Form Input for Sheet URL */}
+              <form onSubmit={handleDirectSync} className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-900 block text-xs">
+                    رابط Google Sheets (URL de partage) :
+                  </label>
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <input
+                      type="url"
+                      required
+                      placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5.../edit"
+                      value={sheetUrl}
+                      onChange={(e) => setSheetUrl(e.target.value)}
+                      className="flex-1 bg-slate-50 border border-slate-200 focus:bg-white rounded-xl px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                    />
+                    <button
+                      type="submit"
+                      disabled={isSyncingSheet || !sheetUrl.trim()}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 shrink-0"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
+                      <span>{isSyncingSheet ? 'مزامنة جارية...' : 'مزامنة الآن واستيراد الطلبات'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
+                  <span className="text-[11px] text-slate-600">
+                    أو جرّب المزامنة الفورية بـ 5 طلبات تجريبية دون الحاجة لشيت خارجي :
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleDemoImport}
+                    disabled={isSyncingSheet}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition-colors shrink-0"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>استيراد تجريبي فوري</span>
+                  </button>
+                </div>
+              </form>
+
+              {/* Sync Result Feedback */}
+              {syncResult && (
+                <div
+                  className={`p-3.5 rounded-2xl border flex items-center gap-2.5 text-xs font-bold animate-in fade-in ${
+                    syncResult.success
+                      ? 'bg-emerald-50 text-emerald-950 border-emerald-300'
+                      : 'bg-rose-50 text-rose-950 border-rose-300'
+                  }`}
+                >
+                  {syncResult.success ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
+                  )}
+                  <span>{syncResult.message}</span>
+                </div>
+              )}
+
+              {/* Sharing Instructions */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-slate-500" />
+                  <span>تأكد من تفعيل إمكانية القراءة (Partage) :</span>
+                </h4>
+                <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed pr-1">
+                  <li>في مستند Google Sheets، اضغط على زر <strong>Partager (Share)</strong> في الزاوية العلوية اليمنى.</li>
+                  <li>تحت قسم "Accès général"، اختر : <strong>Tous les utilisateurs disposant du lien (Lecteur)</strong>.</li>
+                  <li>انسخ الرابط والصقه في الحقل أعلاه واضغط على زر المزامنة.</li>
+                </ol>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* TAB 3: WEBHOOK & APPS SCRIPT */}
+          {activeTab === 'webhook' && (
+            <div className="space-y-5 animate-in fade-in duration-150">
+              {/* Webhook Status Banner */}
+              <div className="flex items-center justify-between p-3.5 bg-emerald-50 rounded-2xl border border-emerald-200">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <div>
+                    <span className="font-bold text-emerald-950 text-xs">نقطة الويب هوك نشطة وجاهزة (Live Webhook Active)</span>
+                    <p className="text-[11px] text-emerald-700 mt-0.5">
+                      تقوم المنصة باستقبال كل طلب فور إدخاله في Google Sheets في أقل من ثانية وتوجيهه فوراً إلى مركز الاتصال ورسائل التأكيد.
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-black bg-emerald-600 text-white px-2 py-0.5 rounded-full shrink-0">
+                  Connecté 100%
+                </span>
+              </div>
+
+              {/* Webhook URL Field */}
+              <div className="space-y-1.5">
+                <label className="font-bold text-slate-900 block text-xs">
+                  1. عنوان الويب هوك الخاص بحسابك (Webhook Ingestion Endpoint) :
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={webhookUrl}
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-800 select-all"
+                  />
+                  <button
+                    onClick={() => copyToClipboard(webhookUrl, 'url')}
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                      copiedUrl
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 hover:bg-slate-800 text-white'
+                    }`}
+                  >
+                    {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedUrl ? 'تم النسخ !' : 'نسخ الرابط'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Apps Script Code */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-900 text-xs">
+                    2. كود Google Apps Script الذكي (Smart Multi-language Trigger) :
+                  </label>
+                  <button
+                    onClick={() => copyToClipboard(smartScriptCode, 'code')}
+                    className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1"
+                  >
+                    {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    <span>{copiedCode ? 'تم نسخ الكود !' : 'نسخ كود Apps Script'}</span>
+                  </button>
+                </div>
+                <pre className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800 leading-relaxed dir-ltr text-left">
+                  {smartScriptCode}
+                </pre>
+              </div>
+
+              {/* 3 Steps Installation Guide */}
+              <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-3">
+                <h4 className="font-black text-xs text-emerald-950 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>طريقة التشغيل التلقائي بنقرة واحدة (Guide d'Installation en 3 étapes) :</span>
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-700">
+                  <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">1</span>
+                    <h5 className="font-bold text-slate-900">فتح محرر Apps Script</h5>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      في ملف Google Sheet، اضغط على <strong>الإضافات (Extensions)</strong> ثم <strong>Apps Script</strong>.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">2</span>
+                    <h5 className="font-bold text-slate-900">لصق الكود والحفظ</h5>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      احذف أي كود موجود والصق الكود أعلاه ثم اضغط على زر <strong>حفظ (Enregistrer 💾)</strong>.
+                    </p>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
+                    <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">3</span>
+                    <h5 className="font-bold text-slate-900">تفعيل المزامنة التلقائية</h5>
+                    <p className="text-[10px] text-slate-600 leading-relaxed">
+                      أعد تحديث الشيت (F5)، ستظهر قائمة جديدة <strong>«🚀 SENDIT Platform»</strong>، اضغط عليها واختر <strong>«⚡ تفعيل المزامنة التلقائية»</strong>.
+                    </p>
+                  </div>
+                </div>
+                <div className="text-[10px] text-emerald-800 font-medium bg-emerald-100/60 p-2 rounded-lg">
+                  💡 بمجرد التفعيل، سيقوم السكربت بمراقبة أي سطر جديد (أو طلب قادم من Google Forms) وتحويله تلقائياً للمنصة وكتابة <span className="font-bold text-emerald-900">«✅ محوّل للمنصة»</span> أمامه فوراً دون أي تدخل منك!
+                </div>
+              </div>
+
+              {/* Live Test Simulator */}
+              <div className="p-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-emerald-500/10 rounded-2xl border border-teal-200 space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
+                      <Play className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
+                      <span>3. تجربة الحقن المباشر في لوحة التحكم (Live Simulation) :</span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      اضغط لتجربة إرسال طلب مغربي وهمي والتأكد من ظهوره فوراً في مرحلة التأكيد بدون إعادة تحميل الصفحة.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleSimulateOrder}
+                    disabled={isSimulating}
+                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 shrink-0"
+                  >
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>{isSimulating ? 'إرسال جاري...' : 'حقن طلب تجريبي الآن'}</span>
+                  </button>
+                </div>
+
+                {simulationResult && (
+                  <div
+                    className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-bold animate-in fade-in ${
+                      simulationResult.success
+                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
+                        : 'bg-rose-50 text-rose-900 border-rose-300'
+                    }`}
+                  >
+                    {simulationResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span>{simulationResult.message}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
         </div>
 
         {/* Modal Footer */}
-        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">
-            Prise en charge automatique des colonnes en français, arabe et anglais.
+        <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-slate-500 font-medium">
+            متوافق مع Google Forms, WooCommerce, Shopify, وجميع ملفات Excel و Google Sheets.
           </span>
           <button
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors"
+            className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors cursor-pointer"
           >
-            Fermer
+            إغلاق النافذة
           </button>
         </div>
 

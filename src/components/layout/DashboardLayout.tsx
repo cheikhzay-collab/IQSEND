@@ -38,7 +38,6 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -102,10 +101,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       badge: processingCount > 0 ? processingCount : undefined,
     },
     {
-      label: 'Suivi Colis',
+      label: '3. En livraison (Sendit)',
       href: '/dashboard/tracking',
       icon: Truck,
       badge: inTransitCount > 0 ? inTransitCount : undefined,
+    },
+    {
+      label: '4. Livrées & Encaissées',
+      href: '/dashboard/orders/completed',
+      icon: CheckCircle2,
+      badge: completedCount > 0 ? completedCount : undefined,
+    },
+    {
+      label: 'Retours & Refusés',
+      href: '/dashboard/orders/returns',
+      icon: RotateCcw,
+      badge: returnedCount > 0 ? returnedCount : undefined,
     },
     {
       label: 'Produits & Stock Hubs',
@@ -136,7 +147,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const orderStages = [
     {
-      label: '1. En attente',
+      label: '1. Confirmation',
       href: '/dashboard/orders/pending',
       icon: ClipboardCheck,
       count: pendingCount,
@@ -152,24 +163,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       countClass: 'bg-blue-100 text-blue-700 font-bold',
       activeClass: 'bg-blue-50 text-blue-900 font-bold',
       iconColor: 'text-blue-600',
-    },
-    {
-      label: '3. En livraison',
-      href: '/dashboard/orders/in-transit',
-      icon: Truck,
-      count: inTransitCount,
-      countClass: 'bg-indigo-100 text-indigo-700 font-bold',
-      activeClass: 'bg-indigo-50 text-indigo-900 font-bold',
-      iconColor: 'text-indigo-600',
-    },
-    {
-      label: '4. Livrées & Encaissées',
-      href: '/dashboard/orders/completed',
-      icon: CheckCircle2,
-      count: completedCount,
-      countClass: 'bg-emerald-100 text-emerald-700 font-bold',
-      activeClass: 'bg-emerald-50 text-emerald-900 font-bold',
-      iconColor: 'text-emerald-600',
     },
   ];
 
@@ -198,69 +191,51 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
 
-          {!isOrdersActive && (
-            /* Search bar with ⌘K & Scan icon for non-orders pages */
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all w-80 bg-slate-50/70 ${
-                searchFocused
-                  ? 'border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-xs'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <Search className="w-3.5 h-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Rechercher commandes, clients, colis..."
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                className="bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none flex-1 font-medium"
-              />
-              <div className="flex items-center gap-1">
-                <span className="text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
-                  ⌘ K
-                </span>
-                <Scan className="w-3.5 h-3.5 text-slate-400 cursor-pointer hover:text-slate-600" />
-              </div>
+          {/* Search bar with ⌘K & Scan icon */}
+          <div
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all w-80 bg-slate-50/70 ${
+              searchFocused
+                ? 'border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-xs'
+                : 'border-slate-200 hover:border-slate-300'
+            }`}
+          >
+            <Search className="w-3.5 h-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Rechercher commandes, clients, colis..."
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              className="bg-transparent text-xs text-slate-700 placeholder-slate-400 focus:outline-none flex-1 font-medium"
+            />
+            <div className="flex items-center gap-1">
+              <span className="text-[10px] font-bold text-slate-400 bg-white px-1.5 py-0.5 rounded border border-slate-200 shadow-2xs">
+                ⌘ K
+              </span>
+              <Scan className="w-3.5 h-3.5 text-slate-400 cursor-pointer hover:text-slate-600" />
             </div>
-          )}
-        </div>
-
-        {/* Center: Order Lifecycle Stepper when on orders pages */}
-        {isOrdersActive && (
-          <div className="flex-1 min-w-0 flex items-center justify-start overflow-x-auto no-scrollbar py-0.5">
-            <div className="w-px h-6 bg-slate-200 mr-2 shrink-0" />
-            <OrderLifecycleTabs inHeader={true} />
           </div>
-        )}
+        </div>
 
         {/* Right: Team, Balance, Assistant IA, Messages, Notifications, Workspace */}
         <div className="flex items-center gap-3 shrink-0">
-          {!isOrdersActive && (
-            /* Team Members Overlapping Avatars */
-            <div className="flex items-center -space-x-1.5">
-              <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80"
-                alt="Team"
-                className="w-6 h-6 rounded-full border border-white object-cover"
-              />
-              <img
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80"
-                alt="Team"
-                className="w-6 h-6 rounded-full border border-white object-cover"
-              />
-              <div className="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-[10px] font-bold flex items-center justify-center border border-white">
-                A
-              </div>
-              <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center border border-white">
-                +2
-              </div>
+          {/* Team Members Overlapping Avatars */}
+          <div className="flex items-center -space-x-1.5">
+            <img
+              src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=80&auto=format&fit=crop&q=80"
+              alt="Team"
+              className="w-6 h-6 rounded-full border border-white object-cover"
+            />
+            <img
+              src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&auto=format&fit=crop&q=80"
+              alt="Team"
+              className="w-6 h-6 rounded-full border border-white object-cover"
+            />
+            <div className="w-6 h-6 rounded-full bg-[#7c3aed] text-white text-[10px] font-bold flex items-center justify-center border border-white">
+              A
             </div>
-          )}
-
-          {/* Balance Pill */}
-          <div className="px-3 py-1 rounded-full border border-amber-200 bg-amber-50/70 text-amber-800 text-xs font-black shadow-2xs flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-            240.00 MAD
+            <div className="w-6 h-6 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold flex items-center justify-center border border-white">
+              +2
+            </div>
           </div>
 
           {/* AI Sparkles */}
@@ -341,11 +316,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           >
             <Search className="w-4 h-4" />
           </button>
-
-          {/* Mobile Balance Chip */}
-          <div className="px-2 py-0.5 rounded-full border border-amber-200 bg-amber-50 text-amber-800 text-[10px] font-black">
-            240 DH
-          </div>
 
           {/* Notifications bell */}
           <Link
@@ -631,7 +601,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <div className="ml-3 mt-1.5 pl-3 border-l-2 border-slate-200/80 space-y-1 text-xs">
                   {orderStages.map((stage) => {
                     const Icon = stage.icon;
-                    const isActive = pathname === stage.href;
+                    const isActive = stage.href === '/dashboard/tracking'
+                      ? (pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit')
+                      : pathname === stage.href;
                     return (
                       <Link
                         key={stage.href}
@@ -657,23 +629,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     );
                   })}
 
-                  {/* Divider */}
-                  <div className="my-1.5 border-t border-slate-200/70" />
-
-                  {/* Drafts */}
-                  <Link
-                    href="/dashboard/orders/drafts"
-                    className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/drafts'
-                        ? 'bg-slate-100 text-slate-900 font-bold'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <FileText className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span>Drafts</span>
-                  </Link>
-
-                  {/* Annulées (Confirmation) */}
+                  {/* Annulées (Avant expédition) */}
                   <Link
                     href="/dashboard/orders/canceled"
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
@@ -691,62 +647,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         {canceledCount}
                       </span>
                     )}
-                  </Link>
-
-                  {/* Retours & Refusés (Livraison) */}
-                  <Link
-                    href="/dashboard/orders/returns"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/returns'
-                        ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <RotateCcw className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                      <span className="truncate">Retours & Refusés</span>
-                    </div>
-                    {returnedCount > 0 && (
-                      <span className="text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200 shrink-0">
-                        {returnedCount}
-                      </span>
-                    )}
-                  </Link>
-
-                  {/* Abandoned Carts */}
-                  <Link
-                    href="/dashboard/orders/abandoned"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/abandoned'
-                        ? 'bg-slate-100 text-slate-900 font-bold'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <ShoppingCart className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Paniers abandonnés</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
-                      3
-                    </span>
-                  </Link>
-
-                  {/* Reviews */}
-                  <Link
-                    href="/dashboard/orders/reviews"
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                      pathname === '/dashboard/orders/reviews'
-                        ? 'bg-slate-100 text-slate-900 font-bold'
-                        : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <Star className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span className="truncate">Avis clients</span>
-                    </div>
-                    <span className="text-[10px] font-bold text-amber-600 shrink-0">
-                      ★ 4.9
-                    </span>
                   </Link>
                 </div>
               )}
@@ -856,22 +756,62 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
             </Link>
 
-            {/* Suivi Colis */}
+            {/* 3. En livraison (Sendit) */}
             <Link
               href="/dashboard/tracking"
               className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                pathname === '/dashboard/tracking'
+                pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit'
                   ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200/80'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
               <div className="flex items-center gap-3">
                 <Truck className="w-4 h-4 text-indigo-600" />
-                <span>Suivi Colis</span>
+                <span>3. En livraison (Sendit)</span>
               </div>
               {inTransitCount > 0 && (
                 <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
                   {inTransitCount}
+                </span>
+              )}
+            </Link>
+
+            {/* 4. Livrées & Encaissées */}
+            <Link
+              href="/dashboard/orders/completed"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/orders/completed'
+                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>4. Livrées & Encaissées</span>
+              </div>
+              {completedCount > 0 && (
+                <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
+                  {completedCount}
+                </span>
+              )}
+            </Link>
+
+            {/* Retours & Refusés */}
+            <Link
+              href="/dashboard/orders/returns"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/orders/returns'
+                  ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <RotateCcw className="w-4 h-4 text-amber-600" />
+                <span>Retours & Refusés</span>
+              </div>
+              {returnedCount > 0 && (
+                <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
+                  {returnedCount}
                 </span>
               )}
             </Link>
@@ -905,6 +845,42 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             >
               <Users className="w-4 h-4 text-slate-500" />
               <span>Clients & CRM</span>
+            </Link>
+
+            {/* Paniers abandonnés */}
+            <Link
+              href="/dashboard/orders/abandoned"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/orders/abandoned'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <ShoppingCart className="w-4 h-4 text-rose-500" />
+                <span>Paniers abandonnés</span>
+              </div>
+              <span className="text-[10px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200">
+                3
+              </span>
+            </Link>
+
+            {/* Avis clients */}
+            <Link
+              href="/dashboard/orders/reviews"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/orders/reviews'
+                  ? 'bg-slate-100 text-slate-900 font-bold'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Star className="w-4 h-4 text-amber-500" />
+                <span>Avis clients</span>
+              </div>
+              <span className="text-[10px] font-bold text-amber-600">
+                ★ 4.9
+              </span>
             </Link>
 
             {/* SECTION 5: FINANCES & AUTOMATISATIONS */}
@@ -976,12 +952,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
         {/* MAIN VIEW CONTENT CONTAINER */}
         <main className="flex-1 min-w-0 overflow-x-auto pb-20 md:pb-6">
-          {/* Mobile Order Lifecycle Tabs */}
-          {isOrdersActive && (
-            <div className="md:hidden">
-              <OrderLifecycleTabs inHeader={false} />
-            </div>
-          )}
           {children}
         </main>
 

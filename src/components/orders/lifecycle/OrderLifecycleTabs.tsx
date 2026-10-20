@@ -8,11 +8,7 @@ import {
   Package,
   Truck,
   CheckCircle2,
-  FileText,
-  ShoppingCart,
-  Star,
   Kanban,
-  XCircle,
   RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
@@ -28,7 +24,6 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     processingCount,
     inTransitCount,
     completedCount,
-    canceledCount,
     returnedCount
   } = useOrderLifecycle();
 
@@ -57,10 +52,10 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     },
     {
       id: 'in-transit',
-      href: '/dashboard/orders/in-transit',
+      href: '/dashboard/tracking',
       step: '3',
-      label: 'En cours de livraison',
-      mediumLabel: 'En livraison',
+      label: 'En cours de livraison (Sendit)',
+      mediumLabel: 'En livraison (Sendit)',
       shortLabel: '3. En livraison',
       icon: Truck,
       badge: inTransitCount,
@@ -81,41 +76,12 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
 
   const secondaryTabs = [
     {
-      id: 'drafts',
-      href: '/dashboard/orders/drafts',
-      label: 'Drafts',
-      icon: FileText,
-    },
-    {
-      id: 'canceled',
-      href: '/dashboard/orders/canceled',
-      label: 'Annulées',
-      icon: XCircle,
-      badge: canceledCount,
-      badgeColor: 'bg-rose-500 text-white',
-    },
-    {
       id: 'returns',
       href: '/dashboard/orders/returns',
       label: 'Retours & Refusés',
       icon: RotateCcw,
       badge: returnedCount,
       badgeColor: 'bg-amber-600 text-white',
-    },
-    {
-      id: 'abandoned',
-      href: '/dashboard/orders/abandoned',
-      label: 'Paniers abandonnés',
-      icon: ShoppingCart,
-      badge: 3,
-      badgeColor: 'bg-rose-500 text-white',
-    },
-    {
-      id: 'reviews',
-      href: '/dashboard/orders/reviews',
-      label: 'Avis clients',
-      icon: Star,
-      badgeText: '★ 4.9',
     },
   ];
 
@@ -149,7 +115,9 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       <div className="flex items-center gap-1 shrink-0">
         {tabs.map((tab, idx) => {
           const Icon = tab.icon;
-          const isActive = pathname === tab.href;
+          const isActive = tab.id === 'in-transit'
+            ? (pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit')
+            : pathname === tab.href;
 
           return (
             <React.Fragment key={tab.id}>
@@ -225,11 +193,6 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
                   className={`w-4.5 h-4.5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${tab.badgeColor}`}
                 >
                   {tab.badge}
-                </span>
-              )}
-              {tab.badgeText && (
-                <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1 py-0.5 rounded">
-                  {tab.badgeText}
                 </span>
               )}
             </Link>

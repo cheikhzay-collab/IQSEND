@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Check
 } from 'lucide-react';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 const MOROCCAN_CITIES = [

@@ -18,7 +18,6 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { InvoiceModal } from '@/components/orders/lifecycle/OrderModals';
 import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';

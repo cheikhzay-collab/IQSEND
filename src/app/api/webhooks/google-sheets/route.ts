@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addInboundOrder, cleanMoroccanPhone, getInboundOrders, IngestedOrder } from '@/lib/orders-store';
+import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
 
 /**
  * Google Sheets Webhook API
@@ -28,12 +29,36 @@ export async function OPTIONS() {
 }
 
 export async function GET() {
-  const orders = getInboundOrders();
+  const localOrders = getInboundOrders();
+  let combinedOrders = [...localOrders];
+
+  // In development, also sync orders that arrived at the live Hostinger webhook
+  if (process.env.NODE_ENV === 'development' || !process.env.HOSTINGER_DEPLOYMENT) {
+    try {
+      const liveRes = await fetch('https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets', {
+        headers: { 'Cache-Control': 'no-cache' },
+        next: { revalidate: 0 },
+      });
+      if (liveRes.ok) {
+        const liveData = await liveRes.json();
+        if (liveData.success && Array.isArray(liveData.orders)) {
+          for (const ord of liveData.orders) {
+            if (!combinedOrders.some((o) => o.id === ord.id || o.orderNumber === ord.orderNumber)) {
+              combinedOrders.push(ord);
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue with local orders
+    }
+  }
+
   return NextResponse.json(
     {
       success: true,
-      count: orders.length,
-      orders,
+      count: combinedOrders.length,
+      orders: combinedOrders,
       webhookUrl: 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets',
       targetStage: 'PENDING_CONFIRMATION',
     },
@@ -180,6 +205,13 @@ export async function POST(req: NextRequest) {
 
     // Store in inbound queue
     addInboundOrder(newOrder);
+
+    // Trigger instant interactive WhatsApp confirmation outreach if available
+    try {
+      await triggerOrderConfirmationOutreach(newOrder);
+    } catch (err: any) {
+      console.warn(`[Google Sheets Webhook] WhatsApp outreach failed for ${orderNumber}:`, err.message);
+    }
 
     return NextResponse.json(
       {

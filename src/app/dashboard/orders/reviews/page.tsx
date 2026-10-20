@@ -11,7 +11,6 @@ import {
   User,
   Calendar
 } from 'lucide-react';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 
 interface CustomerReview {
   id: string;

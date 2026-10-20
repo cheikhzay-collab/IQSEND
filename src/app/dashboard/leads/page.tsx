@@ -31,7 +31,8 @@ import {
   DollarSign,
   Smartphone,
   Copy,
-  Printer
+  Printer,
+  Loader2
 } from 'lucide-react';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
@@ -59,111 +60,7 @@ export interface LeadCard {
   gpsReceived?: boolean;
 }
 
-const INITIAL_LEADS: LeadCard[] = [
-  {
-    id: 'lead-3',
-    orderNumber: 'LD-9023',
-    customerName: 'Mehdi Benali',
-    phone: '0671234567',
-    city: 'Tanger',
-    address: 'Malabata, Résidence Marina, Appt 12',
-    amount: 280,
-    quantity: 1,
-    product: 'Baskets Urbaines AirFlex',
-    productImage: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80',
-    size: '42',
-    color: 'Rouge & Noir',
-    customerNote: 'Appeler avant de livrer l’après-midi',
-    status: 'NEW',
-    aiStageText: 'Déclencheur < 2 min prêt pour envoi WhatsApp...',
-    timeAgo: 'À l’instant',
-  },
-  {
-    id: 'lead-1',
-    orderNumber: 'LD-9021',
-    customerName: 'Karim Naciri',
-    phone: '0661998877',
-    city: 'Casablanca',
-    address: 'Boulevard Ghandi, Immeuble B, 4ème étage',
-    amount: 350,
-    quantity: 1,
-    product: 'Pack Polo Élégance (x2)',
-    productImage: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&auto=format&fit=crop&q=80',
-    size: 'XL',
-    color: 'Bleu Marine / Blanc',
-    status: 'AI_CHATTING',
-    aiStageText: 'Bot: Propose une 3ème pièce à -40% (Upsell en cours)...',
-    timeAgo: 'Il y a 1 min',
-    hasVoiceNote: true,
-  },
-  {
-    id: 'lead-2',
-    orderNumber: 'LD-9022',
-    customerName: 'Fatima Zahra Mansouri',
-    phone: '0654321098',
-    city: 'Rabat',
-    address: 'Hay Riad, Secteur 14, Villa 8',
-    amount: 490,
-    quantity: 1,
-    product: 'Ensemble Abaya Soie de Médine',
-    productImage: 'https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&auto=format&fit=crop&q=80',
-    size: 'M',
-    color: 'Vert Emeraude',
-    status: 'CONFIRMED',
-    aiStageText: 'Confirmé par Gemini (Adresse & Taille vérifiées)',
-    timeAgo: 'Il y a 3 min',
-    isUpsold: true,
-    upsellAmount: 140,
-    gpsReceived: true,
-  },
-  {
-    id: 'lead-5',
-    orderNumber: 'LD-9025',
-    customerName: 'Nadia Bensaid',
-    phone: '0678901234',
-    city: 'Marrakech',
-    address: 'Gueliz, Rue de la Liberté, N° 45',
-    amount: 520,
-    quantity: 1,
-    product: 'Montre Quartz Chrono Gold',
-    productImage: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
-    color: 'Gold Luxe',
-    status: 'PACKING',
-    aiStageText: 'Stock vérifié, prêt pour push vers Sendit.ma',
-    timeAgo: 'Il y a 12 min',
-  },
-  {
-    id: 'lead-4',
-    orderNumber: 'LD-9024',
-    customerName: 'Rachid Tlemçani',
-    phone: '0661998877',
-    city: 'Casablanca',
-    address: 'Boulevard Ghandi',
-    amount: 350,
-    quantity: 1,
-    product: 'Pack Polo Élégance (x2)',
-    productImage: 'https://images.unsplash.com/photo-1581655353564-df123a1eb820?w=600&auto=format&fit=crop&q=80',
-    status: 'DUPLICATE',
-    aiStageText: 'Numéro répété 3 fois en 24h. Fusionné avec LD-9021',
-    timeAgo: 'Il y a 5 min',
-    duplicateCount: 3,
-  },
-  {
-    id: 'lead-6',
-    orderNumber: 'LD-9026',
-    customerName: 'Hassan Ouazzani',
-    phone: '0663456789',
-    city: 'Fes',
-    address: 'Route de Sefrou, Res Ennakhil',
-    amount: 220,
-    quantity: 1,
-    product: 'Support Téléphone Voiture MagSafe',
-    productImage: 'https://images.unsplash.com/photo-1586105251261-72a756497a11?w=600&auto=format&fit=crop&q=80',
-    status: 'CANCELED',
-    aiStageText: 'Annulé via WhatsApp: "Commandé par erreur"',
-    timeAgo: 'Il y a 20 min',
-  },
-];
+const INITIAL_LEADS: LeadCard[] = [];
 
 const COLUMNS = [
   { id: 'NEW', title: 'Nouveaux Leads (Sub-2-Min)', color: 'border-blue-400 bg-blue-50/40' },
@@ -193,10 +90,10 @@ const MOROCCAN_CITIES = [
 ];
 
 export default function LeadsConfirmationPage() {
-  const [leads, setLeads] = useState<LeadCard[]>(INITIAL_LEADS);
+  const [leads, setLeads] = useState<LeadCard[]>([]);
   const [search, setSearch] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAutoPiloting, setIsAutoPiloting] = useState(false);
   const [isCreatingTest, setIsCreatingTest] = useState(false);
   const [dbConnected, setDbConnected] = useState(true);
@@ -220,7 +117,7 @@ export default function LeadsConfirmationPage() {
     try {
       const res = await fetch('/api/leads');
       const data = await res.json();
-      if (data.success && Array.isArray(data.leads) && data.leads.length > 0) {
+      if (data.success && Array.isArray(data.leads)) {
         setLeads(data.leads);
         setDbConnected(true);
       }
@@ -540,7 +437,14 @@ export default function LeadsConfirmationPage() {
       </div>
 
       {/* Kanban Board */}
-      <div className="flex gap-4 overflow-x-auto pb-6 items-start min-h-[calc(100vh-280px)] select-none">
+      {isLoading && leads.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-200/80 shadow-2xs gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+          <p className="text-sm font-semibold text-slate-700">Chargement des leads en direct…</p>
+          <p className="text-xs text-slate-400">Synchronisation avec la base de données et Google Sheets</p>
+        </div>
+      ) : (
+        <div className="flex gap-4 overflow-x-auto pb-6 items-start min-h-[calc(100vh-280px)] select-none">
         {COLUMNS.map((column) => {
           const colLeads = leads.filter(
             (l) =>
@@ -788,6 +692,7 @@ export default function LeadsConfirmationPage() {
           );
         })}
       </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL 1: EDIT ORDER FORM (تعديل form الطلب) */}

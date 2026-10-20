@@ -39,20 +39,6 @@ interface CallTask {
   status?: string;
 }
 
-const DEFAULT_CALL_TASK: CallTask = {
-  id: 'call-1',
-  orderNumber: '#AT1044',
-  customerName: 'Omar El Fassi',
-  phone: '0661223344',
-  city: 'Tanger',
-  address: 'Boulevard Pasteur, Tanger Centre',
-  product: 'Black Bomber Jacket (Taille L)',
-  amount: 349,
-  priority: 'RAPPEL',
-  scheduledTime: 'Rappel prévu à 16h00',
-  attempts: 1,
-};
-
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 export default function CallCenterPage() {
@@ -65,11 +51,11 @@ export default function CallCenterPage() {
   } = useOrderLifecycle();
 
   const [dbTasks, setDbTasks] = useState<CallTask[]>([]);
-  const [activeTask, setActiveTask] = useState<CallTask>(DEFAULT_CALL_TASK);
+  const [activeTask, setActiveTask] = useState<CallTask | null>(null);
   const [callStatus, setCallStatus] = useState<'IDLE' | 'CALLING' | 'LOGGED'>('IDLE');
   const [upsellAccepted, setUpsellAccepted] = useState(false);
   const [note, setNote] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLiveDb, setIsLiveDb] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -78,7 +64,7 @@ export default function CallCenterPage() {
     try {
       const res = await fetch('/api/call-center');
       const data = await res.json();
-      if (data.success && Array.isArray(data.tasks) && data.tasks.length > 0) {
+      if (data.success && Array.isArray(data.tasks)) {
         setDbTasks(data.tasks);
         setIsLiveDb(true);
       }
@@ -130,7 +116,7 @@ export default function CallCenterPage() {
       }
     });
 
-    return list.length > 0 ? list : [DEFAULT_CALL_TASK];
+    return list;
   }, [lifecycleOrders, dbTasks]);
 
   // Keep active task synced
@@ -295,6 +281,13 @@ export default function CallCenterPage() {
           </h3>
 
           <div className="space-y-2.5 max-h-[600px] overflow-y-auto pr-1">
+            {tasks.length === 0 && (
+              <div className="py-12 text-center text-slate-400 border border-dashed border-slate-200 rounded-xl p-4 bg-slate-50/50">
+                <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-700">Aucun appel en attente</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Toutes les commandes sont confirmées ou traitées</p>
+              </div>
+            )}
             {tasks.map((task) => (
               <div
                 key={task.id}
@@ -329,7 +322,16 @@ export default function CallCenterPage() {
         {/* Right: Active Call Workspace & Script */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
-            
+            {!activeTask ? (
+              <div className="py-24 text-center text-slate-400">
+                <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-slate-800">File d'appels vide</h3>
+                <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                  Toutes les commandes entrantes sont confirmées. Dès qu'une nouvelle commande arrive, elle sera automatiquement assignée ici.
+                </p>
+              </div>
+            ) : (
+              <>
             {/* Customer Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
@@ -449,7 +451,8 @@ export default function CallCenterPage() {
                 </button>
               </div>
             </div>
-
+              </>
+            )}
           </div>
         </div>
 

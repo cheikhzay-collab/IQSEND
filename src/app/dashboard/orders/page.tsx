@@ -1,6 +1,5 @@
 import React from 'react';
 import { OrdersBoard } from '@/components/orders/OrdersBoard';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 
 export const metadata = {
   title: 'Orders | SENDIT - COD Management Platform',

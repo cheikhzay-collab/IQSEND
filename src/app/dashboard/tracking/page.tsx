@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import {
   Search,
   RefreshCw,
@@ -14,6 +15,8 @@ import {
   Zap,
   WifiOff,
   Loader2,
+  Kanban,
+  Table,
 } from 'lucide-react';
 import { TrackingOrder, ShipmentStatus, TrackingKpis } from '@/types';
 import { KpiCards } from '@/components/tracking/KpiCards';
@@ -21,176 +24,6 @@ import { TrackingKanban } from '@/components/tracking/TrackingKanban';
 import { OrderDrawer } from '@/components/tracking/OrderDrawer';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { useLiveTracking, LiveTrackingUpdate, ConnectionState } from '@/hooks/useLiveTracking';
-
-// ─────────────────────────────────────────────────────────────
-//  MOCK ORDERS (Moroccan COD Scenarios)
-// ─────────────────────────────────────────────────────────────
-const INITIAL_ORDERS: TrackingOrder[] = [
-  {
-    id: 'ord-01',
-    orderNumber: 'MA-20491',
-    customerName: 'Yassine Benkirane',
-    phoneNumber: '0661294821',
-    city: 'Casablanca',
-    address: '24 Rue Abou Al Alaa Al Maarri, Maarif',
-    gpsLocationUrl: 'https://maps.google.com/?q=33.5883,-7.6324',
-    totalAmount: 399,
-    productName: 'Pack 2x Chemises Lin Premium',
-    productQuantity: 2,
-    productAttributes: { size: 'L', color: 'Blanc & Beige' },
-    leadStatus: 'CONFIRMED',
-    shipmentStatus: 'OUT_FOR_DELIVERY',
-    trackingNumber: 'SND-819204',
-    waybillUrl: 'https://sendit.ma/awb/SND-819204.pdf',
-    driverName: 'Mohamed Tazi',
-    driverPhone: '0670112233',
-    deliveryAttempts: 1,
-    aiHandoverRequired: false,
-    aiConversationEnabled: true,
-    riskScore: 12,
-    createdAt: '2026-10-15 14:20',
-    lastUpdatedAt: '2026-10-16 08:30',
-    timeline: [
-      { id: 't1', timestamp: '15 Oct 14:20', title: 'Nouvelle commande enregistrée', description: 'Storefront Shopify Form', actor: 'SYSTEM' },
-      { id: 't2', timestamp: '15 Oct 14:22', title: 'Confirmation automatique WhatsApp', description: 'Le client a confirmé sa commande', actor: 'AI_BOT' },
-      { id: 't3', timestamp: '15 Oct 17:00', title: 'Colis créé sur Sendit.ma', description: 'Bordereau AWB généré (SND-819204)', actor: 'SYSTEM' },
-      { id: 't4', timestamp: '16 Oct 08:30', title: 'En cours de livraison', description: 'Pris en charge par le livreur Mohamed Tazi', actor: 'SENDIT' },
-      { id: 't5', timestamp: '16 Oct 08:35', title: 'Notification pré-livraison envoyée', description: 'Rappel WhatsApp du montant de 399 MAD', actor: 'AI_BOT' },
-    ],
-    chatMessages: [
-      { id: 'm1', sender: 'AI_BOT', text: 'السلام عليكم أخي Yassine، شكراً على طلبك لـ Pack 2x Chemises Lin. واش تأكد لينا مقاس L ونفس العنوان في المعارف؟', time: '14:21' },
-      { id: 'm2', sender: 'CUSTOMER', text: 'وعليكم السلام، نعم المقاس مزيان والعنوان هو هذاك.', time: '14:22' },
-      { id: 'm3', sender: 'AI_BOT', text: 'شكراً بزاف! الطلب تأكد وغادي يوصلك غداً مع موزع Sendit. الدفع نقداً 399 درهم عند المعاينة.', time: '14:22' },
-      { id: 'm4', sender: 'AI_BOT', text: 'صباح الخير سيدي Yassine! الطرد ديالك راه مع الموزع اليوم في كازا. عفاك وجدي 399 درهم.', time: '08:35' },
-    ],
-  },
-  {
-    id: 'ord-02',
-    orderNumber: 'MA-20492',
-    customerName: 'Khadija El Amrani',
-    phoneNumber: '0655819033',
-    city: 'Marrakech',
-    address: 'Résidence Jnane Gueliz, Appt 14',
-    gpsLocationUrl: 'https://maps.google.com/?q=31.6346,-8.0163',
-    totalAmount: 249,
-    productName: 'Robe Brodée Traditionnelle',
-    productQuantity: 1,
-    productAttributes: { size: 'M', color: 'Bleu Majorelle' },
-    leadStatus: 'CONFIRMED',
-    shipmentStatus: 'DELIVERY_FAILED',
-    trackingNumber: 'SND-819205',
-    waybillUrl: 'https://sendit.ma/awb/SND-819205.pdf',
-    driverName: 'Hamid Mansour',
-    driverPhone: '0662884411',
-    deliveryAttempts: 1,
-    failedReason: 'Client Injoignable (Premier appel sans réponse)',
-    aiHandoverRequired: false,
-    aiConversationEnabled: true,
-    riskScore: 35,
-    createdAt: '2026-10-15 11:10',
-    lastUpdatedAt: '2026-10-16 09:15',
-    timeline: [
-      { id: 't20', timestamp: '15 Oct 11:10', title: 'Commande reçue', description: 'Boutique en ligne', actor: 'SYSTEM' },
-      { id: 't21', timestamp: '15 Oct 11:12', title: 'Confirmé par Gemini AI', description: 'Adresse et ville vérifiées', actor: 'AI_BOT' },
-      { id: 't22', timestamp: '16 Oct 09:15', title: 'Tentative échouée', description: 'Sendit Webhook: Injoignable', actor: 'SENDIT' },
-      { id: 't23', timestamp: '16 Oct 09:16', title: 'Bot de sauvetage déclenché', description: 'Demande de reprogrammation envoyée par WhatsApp', actor: 'AI_BOT' },
-    ],
-    chatMessages: [
-      { id: 'mc1', sender: 'AI_BOT', text: 'أهلاً لالة Khadija، حاول موزع Sendit يتواصل معاك قبل قليل ولكن تعذر الوصول ليك. واش تحبي نعاودو نصيفطو الموزع؟', time: '09:16' },
-      { id: 'mc2', sender: 'CUSTOMER', text: 'كنت فالحمام ماسمعتش التيليفون، عفاك صيفطوه ليا مورا 3 دالعشية.', time: '09:20' },
-    ],
-  },
-  {
-    id: 'ord-03',
-    orderNumber: 'MA-20493',
-    customerName: 'Hamza Chraibi',
-    phoneNumber: '0678239014',
-    city: 'Fes',
-    address: 'Quartier Narjiss, Boulevard Allal Ben Abdellah',
-    totalAmount: 550,
-    productName: 'Chaussures Cuir Véritable',
-    productQuantity: 1,
-    productAttributes: { size: '43', color: 'Marron Foncé' },
-    leadStatus: 'PACKING',
-    shipmentStatus: 'READY_FOR_PICKUP',
-    trackingNumber: 'SND-819206',
-    waybillUrl: 'https://sendit.ma/awb/SND-819206.pdf',
-    deliveryAttempts: 0,
-    aiHandoverRequired: false,
-    aiConversationEnabled: true,
-    riskScore: 10,
-    createdAt: '2026-10-16 07:15',
-    lastUpdatedAt: '2026-10-16 08:45',
-    timeline: [
-      { id: 't30', timestamp: '16 Oct 07:15', title: 'Commande passée', description: 'Formulaire COD', actor: 'SYSTEM' },
-      { id: 't31', timestamp: '16 Oct 07:17', title: 'Confirmée par AI', description: 'Taille 43 confirmée', actor: 'AI_BOT' },
-      { id: 't32', timestamp: '16 Oct 08:45', title: 'Prêt pour ramassage', description: 'Bordereau Sendit imprimé', actor: 'SYSTEM' },
-    ],
-    chatMessages: [
-      { id: 'm31', sender: 'AI_BOT', text: 'السلام عليكم أخي Hamza، تم تأكيد طلبك للأحذية مقاس 43 لمدينة فاس.', time: '07:17' },
-    ],
-  },
-  {
-    id: 'ord-04',
-    orderNumber: 'MA-20494',
-    customerName: 'Samira Belkacem',
-    phoneNumber: '0663412099',
-    city: 'Rabat',
-    address: 'Avenue Fal Ould Oumeir, Agdal',
-    totalAmount: 450,
-    productName: 'Montre Automatique Édition Noire',
-    productQuantity: 1,
-    productAttributes: { color: 'Full Black' },
-    leadStatus: 'CONFIRMED',
-    shipmentStatus: 'DELIVERED_PAID',
-    trackingNumber: 'SND-819207',
-    waybillUrl: 'https://sendit.ma/awb/SND-819207.pdf',
-    deliveryAttempts: 1,
-    aiHandoverRequired: false,
-    aiConversationEnabled: false,
-    riskScore: 8,
-    createdAt: '2026-10-14 16:30',
-    lastUpdatedAt: '2026-10-16 07:40',
-    timeline: [
-      { id: 't40', timestamp: '14 Oct 16:30', title: 'Commande créée', description: 'YouCan Store', actor: 'SYSTEM' },
-      { id: 't41', timestamp: '15 Oct 10:00', title: 'Ramassé par Sendit', description: 'Hub Rabat Agdal', actor: 'SENDIT' },
-      { id: 't42', timestamp: '16 Oct 07:40', title: 'Colis Livré et Encaissé', description: 'Montant COD: 450 MAD collecté', actor: 'SENDIT' },
-    ],
-    chatMessages: [
-      { id: 'm41', sender: 'AI_BOT', text: 'بصحتك لالة Samira! تأكدنا من استلامك للساعة ديالك. نتمنى تنال إعجابك.', time: '07:42' },
-    ],
-  },
-  {
-    id: 'ord-05',
-    orderNumber: 'MA-20495',
-    customerName: 'Othmane Jabri',
-    phoneNumber: '0612398471',
-    city: 'Tanger',
-    address: 'Quartier Malabata, En face Hôtel Tarik',
-    gpsLocationUrl: 'https://maps.google.com/?q=35.7725,-5.7928',
-    totalAmount: 320,
-    productName: 'Survêtement Sport Performance',
-    productQuantity: 1,
-    productAttributes: { size: 'XL', color: 'Gris Chiné' },
-    leadStatus: 'CONFIRMED',
-    shipmentStatus: 'IN_TRANSIT',
-    trackingNumber: 'SND-819208',
-    deliveryAttempts: 0,
-    aiHandoverRequired: true,
-    aiConversationEnabled: false,
-    riskScore: 68,
-    createdAt: '2026-10-15 18:20',
-    lastUpdatedAt: '2026-10-16 06:10',
-    timeline: [
-      { id: 't50', timestamp: '15 Oct 18:20', title: 'Commande passée', description: 'Risque élevé détecté', actor: 'SYSTEM' },
-      { id: 't51', timestamp: '15 Oct 18:25', title: 'Transfert Agent Humain', description: 'Vérification manuelle requise', actor: 'AGENT' },
-      { id: 't52', timestamp: '16 Oct 06:10', title: 'Transfert Hub Tanger', description: 'En route vers l\'agence locale', actor: 'SENDIT' },
-    ],
-    chatMessages: [
-      { id: 'm51', sender: 'AGENT', text: 'السلام عليكم سي عثمان، كنشكروك على الطلب. الكولية ديالك في الطريق لطنجة.', time: '18:30' },
-    ],
-  },
-];
 
 // ─────────────────────────────────────────────────────────────
 //  Status mapping helper
@@ -301,12 +134,12 @@ function LiveUpdateFlash({ update }: { update: LiveTrackingUpdate | null }) {
 // ─────────────────────────────────────────────────────────────
 export default function TrackingPage() {
   const { markDelivered, showToast } = useOrderLifecycle();
-  const [orders, setOrders]           = useState<TrackingOrder[]>(INITIAL_ORDERS);
+  const [orders, setOrders]           = useState<TrackingOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [selectedOrder, setSelectedOrder] = useState<TrackingOrder | null>(null);
   const [isDrawerOpen, setIsDrawerOpen]   = useState(false);
-  const [isLoading, setIsLoading]         = useState(false);
+  const [isLoading, setIsLoading]         = useState(true);
   const [isLiveDb, setIsLiveDb]           = useState(false);
   const [lastLiveUpdate, setLastLiveUpdate] = useState<LiveTrackingUpdate | null>(null);
   // Track which order ids just got a live update (for animation)
@@ -388,7 +221,7 @@ export default function TrackingPage() {
     try {
       const res  = await fetch('/api/tracking');
       const data = await res.json();
-      if (data.success && Array.isArray(data.orders) && data.orders.length > 0) {
+      if (data.success && Array.isArray(data.orders)) {
         setOrders(data.orders);
         setIsLiveDb(true);
       }
@@ -495,28 +328,28 @@ export default function TrackingPage() {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800">
 
       {/* ── 1. Header ── */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3.5 shadow-2xs">
+      <header className="sticky top-0 z-20 bg-white border-b border-slate-200/80 px-4 sm:px-6 py-3.5 shadow-2xs">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
 
           {/* Title & Live badges */}
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs shrink-0">
                 <Truck className="w-5 h-5" />
               </div>
               <div>
-                <h1 className="text-sm sm:text-base font-bold text-slate-900 leading-tight">
-                  Suivi Colis — Sendit.ma
+                <h1 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
+                  3. En cours de livraison — Suivi Sendit.ma
                 </h1>
                 <p className="text-[11px] sm:text-xs text-slate-500">
-                  Pipeline COD •{' '}
+                  Pipeline COD en temps réel •{' '}
                   {connectionState === 'connected'
                     ? `Flux temps réel actif${eventCount > 0 ? ` · ${eventCount} màj live` : ''}`
                     : connectionState === 'reconnecting'
                     ? 'Reconnexion en cours…'
                     : 'Connexion SSE…'}
                   {lastEventAt && (
-                    <span className="ml-1 text-emerald-600">
+                    <span className="ml-1 text-emerald-600 font-semibold">
                       · Dernière màj: {new Date(lastEventAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                     </span>
                   )}
@@ -540,9 +373,25 @@ export default function TrackingPage() {
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions & View Switcher */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1 sm:min-w-[240px]">
+            {/* View Mode Switcher: Kanban vs Tableau */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-indigo-900 text-xs font-bold shadow-2xs">
+                <Kanban className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Kanban Sendit</span>
+              </span>
+              <Link
+                href="/dashboard/orders/in-transit"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-semibold transition-colors"
+                title="Basculer vers la vue tableau des commandes"
+              >
+                <Table className="w-3.5 h-3.5 text-slate-400" />
+                <span>Vue Tableau</span>
+              </Link>
+            </div>
+
+            <div className="relative flex-1 sm:min-w-[200px]">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
@@ -686,11 +535,19 @@ export default function TrackingPage() {
         </div>
 
         {/* Kanban */}
-        <TrackingKanban
-          orders={filteredOrders}
-          onSelectOrder={handleSelectOrder}
-          onStatusChange={handleStatusChange}
-        />
+        {isLoading && orders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-2xl border border-slate-200/80 shadow-2xs gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
+            <p className="text-sm font-semibold text-slate-700">Chargement du pipeline Sendit…</p>
+            <p className="text-xs text-slate-400">Synchronisation en direct avec la base de données</p>
+          </div>
+        ) : (
+          <TrackingKanban
+            orders={filteredOrders}
+            onSelectOrder={handleSelectOrder}
+            onStatusChange={handleStatusChange}
+          />
+        )}
       </main>
 
       {/* Order Drawer */}

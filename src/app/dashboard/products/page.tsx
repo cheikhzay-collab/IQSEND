@@ -30,10 +30,10 @@ import { ProductItem, CATALOG_PRODUCTS } from '@/lib/products-store';
 import { ProductEditModal } from '@/components/products/ProductEditModal';
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<ProductItem[]>(CATALOG_PRODUCTS);
+  const [products, setProducts] = useState<ProductItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Edit / Add Modal State
   const [selectedProduct, setSelectedProduct] = useState<ProductItem | null>(null);
@@ -48,7 +48,7 @@ export default function ProductsPage() {
         const res = await fetch('/api/products');
         if (!res.ok) return;
         const data = await res.json();
-        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+        if (data.success && Array.isArray(data.products)) {
           const mapped: ProductItem[] = data.products.map((p: any) => ({
             id: p.id || `prod-${Math.random().toString(36).slice(2, 7)}`,
             name: p.name || 'Produit COD',
@@ -316,7 +316,28 @@ export default function ProductsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {filteredProducts.map((p) => {
+              {isLoading && products.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Package className="w-8 h-8 animate-bounce text-slate-400" />
+                      <p className="text-xs font-semibold text-slate-600">Chargement du catalogue produits…</p>
+                      <p className="text-[11px] text-slate-400">Synchronisation avec la base MySQL</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Package className="w-8 h-8 text-slate-300" />
+                      <p className="text-xs font-semibold text-slate-600">Aucun produit dans le catalogue.</p>
+                      <p className="text-[11px] text-slate-400">Cliquez sur &quot;Nouveau Produit&quot; pour ajouter votre premier article.</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                filteredProducts.map((p) => {
                 const grossProfit = p.sellingPrice - p.costPrice - p.deliveryFee;
                 const marginPercent = p.sellingPrice > 0 ? Math.round((grossProfit / p.sellingPrice) * 100) : 0;
                 const totalOptions = (p.variants || []).reduce((acc, v) => acc + (v.options?.length || 0), 0);
@@ -482,7 +503,7 @@ export default function ProductsPage() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

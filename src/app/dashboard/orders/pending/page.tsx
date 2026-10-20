@@ -20,10 +20,12 @@ import {
   ArrowRight,
   Bot,
   FileSpreadsheet,
-  Headphones
+  Headphones,
+  PhoneMissed,
+  Calendar,
+  XCircle,
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import {
   EditOrderModal,
   CancelOrderModal,
@@ -35,25 +37,74 @@ import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
+type ConfirmationSubFilter = 'ALL' | 'NEW' | 'UNREACHABLE' | 'RESCHEDULED';
+
+function getConfirmationSubStatus(order: LifecycleOrder): 'NEW' | 'UNREACHABLE' | 'RESCHEDULED' {
+  const notes = (order.customer.notes || '').toLowerCase();
+  if (
+    notes.includes('injoignable') ||
+    notes.includes('tentative') ||
+    notes.includes('pas de réponse') ||
+    notes.includes('ne répond pas')
+  ) {
+    return 'UNREACHABLE';
+  }
+  if (
+    notes.includes('rappeler') ||
+    notes.includes('report') ||
+    notes.includes('programm') ||
+    notes.includes('demande de rappel')
+  ) {
+    return 'RESCHEDULED';
+  }
+  return 'NEW';
+}
+
 export default function PendingOrdersPage() {
   const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
 
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
+  const [subFilter, setSubFilter] = useState<ConfirmationSubFilter>('ALL');
 
   // Modals
   const [editingOrder, setEditingOrder] = useState<LifecycleOrder | null>(null);
   const [cancellingOrder, setCancellingOrder] = useState<LifecycleOrder | null>(null);
   const [callingOrder, setCallingOrder] = useState<LifecycleOrder | null>(null);
   const [callOutcome, setCallOutcome] = useState('CONFIRMED');
+  const [customCallNote, setCustomCallNote] = useState('');
+  const [scheduledDate, setScheduledDate] = useState('');
   const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
 
-  // Filter orders for Pending Confirmation (Strictly COD)
+  // All pending orders (Stage 1)
+  const allPendingOrders = useMemo(() => {
+    return orders.filter((o) => o.stage === 'PENDING_CONFIRMATION');
+  }, [orders]);
+
+  // Counts by sub-state
+  const subCounts = useMemo(() => {
+    let newCount = 0;
+    let unreachableCount = 0;
+    let rescheduledCount = 0;
+    allPendingOrders.forEach((o) => {
+      const st = getConfirmationSubStatus(o);
+      if (st === 'NEW') newCount++;
+      else if (st === 'UNREACHABLE') unreachableCount++;
+      else if (st === 'RESCHEDULED') rescheduledCount++;
+    });
+    return {
+      all: allPendingOrders.length,
+      new: newCount,
+      unreachable: unreachableCount,
+      rescheduled: rescheduledCount,
+    };
+  }, [allPendingOrders]);
+
+  // Filtered orders for Pending Confirmation
   const pendingOrders = useMemo(() => {
-    return orders
-      .filter((o) => o.stage === 'PENDING_CONFIRMATION')
+    return allPendingOrders
       .filter((o) => {
         const matchesSearch =
           o.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -63,14 +114,16 @@ export default function PendingOrdersPage() {
 
         const matchesCity = selectedCity === 'ALL' || o.customer.city === selectedCity;
 
-        return matchesSearch && matchesCity;
+        const st = getConfirmationSubStatus(o);
+        const matchesSub = subFilter === 'ALL' || st === subFilter;
+
+        return matchesSearch && matchesCity && matchesSub;
       });
-  }, [orders, search, selectedCity]);
+  }, [allPendingOrders, search, selectedCity, subFilter]);
 
   const cities = useMemo(() => {
-    const allPending = orders.filter((o) => o.stage === 'PENDING_CONFIRMATION');
-    return Array.from(new Set(allPending.map((o) => o.customer.city)));
-  }, [orders]);
+    return Array.from(new Set(allPendingOrders.map((o) => o.customer.city)));
+  }, [allPendingOrders]);
 
   // Handle Quick Call Result
   const handleLogCall = () => {
@@ -78,21 +131,29 @@ export default function PendingOrdersPage() {
     if (callOutcome === 'CONFIRMED') {
       confirmOrder(callingOrder.id);
     } else if (callOutcome === 'CANCELED') {
-      cancelOrder(callingOrder.id, 'Annulé lors de l\'appel de confirmation');
+      cancelOrder(callingOrder.id, customCallNote || 'Annulé lors de l\'appel de confirmation');
     } else {
+      const timeStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+      let noteText = '';
+      if (callOutcome === 'Rappel programmé') {
+        noteText = `Rappeler: ${scheduledDate || 'Date ultérieure'} (${timeStr})${customCallNote ? ` — ${customCallNote}` : ''}`;
+      } else {
+        noteText = `${callOutcome} (${timeStr})${customCallNote ? ` — ${customCallNote}` : ''}`;
+      }
+
       editOrder(callingOrder.id, {
         customer: {
           ...callingOrder.customer,
-          notes: `Appel: ${callOutcome} (${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })})`,
+          notes: noteText,
         },
       });
     }
     setCallingOrder(null);
+    setCustomCallNote('');
+    setScheduledDate('');
   };
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      {/* Main Content View */}
-
       {/* Main Content View */}
       <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
         
@@ -106,14 +167,14 @@ export default function PendingOrdersPage() {
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
-                    1. En attente de confirmation
+                    1. Confirmation des commandes
                   </h1>
                   <span className="bg-amber-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs animate-pulse">
-                    {pendingCount} à vérifier
+                    {pendingCount} à traiter
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Vérification des numéros et adresses, appels rapides et confirmation WhatsApp Darija automatique.
+                  Appels de validation COD, gestion des relances (injoignables), programmation des rappels et transferts en préparation.
                 </p>
               </div>
             </div>
@@ -169,6 +230,84 @@ export default function PendingOrdersPage() {
           </div>
         </div>
 
+        {/* Operational Confirmation Sub-Tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+          <button
+            onClick={() => setSubFilter('ALL')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+              subFilter === 'ALL'
+                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <span>Toutes les commandes</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                subFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {subCounts.all}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSubFilter('NEW')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+              subFilter === 'NEW'
+                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                : 'bg-white hover:bg-emerald-50/50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+            <span>À appeler (Nouveaux)</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                subFilter === 'NEW' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}
+            >
+              {subCounts.new}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSubFilter('UNREACHABLE')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+              subFilter === 'UNREACHABLE'
+                ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+                : 'bg-white hover:bg-amber-50/50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <PhoneMissed className="w-3.5 h-3.5 text-amber-400" />
+            <span>Injoignables (Relances)</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                subFilter === 'UNREACHABLE' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
+              }`}
+            >
+              {subCounts.unreachable}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSubFilter('RESCHEDULED')}
+            className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 border ${
+              subFilter === 'RESCHEDULED'
+                ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                : 'bg-white hover:bg-blue-50/50 text-slate-700 border-slate-200'
+            }`}
+          >
+            <Calendar className="w-3.5 h-3.5 text-blue-400" />
+            <span>Programmées / Reportées</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                subFilter === 'RESCHEDULED' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'
+              }`}
+            >
+              {subCounts.rescheduled}
+            </span>
+          </button>
+        </div>
+
         {/* Content Container (Mobile Cards + Desktop Table) */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
           {pendingOrders.length === 0 ? (
@@ -191,9 +330,29 @@ export default function PendingOrdersPage() {
                         <span className="text-xs font-black text-slate-900">{order.orderNumber}</span>
                         <span className="text-[10px] text-slate-400 font-medium">{order.createdAt}</span>
                       </div>
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                        {order.aiVerification?.status === 'CONFIRMED_BY_AI' ? '✓ IA Confirmé' : `Risque ${order.aiVerification?.riskScore || 10}%`}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {getConfirmationSubStatus(order) === 'NEW' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                            Nouveau
+                          </span>
+                        )}
+                        {getConfirmationSubStatus(order) === 'UNREACHABLE' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            <PhoneMissed className="w-2.5 h-2.5 text-amber-600" />
+                            Injoignable
+                          </span>
+                        )}
+                        {getConfirmationSubStatus(order) === 'RESCHEDULED' && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                            <Calendar className="w-2.5 h-2.5 text-blue-600" />
+                            Reporté
+                          </span>
+                        )}
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-full">
+                          {order.aiVerification?.status === 'CONFIRMED_BY_AI' ? '✓ IA' : `Risque ${order.aiVerification?.riskScore || 10}%`}
+                        </span>
+                      </div>
                     </div>
 
                     {/* Customer & City */}
@@ -315,13 +474,35 @@ export default function PendingOrdersPage() {
                       >
                         {/* 1. Order ID */}
                         <td className="py-4 px-4 font-bold text-slate-900 whitespace-nowrap">
-                          <div className="flex flex-col">
-                            <span className="text-xs font-black text-slate-900">
-                              {order.orderNumber}
-                            </span>
-                            <span className="text-[10px] text-slate-400 font-medium">
-                              {order.createdAt}
-                            </span>
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-900">
+                                {order.orderNumber}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-medium">
+                                {order.createdAt}
+                              </span>
+                            </div>
+                            <div>
+                              {getConfirmationSubStatus(order) === 'NEW' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                  Nouveau lead
+                                </span>
+                              )}
+                              {getConfirmationSubStatus(order) === 'UNREACHABLE' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                  <PhoneMissed className="w-2.5 h-2.5 text-amber-600" />
+                                  Ne répond pas
+                                </span>
+                              )}
+                              {getConfirmationSubStatus(order) === 'RESCHEDULED' && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                  <Calendar className="w-2.5 h-2.5 text-blue-600" />
+                                  Reporté
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </td>
 
@@ -529,15 +710,82 @@ export default function PendingOrdersPage() {
               <select
                 value={callOutcome}
                 onChange={(e) => setCallOutcome(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 bg-white font-semibold text-slate-800"
               >
-                <option value="CONFIRMED">Commande Confirmée (Transférer immédiatement en préparation)</option>
-                <option value="Injoignable (Tentative 1)">Injoignable (Tentative 1)</option>
-                <option value="Injoignable (Tentative 2)">Injoignable (Tentative 2)</option>
-                <option value="Demande de rappel plus tard">Demande de rappel plus tard</option>
-                <option value="CANCELED">Le client a annulé lors de l'appel</option>
+                <option value="CONFIRMED">✓ Commande Confirmée ➔ Envoi en préparation</option>
+                <option value="Injoignable (Tentative 1/3)">📞 Injoignable (Tentative 1/3)</option>
+                <option value="Injoignable (Tentative 2/3)">📞 Injoignable (Tentative 2/3)</option>
+                <option value="Injoignable (Tentative 3/3)">⚠️ Injoignable (Tentative 3/3 - À clore)</option>
+                <option value="Rappel programmé">⏰ Demande de rappel / Date ultérieure</option>
+                <option value="CANCELED">✕ Annulé par le client (0 DH frais de livraison)</option>
               </select>
             </div>
+
+            {callOutcome === 'CONFIRMED' && (
+              <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-900 flex items-start gap-2">
+                <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <p className="text-[11px] leading-relaxed">
+                  Cette action valide la commande, réserve le stock et la transmet à l'étape <strong>2. En préparation</strong> pour emballage et expédition Sendit.
+                </p>
+              </div>
+            )}
+
+            {callOutcome.startsWith('Injoignable') && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-900 text-[11px] flex items-center gap-1.5">
+                    <PhoneMissed className="w-3.5 h-3.5 text-amber-600" />
+                    Relance WhatsApp Darija conseillée
+                  </span>
+                </div>
+                <p className="text-[10px] text-amber-700 leading-tight">
+                  Envoyez un message WhatsApp instantané pour inciter le client à confirmer par écrit :
+                </p>
+                <a
+                  href={`https://wa.me/212${callingOrder.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                    `Salam ${callingOrder.customer.name}, 7awlna ntaslo bik mn lmetjar dialna bach n-akkdo talab dial ${callingOrder.items[0]?.name} l ${callingOrder.customer.city} mais mal9inakch. 3afak jawbna hna wach l3onwan mazal s7i7 bach nsayfto lik commande?`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs shadow-2xs transition-transform active:scale-95"
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span>Envoyer message WhatsApp de relance</span>
+                </a>
+              </div>
+            )}
+
+            {callOutcome === 'Rappel programmé' && (
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 space-y-2">
+                <label className="block font-bold text-blue-900 text-[11px] flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                  Date / Heure de rappel convenue :
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex: Aujourd'hui à 18h30 ou Samedi matin"
+                  value={scheduledDate}
+                  onChange={(e) => setScheduledDate(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-blue-200 rounded-lg text-xs bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                />
+              </div>
+            )}
+
+            {callOutcome === 'CANCELED' && (
+              <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 space-y-2">
+                <div className="flex items-center gap-1.5 text-rose-800 font-bold text-[11px]">
+                  <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                  <span>Motif de l'annulation (0 MAD perte de livraison)</span>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Motif: Prix trop cher, doublon, faux numéro, pas le temps..."
+                  value={customCallNote}
+                  onChange={(e) => setCustomCallNote(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-rose-200 rounded-lg text-xs bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500 font-medium"
+                />
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-2">
               <button

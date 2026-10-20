@@ -14,7 +14,7 @@ import {
   ShoppingBag,
   ArrowRight
 } from 'lucide-react';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
+
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 interface DraftOrder {
@@ -28,31 +28,10 @@ interface DraftOrder {
   lastSaved: string;
 }
 
-const INITIAL_DRAFTS: DraftOrder[] = [
-  {
-    id: 'drf-01',
-    draftNumber: '#DFT-1082',
-    customerName: 'Yassir Bennani',
-    phone: '0661992211',
-    city: 'Casablanca',
-    itemsCount: 2,
-    totalAmount: 420,
-    lastSaved: 'Il y a 1 heure',
-  },
-  {
-    id: 'drf-02',
-    draftNumber: '#DFT-1083',
-    customerName: 'Hafsa Cherkaoui',
-    phone: '0672110044',
-    city: 'Rabat',
-    itemsCount: 1,
-    totalAmount: 290,
-    lastSaved: 'Il y a 3 heures',
-  },
-];
+const INITIAL_DRAFTS: DraftOrder[] = [];
 
 export default function DraftsPage() {
-  const [drafts, setDrafts] = useState<DraftOrder[]>(INITIAL_DRAFTS);
+  const [drafts, setDrafts] = useState<DraftOrder[]>([]);
   const [search, setSearch] = useState('');
   const { showToast } = useOrderLifecycle();
 
@@ -70,8 +49,7 @@ export default function DraftsPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      {/* 1. Sticky Lifecycle Tabs */}
-      <OrderLifecycleTabs />
+
 
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">

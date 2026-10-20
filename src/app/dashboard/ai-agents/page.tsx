@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import {
   Bot,
   Sparkles,
@@ -208,7 +209,7 @@ const DEFAULT_PRODUCTS_KB: ProductKbData[] = [
 
 export default function AiAgentsPage() {
   const [activeTab, setActiveTab] = useState<
-    'simulator' | 'product-kb' | 'prompt' | 'knowledge' | 'permissions' | 'whatsapp-provider'
+    'simulator' | 'product-kb' | 'prompt' | 'knowledge' | 'permissions'
   >('simulator');
   const [temperature, setTemperature] = useState(0.3);
   const [selectedProduct, setSelectedProduct] = useState<ProductKbData>(DEFAULT_PRODUCTS_KB[0]);
@@ -257,33 +258,13 @@ export default function AiAgentsPage() {
     'بغيت نهضر مع شي واحد',
   ]);
   const [newKeyword, setNewKeyword] = useState('');
-
-  // 📱 WhatsApp Multi-Provider State
-  const [selectedProvider, setSelectedProvider] = useState<'META_CLOUD_API' | 'EVOLUTION_API_QR'>('META_CLOUD_API');
-  const [metaPhoneId, setMetaPhoneId] = useState('104829104829104');
-  const [metaToken, setMetaToken] = useState('EAABwzL1...live_token');
-  const [evoInstance, setEvoInstance] = useState('sendit_morocco_sim1');
-  const [evoApiKey, setEvoApiKey] = useState('snd_evo_key_948293');
-  const [evoAntiBanDelay, setEvoAntiBanDelay] = useState(3);
-  const [evoDailyCap, setEvoDailyCap] = useState(250);
-  const [showQrModal, setShowQrModal] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
-  // Live Baileys WhatsApp Session State
-  const [qrStatus, setQrStatus] = useState<'INITIALIZING' | 'SCAN_QR' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR'>('DISCONNECTED');
-  const [liveQrDataUrl, setLiveQrDataUrl] = useState<string | null>(null);
-  const [connectedPhone, setConnectedPhone] = useState<string | null>(null);
-  const [connectedName, setConnectedName] = useState<string | null>(null);
-  const [isRefreshingQr, setIsRefreshingQr] = useState(false);
-
-  // 🤖 Live Gemini LLM API State
+  // 🤖 Live Gemini LLM API State (Configurable dans /dashboard/integrations)
   const [geminiConfigured, setGeminiConfigured] = useState(false);
   const [geminiMaskedKey, setGeminiMaskedKey] = useState('');
-  const [geminiInputKey, setGeminiInputKey] = useState('');
-  const [isSavingKey, setIsSavingKey] = useState(false);
   const [isSimulatingApi, setIsSimulatingApi] = useState(false);
   const [activeModelName, setActiveModelName] = useState('gemini-1.5-flash');
-  const [keyAlert, setKeyAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Check Gemini API Key status on load
   useEffect(() => {
@@ -293,108 +274,11 @@ export default function AiAgentsPage() {
         if (data.success) {
           setGeminiConfigured(data.isConfigured);
           if (data.maskedKey) setGeminiMaskedKey(data.maskedKey);
+          if (data.model) setActiveModelName(data.model);
         }
       })
       .catch(() => {});
   }, []);
-
-  const handleSaveGeminiKey = async () => {
-    if (!geminiInputKey.trim()) return;
-    setIsSavingKey(true);
-    setKeyAlert(null);
-    try {
-      const res = await fetch('/api/settings/gemini', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ apiKey: geminiInputKey.trim() }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setGeminiConfigured(true);
-        setGeminiMaskedKey(data.maskedKey);
-        setGeminiInputKey('');
-        setKeyAlert({
-          type: 'success',
-          text: '✅ Clé API Gemini validée et activée avec succès auprès de Google AI !',
-        });
-      } else {
-        setKeyAlert({ type: 'error', text: data.error || 'Clé API invalide ou quota dépassé' });
-      }
-    } catch {
-      setKeyAlert({ type: 'error', text: 'Erreur réseau lors de la validation' });
-    } finally {
-      setIsSavingKey(false);
-    }
-  };
-
-  // Poll live QR state when modal is open or when provider tab is active
-  useEffect(() => {
-    let interval: any;
-    const fetchStatus = async () => {
-      try {
-        const res = await fetch(`/api/whatsapp/qr?t=${Date.now()}`, { cache: 'no-store' });
-        const data = await res.json();
-        if (data.success) {
-          setQrStatus(data.status);
-          if (data.status === 'SCAN_QR' && data.qrCodeDataUrl) {
-            setLiveQrDataUrl(data.qrCodeDataUrl);
-          } else if (data.status === 'CONNECTED' || data.status === 'DISCONNECTED') {
-            setLiveQrDataUrl(null);
-          }
-          if (data.connectedPhone) setConnectedPhone(data.connectedPhone);
-          if (data.connectedName) setConnectedName(data.connectedName);
-        }
-      } catch (e) {
-        // silent
-      }
-    };
-
-    if (showQrModal || (activeTab === 'whatsapp-provider' && selectedProvider === 'EVOLUTION_API_QR')) {
-      fetchStatus();
-      interval = setInterval(fetchStatus, 2000);
-    }
-
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [showQrModal, activeTab, selectedProvider]);
-
-  const handleRestartQr = async () => {
-    setIsRefreshingQr(true);
-    setLiveQrDataUrl(null);
-    try {
-      const res = await fetch('/api/whatsapp/qr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'restart' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setQrStatus(data.status);
-        if (data.qrCodeDataUrl) setLiveQrDataUrl(data.qrCodeDataUrl);
-      }
-    } catch (e) {
-      console.error('Error restarting QR:', e);
-    } finally {
-      setIsRefreshingQr(false);
-    }
-  };
-
-  const handleDisconnectQr = async () => {
-    try {
-      await fetch('/api/whatsapp/qr', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'disconnect' }),
-      });
-      setQrStatus('DISCONNECTED');
-      setLiveQrDataUrl(null);
-      setConnectedPhone(null);
-      setConnectedName(null);
-    } catch (e) {
-      console.error('Error disconnecting:', e);
-    }
-  };
 
   const handleSimulate = async () => {
     if (!testMessage.trim()) return;
@@ -553,117 +437,27 @@ export default function AiAgentsPage() {
           </div>
         </div>
 
-        <button
-          onClick={() => {
-            setSavedSuccess(true);
-            setTimeout(() => setSavedSuccess(false), 2500);
-          }}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
-        >
-          <Save className="w-3.5 h-3.5" />
-          {savedSuccess ? 'Configuration Enregistrée !' : 'Sauvegarder la Configuration'}
-        </button>
-      </div>
-
-      {/* 🚀 LLM API LIVE STATUS & QUICK ACTIVATION BANNER */}
-      <div
-        className={`p-4 rounded-2xl border-2 transition-all shadow-xs ${
-          geminiConfigured
-            ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border-emerald-500/30'
-            : 'bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border-amber-500/40'
-        }`}
-      >
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-start sm:items-center gap-3">
-            <div
-              className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white shrink-0 ${
-                geminiConfigured
-                  ? 'bg-emerald-600 shadow-md shadow-emerald-600/20'
-                  : 'bg-amber-600 shadow-md shadow-amber-600/20'
-              }`}
-            >
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-sm font-black text-slate-900">
-                  {geminiConfigured
-                    ? 'Agent IA connecté au LLM en direct (Google Gemini 1.5 Flash)'
-                    : 'Agent IA : Connexion requise à la clé API Google Gemini'}
-                </span>
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                    geminiConfigured
-                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300 flex items-center gap-1'
-                      : 'bg-amber-100 text-amber-800 border-amber-300'
-                  }`}
-                >
-                  {geminiConfigured ? (
-                    <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      Live API Actif ({geminiMaskedKey})
-                    </>
-                  ) : (
-                    'API Inactif - Mode Fallback'
-                  )}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                {geminiConfigured
-                  ? 'L\'agent interagit en direct avec Gemini pour qualifier les prospects, consulter le catalogue produit, suivre les colis Sendit par téléphone et confirmer les commandes.'
-                  : 'Entrez votre clé Gemini API gratuite ci-dessous pour transformer l\'agent en IA conversationnelle bilingue (Darija / Français).'}
-              </p>
-            </div>
-          </div>
-
-          <a
-            href="https://aistudio.google.com/app/apikey"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-xs font-bold text-purple-700 hover:text-purple-800 flex items-center gap-1 bg-white hover:bg-purple-50 px-3 py-2 rounded-xl border border-purple-200 transition-colors shrink-0 shadow-2xs self-start md:self-auto"
+        <div className="flex items-center gap-2">
+          <Link
+            href="/dashboard/integrations"
+            className="flex items-center gap-1.5 px-3 py-2 bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all shadow-2xs"
+            title="Gérer les intégrations API & WhatsApp"
           >
-            <ExternalLink className="w-3.5 h-3.5" /> Clé gratuite Google AI Studio
-          </a>
-        </div>
+            <Sliders className="w-3.5 h-3.5 text-slate-500" />
+            <span>Intégrations & Passerelles</span>
+          </Link>
 
-        {/* Quick Key Activation Input */}
-        <div className="mt-3 pt-3 border-t border-slate-200/60 flex flex-col sm:flex-row gap-2">
-          <input
-            type="password"
-            placeholder={
-              geminiConfigured
-                ? 'Pour modifier la clé, collez la nouvelle clé ici...'
-                : 'Collez la clé Gemini API ici (ex: AIzaSy...)'
-            }
-            value={geminiInputKey}
-            onChange={(e) => setGeminiInputKey(e.target.value)}
-            className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
-          />
           <button
-            onClick={handleSaveGeminiKey}
-            disabled={isSavingKey || !geminiInputKey.trim()}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white rounded-lg font-medium text-xs shadow-xs transition-colors shrink-0"
+            onClick={() => {
+              setSavedSuccess(true);
+              setTimeout(() => setSavedSuccess(false), 2500);
+            }}
+            className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm"
           >
-            <span>{isSavingKey ? 'Vérification et activation...' : 'Activer l\'API'}</span>
-            {isSavingKey ? (
-              <RotateCcw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Sparkles className="w-4 h-4" />
-            )}
+            <Save className="w-3.5 h-3.5" />
+            {savedSuccess ? 'Configuration Enregistrée !' : 'Sauvegarder la Configuration'}
           </button>
         </div>
-
-        {keyAlert && (
-          <div
-            className={`mt-2 p-2.5 rounded-xl text-xs font-medium border flex items-center gap-2 ${
-              keyAlert.type === 'success'
-                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
-                : 'bg-rose-50 text-rose-900 border-rose-200'
-            }`}
-          >
-            <span>{keyAlert.text}</span>
-          </div>
-        )}
       </div>
 
       {/* Navigation Tabs - Mobile Horizontal Swipe */}
@@ -697,16 +491,6 @@ export default function AiAgentsPage() {
           }`}
         >
           <ShieldCheck className="w-3.5 h-3.5" /> 🛡️ Gouvernance & Droits de l'Agent
-        </button>
-        <button
-          onClick={() => setActiveTab('whatsapp-provider')}
-          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
-            activeTab === 'whatsapp-provider'
-              ? 'bg-blue-600 text-white shadow-sm'
-              : 'text-slate-600 hover:bg-slate-100'
-          }`}
-        >
-          <Send className="w-3.5 h-3.5" /> 📱 Connecteur WhatsApp (Meta vs Scan QR)
         </button>
         <button
           onClick={() => setActiveTab('prompt')}
@@ -1393,332 +1177,6 @@ export default function AiAgentsPage() {
         </div>
       )}
 
-      {/* ───────────────────────────────────────────────────────────── */}
-      {/* TAB 6: CONNECTEUR WHATSAPP (META VS SCAN QR)                  */}
-      {/* ───────────────────────────────────────────────────────────── */}
-      {activeTab === 'whatsapp-provider' && (
-        <div className="space-y-6">
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
-            <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-1.5">
-                <Send className="w-3.5 h-3.5 text-teal-600" />
-                Passerelle de Communication WhatsApp
-              </div>
-              <h3 className="font-black text-sm text-slate-900">
-                Choix du Fournisseur : Meta Cloud API vs Scan QR (Maroc)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Basculez facilement entre l'API officielle d'entreprise de Meta et la passerelle autonome par scan QR pour carte SIM marocaine.
-              </p>
-            </div>
-
-            {/* Provider Cards Selector */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-              
-              {/* Option 1: Meta Cloud API */}
-              <div
-                onClick={() => setSelectedProvider('META_CLOUD_API')}
-                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
-                  selectedProvider === 'META_CLOUD_API'
-                    ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
-                    Officiel Entreprise
-                  </span>
-                  {selectedProvider === 'META_CLOUD_API' && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse" />
-                  )}
-                </div>
-                <h4 className="font-black text-sm text-slate-900 mt-2">
-                  Meta WhatsApp Cloud API
-                </h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Connecté directement aux serveurs Meta. Zéro risque de bannissement, boutons interactifs natifs et 1000 conversations offertes/mois.
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="text-emerald-700 font-bold">✅ Boutons cliquables</span>
-                  <span className="text-slate-400">100% Stable</span>
-                </div>
-              </div>
-
-              {/* Option 2: Evolution API / Scan QR */}
-              <div
-                onClick={() => setSelectedProvider('EVOLUTION_API_QR')}
-                className={`p-5 rounded-2xl border cursor-pointer transition-all ${
-                  selectedProvider === 'EVOLUTION_API_QR'
-                    ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
-                    : 'border-slate-200 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
-                    Session SIM Marocaine
-                  </span>
-                  {selectedProvider === 'EVOLUTION_API_QR' && (
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse" />
-                  )}
-                </div>
-                <h4 className="font-black text-sm text-slate-900 mt-2">
-                  Session QR Code (Evolution / Baileys)
-                </h4>
-                <p className="text-xs text-slate-600 mt-1 leading-relaxed">
-                  Connexion instantanée par QR code avec n'importe quelle puce Maroc Telecom, Inwi ou Orange. Sans validation de registre commercial.
-                </p>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
-                  <span className="text-indigo-700 font-bold">⚡ Sans frais Meta</span>
-                  <span className="text-amber-600 font-bold">Protection Anti-Ban requise</span>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Provider Configuration Form */}
-            {selectedProvider === 'META_CLOUD_API' ? (
-              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
-                <div className="flex items-center justify-between">
-                  <strong className="text-slate-900 font-bold">Paramètres Meta Cloud API</strong>
-                  <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px]">
-                    Statut: Connecté & Opérationnel
-                  </span>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Phone Number ID
-                    </label>
-                    <input
-                      type="text"
-                      value={metaPhoneId}
-                      onChange={(e) => setMetaPhoneId(e.target.value)}
-                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Access Token Permanent
-                    </label>
-                    <input
-                      type="password"
-                      value={metaToken}
-                      onChange={(e) => setMetaToken(e.target.value)}
-                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200 space-y-4 text-xs">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <strong className="text-slate-900 font-bold">Session WhatsApp Réelle (Multi-Device QR)</strong>
-                    {qrStatus === 'CONNECTED' ? (
-                      <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        Connecté (+{connectedPhone || 'SIM Maroc'})
-                      </span>
-                    ) : (
-                      <span className="text-amber-700 font-bold bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-full text-[10px]">
-                        En attente de Scan QR
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {qrStatus === 'CONNECTED' ? (
-                      <button
-                        onClick={handleDisconnectQr}
-                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl font-bold text-xs border border-rose-200 transition-colors"
-                      >
-                        Déconnecter
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => {
-                          setShowQrModal(true);
-                        }}
-                        className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-                      >
-                        <span>📷 Scanner le QR Code Réel</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Nom de l'Instance SIM
-                    </label>
-                    <input
-                      type="text"
-                      value={evoInstance}
-                      onChange={(e) => setEvoInstance(e.target.value)}
-                      className="w-full text-xs p-2 rounded-lg border border-slate-200 font-mono bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[11px] font-bold text-slate-600 block mb-1">
-                      Délai de simulation humaine (Anti-Ban)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="range"
-                        min="1"
-                        max="8"
-                        value={evoAntiBanDelay}
-                        onChange={(e) => setEvoAntiBanDelay(parseInt(e.target.value))}
-                        className="flex-1 h-1.5 bg-slate-200 rounded-lg accent-indigo-600 cursor-pointer"
-                      />
-                      <span className="font-bold text-slate-800 w-16 text-right">{evoAntiBanDelay} sec</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-[11px] leading-relaxed">
-                  💡 <strong>Protection Anti-Ban pour carte SIM marocaine :</strong> Le moteur Baileys intègre automatiquement un délai de frappe humaine et la gestion des sessions multi-devices pour protéger votre numéro contre les blocages.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* REAL LIVE QR Code Scan Modal */}
-          {showQrModal && (
-            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-              <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
-                {qrStatus === 'CONNECTED' ? (
-                  <div className="space-y-4 py-3">
-                    <div className="w-14 h-14 rounded-full bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center text-2xl font-black border border-emerald-200">
-                      ✅
-                    </div>
-                    <div>
-                      <h3 className="font-black text-base text-slate-900">
-                        WhatsApp Connecté avec Succès !
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-1">
-                        Votre smartphone marocain est synchronisé avec l'agent IA Sendit.
-                      </p>
-                    </div>
-
-                    <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-emerald-800 text-xs font-mono font-bold">
-                      +{connectedPhone || '212XXXXXXXXX'} {connectedName ? `(${connectedName})` : ''}
-                    </div>
-
-                    <p className="text-[11px] text-slate-500 leading-relaxed">
-                      L'agent IA Gemini et le moteur de confirmation COD peuvent désormais envoyer et recevoir les messages en Darija directement depuis votre numéro.
-                    </p>
-
-                    <button
-                      onClick={() => setShowQrModal(false)}
-                      className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm"
-                    >
-                      Terminer & Fermer
-                    </button>
-
-                    <button
-                      onClick={async () => {
-                        await handleDisconnectQr();
-                        await handleRestartQr();
-                      }}
-                      className="w-full py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-all border border-rose-200"
-                    >
-                      Déconnecter et scanner un autre numéro
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="w-12 h-12 rounded-full bg-indigo-50 text-indigo-600 mx-auto flex items-center justify-center font-black">
-                      📷
-                    </div>
-                    <div>
-                      <h3 className="font-black text-sm text-slate-900">
-                        Scanner avec WhatsApp Mobile
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Ouvrez WhatsApp {'>'} Appareils connectés {'>'} Connecter un appareil
-                      </p>
-                    </div>
-
-                    {/* Live QR Box */}
-                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 inline-block mx-auto shadow-inner">
-                      <div className="w-56 h-56 bg-white p-2 rounded-xl border border-slate-300 flex items-center justify-center relative">
-                        {liveQrDataUrl ? (
-                          <img
-                            src={liveQrDataUrl}
-                            alt="Code QR WhatsApp Réel"
-                            className="w-full h-full object-contain select-none"
-                          />
-                        ) : qrStatus === 'ERROR' ? (
-                          <div className="space-y-3 p-4 text-center">
-                            <div className="w-10 h-10 rounded-full bg-rose-50 text-rose-600 mx-auto flex items-center justify-center font-bold text-lg border border-rose-200">
-                              ⚠️
-                            </div>
-                            <p className="text-xs text-rose-700 font-bold">
-                              Échec de connexion au serveur WhatsApp
-                            </p>
-                            <p className="text-[10px] text-slate-500 leading-snug">
-                              Le pont WhatsApp tente de se reconnecter.
-                            </p>
-                            <button
-                              onClick={handleRestartQr}
-                              disabled={isRefreshingQr}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold shadow-sm"
-                            >
-                              Réessayer
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="space-y-3 p-4">
-                            <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin mx-auto" />
-                            <p className="text-[11px] text-slate-600 font-medium">
-                              {isRefreshingQr
-                                ? "Régénération d'une nouvelle clé QR..."
-                                : qrStatus === 'INITIALIZING'
-                                ? "Connexion au serveur WhatsApp..."
-                                : "Génération du code QR chiffré WhatsApp..."}
-                            </p>
-                            <p className="text-[10px] text-slate-400">
-                              Affichage instantané dès synchronisation (environ 3 à 5 sec)
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between text-[11px] px-2 text-slate-500">
-                      <span className="flex items-center gap-1.5 font-medium">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                        Actualisation temps réel
-                      </span>
-                      <button
-                        onClick={handleRestartQr}
-                        disabled={isRefreshingQr}
-                        className="text-indigo-600 font-bold hover:underline flex items-center gap-1"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${isRefreshingQr ? 'animate-spin' : ''}`} />
-                        Régénérer
-                      </button>
-                    </div>
-
-                    <div className="text-[11px] text-indigo-800 font-medium bg-indigo-50/80 py-2 px-3 rounded-xl border border-indigo-100 text-left leading-relaxed">
-                      📌 <strong>Conseil :</strong> Pointez l'appareil photo WhatsApp directement sur le QR code ci-dessus. La connexion s'établit automatiquement dès la lecture.
-                    </div>
-
-                    <button
-                      onClick={() => setShowQrModal(false)}
-                      className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
-                    >
-                      Fermer
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
 }

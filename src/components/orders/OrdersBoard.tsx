@@ -22,7 +22,8 @@ import {
   Phone,
   MessageCircle,
   Bot,
-  Sparkles
+  Sparkles,
+  FileSpreadsheet
 } from 'lucide-react';
 import { OrderItem, OrderStatus, PaymentBadge } from '@/types/orders';
 import { useOrderLifecycle, LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
@@ -31,6 +32,7 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 import { CreateOrderModal } from './CreateOrderModal';
 import { QuickCallModal } from './QuickCallModal';
 import { AgentInterventionModal } from './AgentInterventionModal';
+import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
@@ -107,6 +109,7 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
 export function OrdersBoard() {
   const {
     orders: lifecycleOrders,
+    isLoading,
     pendingCount,
     processingCount,
     inTransitCount,
@@ -124,6 +127,7 @@ export function OrdersBoard() {
   const [callModalOrder, setCallModalOrder] = useState<OrderItem | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<OrderItem | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<LifecycleStage | null>(null);
 
@@ -294,6 +298,16 @@ export function OrdersBoard() {
 
         {/* Right Action Bar */}
         <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
+          {/* Google Sheets Sync Button */}
+          <button
+            onClick={() => setIsSheetsModalOpen(true)}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs active:scale-95"
+            title="Liaison Google Sheets, modèle de commandes et synchronisation automatique"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Google Sheets</span>
+          </button>
+
           {/* New Order Button */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
@@ -445,9 +459,18 @@ export function OrdersBoard() {
           })}
         </div>
 
-        {/* ── KANBAN VIEW (4 MAIN STAGES) ── */}
-        {activeView === 'kanban' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start select-none">
+        {/* Loading Indicator */}
+        {isLoading && lifecycleOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-200/80 shadow-2xs gap-3">
+            <RotateCw className="w-8 h-8 animate-spin text-teal-600" />
+            <p className="text-sm font-semibold text-slate-700">Chargement des commandes en direct…</p>
+            <p className="text-xs text-slate-400">Synchronisation avec la base de données MySQL</p>
+          </div>
+        ) : (
+          <>
+            {/* ── KANBAN VIEW (4 MAIN STAGES) ── */}
+            {activeView === 'kanban' && (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 items-start select-none">
             {COLUMNS_CONFIG.filter((col) => selectedMobileStage === 'ALL' || col.id === selectedMobileStage).map((col) => {
               const colOrders = filteredOrders.filter((o) => o.status === col.id);
               const colTotal = colOrders.reduce((sum, o) => sum + o.amount, 0);
@@ -624,6 +647,8 @@ export function OrdersBoard() {
             </table>
           </div>
         )}
+          </>
+        )}
       </div>
 
       {/* Order Details Modal */}
@@ -660,6 +685,12 @@ export function OrdersBoard() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateOrder}
+      />
+
+      {/* Google Sheets Integration & Template Modal */}
+      <GoogleSheetsIntegrationModal
+        isOpen={isSheetsModalOpen}
+        onClose={() => setIsSheetsModalOpen(false)}
       />
     </div>
   );

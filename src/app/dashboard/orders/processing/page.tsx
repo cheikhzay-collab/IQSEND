@@ -19,7 +19,6 @@ import {
   Bot
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import {
   ShippingLabelModal,
   InvoiceModal,

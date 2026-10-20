@@ -19,26 +19,17 @@ import {
 export default function FinanceReconciliationPage() {
   const [data, setData] = useState<any>({
     kpis: {
-      totalDeliveredFormatted: '7 104 MAD',
-      deliveredCount: 18,
-      shippingFeesFormatted: '630 MAD',
-      netPayoutFormatted: '6 474 MAD',
-      inTransitRevenue: 349,
-      inTransitCount: 1,
-      recoverySavingsFormatted: '+14,600 MAD',
+      totalDeliveredFormatted: '0 MAD',
+      deliveredCount: 0,
+      shippingFeesFormatted: '0 MAD',
+      netPayoutFormatted: '0 MAD',
+      inTransitRevenue: 0,
+      inTransitCount: 0,
+      recoverySavingsFormatted: '0 MAD',
     },
-    settlements: [
-      {
-        ref: 'SND-PAY-2026-LIVE',
-        period: 'Semaine en cours (14 Oct - 20 Oct 2026)',
-        colisCount: 18,
-        feesDeducted: 630,
-        netAmount: 6474,
-        status: 'En cours de virement',
-      },
-    ],
+    settlements: [],
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLiveDb, setIsLiveDb] = useState(false);
 
   const fetchFinance = async () => {

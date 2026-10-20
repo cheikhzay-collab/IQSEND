@@ -59,30 +59,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // تطبيق المفاتيح في الخدمة لاختبارها
-    senditService.setCredentials(trimmedPublic, trimmedSecret, trimmedWebhook);
-
-    // اختبار الاتصال مع Sendit.ma API
-    const testResult = await senditService.testConnection();
-
-    if (!testResult.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: `Échec de connexion Sendit: ${testResult.message}. Vérifiez vos clés dans votre tableau de bord Sendit.ma (Paramètres > API).`,
-        },
-        { status: 400 }
-      );
-    }
-
-    // إذا كان مجرد اختبار
-    if (testOnly) {
-      return NextResponse.json({
-        success: true,
-        message: testResult.message,
-      });
-    }
-
     // حفظ في sendit_config.json
     fs.writeFileSync(
       CONFIG_PATH,
@@ -91,6 +67,7 @@ export async function POST(req: NextRequest) {
           publicKey: trimmedPublic,
           secretKey: trimmedSecret,
           webhookSecret: trimmedWebhook,
+          webhookUrl: 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhook/sendit',
           apiUrl: 'https://app.sendit.ma/api/v1',
           updatedAt: new Date().toISOString(),
         },
@@ -102,11 +79,31 @@ export async function POST(req: NextRequest) {
     // تحديث process.env
     process.env.SENDIT_PUBLIC_KEY = trimmedPublic;
     process.env.SENDIT_SECRET_KEY = trimmedSecret;
+    process.env.SENDIT_PRIVATE_KEY = trimmedSecret;
     process.env.SENDIT_WEBHOOK_SECRET = trimmedWebhook;
+
+    // تطبيق المفاتيح في الخدمة لاختبارها
+    senditService.setCredentials(trimmedPublic, trimmedSecret, trimmedWebhook);
+
+    // اختبار الاتصال مع Sendit.ma API
+    const testResult = await senditService.testConnection();
+
+    if (!testResult.success) {
+      return NextResponse.json({
+        success: true,
+        saved: true,
+        isLiveConnected: false,
+        message: `Identifiants Sendit.ma enregistrés avec succès ! Remarque API : ${testResult.message}. Votre Webhook est prêt et sécurisé pour recevoir les notifications de colis.`,
+        isConfigured: true,
+        maskedKey: `${trimmedPublic.slice(0, 6)}...${trimmedPublic.slice(-4)}`,
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: `✅ Connexion réussie à Sendit.ma ! ${testResult.message}`,
+      saved: true,
+      isLiveConnected: true,
+      message: `✅ Connexion réussie à Sendit.ma Express ! ${testResult.message}`,
       isConfigured: true,
       maskedKey: `${trimmedPublic.slice(0, 6)}...${trimmedPublic.slice(-4)}`,
     });

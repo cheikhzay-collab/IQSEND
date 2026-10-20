@@ -17,10 +17,11 @@ import {
   Sparkles,
   User,
   Bot,
-  RotateCcw
+  RotateCcw,
+  Kanban,
+  Table,
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { RescheduleModal } from '@/components/orders/lifecycle/OrderModals';
 import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
@@ -154,13 +155,21 @@ export default function InTransitOrdersPage() {
               <option value="DHL Morocco">DHL Morocco</option>
             </select>
 
-            <Link
-              href="/dashboard/tracking"
-              className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl transition-colors shadow-xs shrink-0"
-            >
-              <span>Kanban Chauffeurs Sendit</span>
-              <Truck className="w-3.5 h-3.5" />
-            </Link>
+            {/* View Mode Switcher: Kanban vs Tableau */}
+            <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 shrink-0">
+              <Link
+                href="/dashboard/tracking"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 text-xs font-semibold transition-colors"
+                title="Basculer vers le Kanban en direct des chauffeurs Sendit"
+              >
+                <Kanban className="w-3.5 h-3.5 text-slate-400" />
+                <span>Kanban Sendit</span>
+              </Link>
+              <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-indigo-900 text-xs font-bold shadow-2xs">
+                <Table className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Vue Tableau</span>
+              </span>
+            </div>
           </div>
         </div>
 

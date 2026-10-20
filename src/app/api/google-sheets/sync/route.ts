@@ -76,37 +76,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const extracted = extractSheetId(sheetUrl);
-    if (!extracted) {
-      return NextResponse.json(
-        { success: false, error: 'Format de lien Google Sheet invalide. Assurez-vous d\'inclure https://docs.google.com/spreadsheets/d/...' },
-        { status: 400 }
-      );
-    }
+    let csvData = '';
+    let sheetIdTag = 'demo';
 
-    // Direct Google Sheets CSV export endpoint
-    const csvExportUrl = extracted.gid
-      ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
-      : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
+    if (body.isDemo || sheetUrl === 'DEMO' || sheetUrl?.toLowerCase().includes('demo')) {
+      csvData = `Date,Nom Client,Téléphone,Ville,Adresse,Produit,Quantité,Prix COD (MAD),Remarques
+2026-10-20,Youssef El Amrani,0661998877,Marrakech,"Guéliz, Immeuble Atlas, Appt 6",Montre Luxe Or Noir,1,349,Appeler avant 14h
+2026-10-20,Amina Benjelloun,0672112233,Fès,"Route Ain Chkef, Résidence Narjiss",Pack Caftan Moderne,1,490,Livraison express
+2026-10-20,Tariq Alami,0654334455,Casablanca,"Bd Zerktouni, Quartier Maârif",Sneakers Sport Élite,2,598,Espèces COD
+2026-10-20,Houda Tazi,0663778899,Tanger,"Tanger Balia, Complexe Ennasr",Sac Cuir Artisanal,1,380,Confirmation WhatsApp
+2026-10-20,Karim Bennani,0611223344,Rabat,"Agdal, Rue Oukaimeden, Imm 12",Pack Soins Bio Maroc,1,299,Livrer l'après-midi`;
+    } else {
+      const extracted = extractSheetId(sheetUrl);
+      if (!extracted) {
+        return NextResponse.json(
+          { success: false, error: 'Format de lien Google Sheet invalide. Assurez-vous d\'inclure https://docs.google.com/spreadsheets/d/...' },
+          { status: 400 }
+        );
+      }
+      sheetIdTag = extracted.sheetId.slice(0, 6);
 
-    const response = await fetch(csvExportUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
-      },
-      cache: 'no-store',
-    });
+      // Direct Google Sheets CSV export endpoint
+      const csvExportUrl = extracted.gid
+        ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
+        : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
 
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Impossible d\'accéder à la feuille Google Sheet. Vérifiez que le partage est bien réglé sur "Tous les utilisateurs disposant du lien (Lecteur)" dans Google Sheets.',
+      const response = await fetch(csvExportUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
         },
-        { status: 403 }
-      );
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Impossible d\'accéder à la feuille Google Sheet. Vérifiez que le partage est bien réglé sur "Tous les utilisateurs disposant du lien (Lecteur)" dans Google Sheets.',
+          },
+          { status: 403 }
+        );
+      }
+
+      csvData = await response.text();
     }
 
-    const csvData = await response.text();
     const rows = parseCSV(csvData);
 
     if (rows.length < 2) {
@@ -155,7 +169,7 @@ export async function POST(req: NextRequest) {
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx] : 'Importé automatiquement via Google Sheet';
 
       const order: IngestedOrder = {
-        id: `gs-${extracted.sheetId.slice(0, 6)}-${Date.now()}-${r}`,
+        id: `gs-${sheetIdTag}-${Date.now()}-${r}`,
         orderNumber: `#GS${Math.floor(1000 + Math.random() * 9000)}`,
         stage: 'PENDING_CONFIRMATION',
         createdAt: new Date().toISOString(),

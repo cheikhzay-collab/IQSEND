@@ -11,7 +11,6 @@ import {
   Phone,
   Send
 } from 'lucide-react';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 interface AbandonedCart {
@@ -26,44 +25,10 @@ interface AbandonedCart {
   whatsappSent: boolean;
 }
 
-const INITIAL_CARTS: AbandonedCart[] = [
-  {
-    id: 'cart-1',
-    customerName: 'Zineb Alaoui',
-    phone: '0663441199',
-    city: 'Casablanca',
-    productName: 'Robe Traditionnelle Soie Bordée (Taille M)',
-    productThumbnail: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=300&auto=format&fit=crop&q=80',
-    cartTotal: 490,
-    abandonedAgo: 'Il y a 40 min',
-    whatsappSent: false,
-  },
-  {
-    id: 'cart-2',
-    customerName: 'Karim Filali',
-    phone: '0655118833',
-    city: 'Tanger',
-    productName: 'Smart Watch S2 Pro Retina (Noir)',
-    productThumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
-    cartTotal: 599,
-    abandonedAgo: 'Il y a 2h',
-    whatsappSent: true,
-  },
-  {
-    id: 'cart-3',
-    customerName: 'Anas Lahlou',
-    phone: '0670992255',
-    city: 'Marrakech',
-    productName: 'White Leather Sneakers Classic 42',
-    productThumbnail: 'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=300&auto=format&fit=crop&q=80',
-    cartTotal: 399,
-    abandonedAgo: 'Il y a 5h',
-    whatsappSent: false,
-  },
-];
+const INITIAL_CARTS: AbandonedCart[] = [];
 
 export default function AbandonedCartsPage() {
-  const [carts, setCarts] = useState<AbandonedCart[]>(INITIAL_CARTS);
+  const [carts, setCarts] = useState<AbandonedCart[]>([]);
   const [search, setSearch] = useState('');
   const { clearToast } = useOrderLifecycle();
   const [sentToast, setSentToast] = useState<string | null>(null);

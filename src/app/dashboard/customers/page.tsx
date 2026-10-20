@@ -37,43 +37,14 @@ interface CustomerItem {
   notes: string;
 }
 
-const INITIAL_CUSTOMERS: CustomerItem[] = [
-  {
-    id: 'cust-1',
-    name: 'Salma Rachidi',
-    phone: '0654998877',
-    city: 'Marrakech',
-    address: 'Gueliz, Rue Tarik Ibn Ziad, Immeuble Al Atlas',
-    totalOrders: 4,
-    deliveredOrders: 4,
-    refusedOrders: 0,
-    totalSpent: 1680,
-    lastOrderDate: 'Aujourd’hui',
-    reliabilityScore: 'VIP',
-    notes: 'Excellente cliente, règle toujours l’appoint exact en espèces.',
-  },
-  {
-    id: 'cust-2',
-    name: 'Omar El Fassi',
-    phone: '0661223344',
-    city: 'Tanger',
-    address: 'Boulevard Pasteur, Tanger Centre',
-    totalOrders: 3,
-    deliveredOrders: 3,
-    refusedOrders: 0,
-    totalSpent: 998,
-    lastOrderDate: 'Hier',
-    reliabilityScore: 'FIABLE',
-    notes: 'Demande à être appelé 30min avant le passage du livreur.',
-  },
-];
+const INITIAL_CUSTOMERS: CustomerItem[] = [];
 
 export default function CustomersPage() {
-  const [customers, setCustomers] = useState<CustomerItem[]>(INITIAL_CUSTOMERS);
+  const [customers, setCustomers] = useState<CustomerItem[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterScore, setFilterScore] = useState('ALL');
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerItem | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isLiveDb, setIsLiveDb] = useState(false);
 
   const fetchCustomers = async () => {
@@ -81,7 +52,7 @@ export default function CustomersPage() {
     try {
       const res = await fetch('/api/customers');
       const data = await res.json();
-      if (data.success && Array.isArray(data.customers) && data.customers.length > 0) {
+      if (data.success && Array.isArray(data.customers)) {
         setCustomers(data.customers);
         setIsLiveDb(true);
       }
@@ -243,7 +214,24 @@ export default function CustomersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {filteredCustomers.map((c) => {
+              {isLoading && customers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
+                      <p className="text-xs font-semibold text-slate-600">Chargement de la base clients…</p>
+                      <p className="text-[11px] text-slate-400">Synchronisation en direct avec la base de données</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredCustomers.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center text-slate-400">
+                    <p className="text-xs font-medium text-slate-500">Aucun client trouvé dans la base de données.</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredCustomers.map((c) => {
                 const successRate = c.totalOrders > 0 ? Math.round((c.deliveredOrders / c.totalOrders) * 100) : 0;
 
                 return (
@@ -351,7 +339,7 @@ export default function CustomersPage() {
                     </td>
                   </tr>
                 );
-              })}
+              }))}
             </tbody>
           </table>
         </div>

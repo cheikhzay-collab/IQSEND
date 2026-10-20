@@ -16,7 +16,7 @@ import {
   ExternalLink,
   Filter
 } from 'lucide-react';
-import { OrderLifecycleTabs } from '@/components/orders/lifecycle/OrderLifecycleTabs';
+
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 
 export default function CanceledOrdersPage() {
@@ -64,8 +64,7 @@ export default function CanceledOrdersPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
-      {/* 1. Sticky Lifecycle Tabs */}
-      <OrderLifecycleTabs />
+
 
       <div className="p-4 md:p-6 max-w-7xl mx-auto space-y-6">
         
