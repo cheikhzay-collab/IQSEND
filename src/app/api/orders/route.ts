@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const dbOrders = await getOrdersFromDb();
-    if (dbOrders && dbOrders.length > 0) {
+    if (Array.isArray(dbOrders)) {
       return NextResponse.json({
         success: true,
         source: 'database',
@@ -18,7 +18,7 @@ export async function GET() {
       });
     }
 
-    // Fallback to in-memory store if DB has no orders yet
+    // Fallback to in-memory store if DB query returned null/undefined
     const fallbackOrders = getInboundOrders();
     return NextResponse.json({
       success: true,

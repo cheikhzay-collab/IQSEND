@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const leads = await getLeadsFromDb();
-    if (leads && leads.length > 0) {
+    if (Array.isArray(leads)) {
       return NextResponse.json({
         success: true,
         source: 'database',

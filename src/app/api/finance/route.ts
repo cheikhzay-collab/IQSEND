@@ -52,7 +52,6 @@ export async function GET() {
         status: t.status === 'RECONCILED' ? 'Viré sur compte ✓' : t.status === 'PROCESSED' ? 'En cours de virement' : 'En attente',
         bankAccount: t.bankAccount || 'Attijariwafa Bank (RIB: 007 780 0001234567890123 45)',
       }));
-      settlements = [];
     }
 
     return NextResponse.json({
