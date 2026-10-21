@@ -186,7 +186,7 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
     navigator.clipboard.writeText(fullText);
     setCopiedFullTemplate(true);
     setTimeout(() => setCopiedFullTemplate(false), 2500);
-    showToast('تم نسخ النموذج كاملاً! افتح Google Sheets واضغط Ctrl+V', 'success');
+    showToast('Modèle copié ! Ouvrez Google Sheets et faites Ctrl+V', 'success');
   };
 
   const handleDemoImport = async () => {
@@ -203,7 +203,7 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
         setSyncResult({
           success: true,
           count: data.importedCount,
-          message: `✅ ${data.importedCount} طلبات تجريبية تم استيرادها بنجاح إلى مرحلة التأكيد!`,
+          message: `✅ ${data.importedCount} commandes de test importées avec succès !`,
         });
         await refreshInboundOrders();
         showToast(`${data.importedCount} commandes importées avec succès !`, 'success');
@@ -226,25 +226,25 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
   // Smart Google Apps Script with dynamic column header lookup & Auto-Trigger
   const smartScriptCode = `// ==============================================================
 // 🚀 SENDIT COD Platform - Script Universel Google Sheets (Auto-Sync)
-// نقل الطلبات تلقائياً وفورياً إلى مرحلة التأكيد (Confirmation)
+// Transmission instantanée des commandes vers l'étape Confirmation
 // ==============================================================
 
 var WEBHOOK_URL = "${webhookUrl}";
 
 /**
- * 1. إضافة قائمة تحكم علوية تلقائية في الشيت
+ * 1. Menu d'administration automatique dans Google Sheets
  */
 function onOpen() {
   var ui = SpreadsheetApp.getUi();
   ui.createMenu('🚀 SENDIT Platform')
-    .addItem('⚡ 1. تفعيل المزامنة التلقائية (Activer Auto-Sync)', 'setupAutoSyncTrigger')
-    .addItem('🔄 2. إرسال الطلبات الجديدة الآن (Envoyer Maintenant)', 'syncNewOrders')
-    .addItem('ℹ️ 3. فحص الاتصال بالمنصة (Tester la Connexion)', 'testConnection')
+    .addItem('⚡ 1. Activer la synchronisation automatique (Auto-Sync)', 'setupAutoSyncTrigger')
+    .addItem('🔄 2. Envoyer les nouvelles commandes maintenant', 'syncNewOrders')
+    .addItem('ℹ️ 3. Tester la connexion avec la plateforme', 'testConnection')
     .addToUi();
 }
 
 /**
- * 2. تفعيل المشغل التلقائي بنقرة واحدة (Installable Trigger)
+ * 2. Activation du déclencheur automatique en un clic (Installable Trigger)
  */
 function setupAutoSyncTrigger() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -256,13 +256,13 @@ function setupAutoSyncTrigger() {
     }
   }
 
-  // مشغل فوري عند كتابة أو تعديل أي سطر
+  // Déclencheur instantané à chaque modification / ajout de ligne
   ScriptApp.newTrigger('onSheetOrderChange')
     .forSpreadsheet(ss)
     .onEdit()
     .create();
 
-  // مشغل دوري كل دقيقة للتحقق من أي طلبات مجمعة
+  // Déclencheur périodique chaque minute pour les formulaires Google Forms
   ScriptApp.newTrigger('syncNewOrders')
     .timeBased()
     .everyMinutes(1)
@@ -271,8 +271,8 @@ function setupAutoSyncTrigger() {
   syncNewOrders();
 
   SpreadsheetApp.getUi().alert(
-    '✅ تم تفعيل المزامنة التلقائية بنجاح !\\n\\n' +
-    'الآن أي طلب جديد يتم إدخاله سيتحول تلقائياً إلى منصة SENDIT فوراً مع تسجيل حالة المزامنة.'
+    '✅ Synchronisation automatique activée avec succès !\\n\\n' +
+    'Désormais, chaque nouvelle commande saisie est transmise instantanément à votre plateforme SENDIT.'
   );
 }
 
@@ -281,7 +281,7 @@ function onSheetOrderChange(e) {
 }
 
 /**
- * 3. دالة فحص الطلبات غير المرسلة وإرسالها
+ * 3. Détection et transmission des nouvelles commandes
  */
 function syncNewOrders() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
@@ -313,7 +313,7 @@ function syncNewOrders() {
   var statusColIdx = findColIndex(["statut sendit", "حالة المزامنة", "sync status", "statut"]);
   if (statusColIdx === -1) {
     statusColIdx = lastCol;
-    sheet.getRange(1, statusColIdx + 1).setValue("Statut SENDIT (حالة المزامنة)")
+    sheet.getRange(1, statusColIdx + 1).setValue("Statut SENDIT (Synchronisation)")
       .setBackground("#065F46").setFontColor("#FFFFFF").setFontWeight("bold");
     lastCol = statusColIdx + 1;
   }
@@ -337,7 +337,7 @@ function syncNewOrders() {
     var product = (productIdx !== -1 && row[productIdx]) ? row[productIdx].toString().trim() : "Pack E-commerce";
     var qty = qtyIdx !== -1 ? parseInt(row[qtyIdx] || 1, 10) : 1;
     var price = priceIdx !== -1 ? parseFloat((row[priceIdx] || "299").toString().replace(/[^0-9.]/g, "")) : 299;
-    var notes = noteIdx !== -1 ? (row[noteIdx] || "").toString().trim() : "من شيت المبيعات";
+    var notes = noteIdx !== -1 ? (row[noteIdx] || "").toString().trim() : "Depuis Google Sheets";
 
     var payload = {
       name: customerName,
@@ -365,7 +365,7 @@ function syncNewOrders() {
         var orderNum = parsed.orderNumber || ("#GS" + (r + 2));
         var timeStr = Utilities.formatDate(new Date(), "GMT+1", "HH:mm");
         sheet.getRange(r + 2, statusColIdx + 1)
-          .setValue("✅ محوّل (" + orderNum + ") " + timeStr)
+          .setValue("✅ Transféré (" + orderNum + ") " + timeStr)
           .setBackground("#D1FAE5")
           .setFontColor("#065F46")
           .setFontWeight("bold");
@@ -373,7 +373,7 @@ function syncNewOrders() {
       }
     } catch (err) {
       sheet.getRange(r + 2, statusColIdx + 1)
-        .setValue("❌ خطأ: " + err.message.substring(0, 30))
+        .setValue("❌ Erreur: " + err.message.substring(0, 30))
         .setBackground("#FEE2E2")
         .setFontColor("#991B1B");
     }
@@ -385,12 +385,12 @@ function testConnection() {
   try {
     var response = UrlFetchApp.fetch(WEBHOOK_URL, { muteHttpExceptions: true });
     if (response.getResponseCode() === 200) {
-      SpreadsheetApp.getUi().alert('✅ الاتصال مع منصة SENDIT يعمل 100% بنجاح ! جاهز لاستقبال الطلبات.');
+      SpreadsheetApp.getUi().alert('✅ Connexion avec la plateforme SENDIT active et opérationnelle à 100% !');
     } else {
-      SpreadsheetApp.getUi().alert('⚠️ تم الاتصال ولكن برمز استجابة: ' + response.getResponseCode());
+      SpreadsheetApp.getUi().alert('⚠️ Connexion établie avec le code HTTP: ' + response.getResponseCode());
     }
   } catch (err) {
-    SpreadsheetApp.getUi().alert('❌ فشل الاتصال: ' + err.message);
+    SpreadsheetApp.getUi().alert('❌ Échec de la connexion: ' + err.message);
   }
 }`;
 
@@ -411,7 +411,7 @@ function testConnection() {
   // Save Settings to Database (without running sync)
   const handleSaveSettings = async (customAutoSync?: boolean, customInterval?: number) => {
     if (!sheetUrl.trim()) {
-      setSaveFeedback({ type: 'error', message: 'يرجى إدخال رابط ورقة Google Sheet أولاً لحفظه.' });
+      setSaveFeedback({ type: 'error', message: 'Veuillez renseigner le lien Google Sheets avant d\'enregistrer.' });
       setTimeout(() => setSaveFeedback(null), 3500);
       return;
     }
@@ -442,14 +442,14 @@ function testConnection() {
         }));
         setSaveFeedback({
           type: 'success',
-          message: '✅ تم حفظ إعدادات الرابط والمزامنة التلقائية بنجاح في قاعدة بيانات MySQL!',
+          message: '✅ Paramètres enregistrés avec succès dans MySQL !',
         });
-        showToast('تم حفظ إعدادات Google Sheets في قاعدة البيانات بنجاح!', 'success');
+        showToast('Paramètres Google Sheets sauvegardés dans la base de données !', 'success');
       } else {
-        setSaveFeedback({ type: 'error', message: data.error || 'فشل حفظ الإعدادات.' });
+        setSaveFeedback({ type: 'error', message: data.error || 'Échec de l\'enregistrement des paramètres.' });
       }
     } catch (err: any) {
-      setSaveFeedback({ type: 'error', message: err.message || 'تعذر الاتصال بقاعدة البيانات.' });
+      setSaveFeedback({ type: 'error', message: err.message || 'Impossible de se connecter à la base de données.' });
     } finally {
       setIsSavingSettings(false);
       setTimeout(() => setSaveFeedback(null), 4000);
@@ -500,7 +500,7 @@ function testConnection() {
           message: data.message || `${data.importedCount} commandes importées avec succès !`,
         });
         await refreshInboundOrders();
-        showToast(`${data.importedCount} طلبات جديدة تم استيرادها من Google Sheets!`, 'success');
+        showToast(`${data.importedCount} nouvelle(s) commande(s) importée(s) depuis Google Sheets !`, 'success');
       } else {
         setSyncResult({
           success: false,
@@ -607,7 +607,7 @@ function testConnection() {
             }`}
           >
             <Table className="w-3.5 h-3.5" />
-            <span>1. Modèle Prêt à l'Emploi (نموذج العمل)</span>
+            <span>1. Modèle Prêt à l'Emploi</span>
           </button>
 
           <button
@@ -619,7 +619,7 @@ function testConnection() {
             }`}
           >
             <LinkIcon className="w-3.5 h-3.5" />
-            <span>2. Mزامنة برابط الشيت (Lien Direct)</span>
+            <span>2. Synchronisation par Lien Direct</span>
           </button>
 
           <button
@@ -631,7 +631,7 @@ function testConnection() {
             }`}
           >
             <Zap className="w-3.5 h-3.5" />
-            <span>3. الربط الآلي الفوري (Webhook & Script)</span>
+            <span>3. Webhook & Script Temps Réel</span>
           </button>
         </div>
 
@@ -646,14 +646,14 @@ function testConnection() {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-black text-emerald-950 text-sm">
-                      نموذج Google Sheets المعتمد للشحن والتأكيد (COD Maroc)
+                      Modèle Google Sheets Officiel pour Expédition & Confirmation COD Maroc
                     </span>
                     <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
                       Recommandé
                     </span>
                   </div>
                   <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    افتح ورقة عمل جديدة في جوجل شيت فوراً أو حمّل ملف Excel/CSV المنسق مسبقاً بالأعمدة المعيارية لبدء العمل فوراً.
+                    Ouvrez une nouvelle feuille Google Sheets ou téléchargez le fichier Excel/CSV préconfiguré avec les colonnes standards COD pour démarrer immédiatement.
                   </p>
                 </div>
 
@@ -667,7 +667,7 @@ function testConnection() {
                     title="Crée automatiquement une copie du modèle officiel dans votre Google Drive"
                   >
                     <Copy className="w-3.5 h-3.5" />
-                    <span>عمل نسخة في حسابك (Google Drive)</span>
+                    <span>Créer une copie (Google Drive)</span>
                   </a>
 
                   <a
@@ -678,7 +678,7 @@ function testConnection() {
                     title="Ouvre une nouvelle feuille Google Sheets vierge dans votre navigateur"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
-                    <span>شيت جديد (sheets.new)</span>
+                    <span>Nouveau Sheet (sheets.new)</span>
                   </a>
 
                   <a
@@ -688,7 +688,7 @@ function testConnection() {
                     title="Télécharger le fichier .csv pré-rempli pour Excel et Google Sheets"
                   >
                     <Download className="w-3.5 h-3.5" />
-                    <span>تحميل النموذج (.csv)</span>
+                    <span>Télécharger Modèle (.csv)</span>
                   </a>
                 </div>
               </div>
@@ -697,30 +697,30 @@ function testConnection() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                 <button
                   onClick={copyFullTemplateToClipboard}
-                  className="flex items-center justify-center gap-2 p-3 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 rounded-xl text-emerald-950 font-bold text-xs transition-all shadow-2xs"
+                  className="flex items-center justify-center gap-2 p-3 bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-200 rounded-xl text-emerald-950 font-bold text-xs transition-all shadow-2xs cursor-pointer"
                   title="Copie le tableau entier pour le coller en 1 clic dans une feuille Google Sheets vide"
                 >
                   {copiedFullTemplate ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-emerald-600" />}
-                  <span>{copiedFullTemplate ? 'تم نسخ النموذج كاملاً !' : '📋 نسخ النموذج كاملاً (Ctrl+V)'}</span>
+                  <span>{copiedFullTemplate ? 'Modèle copié !' : '📋 Copier Tout le Modèle (Ctrl+V)'}</span>
                 </button>
 
                 <button
                   onClick={() => copyToClipboard(headersList.join('\t'), 'headers')}
-                  className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold text-xs transition-all shadow-2xs"
+                  className="flex items-center justify-center gap-2 p-3 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold text-xs transition-all shadow-2xs cursor-pointer"
                   title="Copie uniquement les titres des colonnes"
                 >
                   {copiedHeaders ? <Check className="w-4 h-4 text-emerald-600" /> : <Table className="w-4 h-4 text-slate-500" />}
-                  <span>{copiedHeaders ? 'تم نسخ العناوين !' : 'نسخ أسماء الأعمدة فقط'}</span>
+                  <span>{copiedHeaders ? 'En-têtes copiées !' : 'Copier les En-têtes Seules'}</span>
                 </button>
 
                 <button
                   onClick={handleDemoImport}
                   disabled={isSyncingSheet}
-                  className="flex items-center justify-center gap-2 p-3 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl text-teal-900 font-bold text-xs transition-all shadow-2xs disabled:opacity-50"
+                  className="flex items-center justify-center gap-2 p-3 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl text-teal-900 font-bold text-xs transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
                   title="Injecte immédiatement les 5 commandes d'exemple dans votre tableau de bord"
                 >
                   <Sparkles className="w-4 h-4 text-teal-600" />
-                  <span>{isSyncingSheet ? 'جاري الاستيراد...' : '⚡ تجربة استيراد النموذج للمنصة'}</span>
+                  <span>{isSyncingSheet ? 'Import en cours...' : '⚡ Tester l\'Import (5 commandes)'}</span>
                 </button>
               </div>
 
@@ -729,10 +729,10 @@ function testConnection() {
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                     <Table className="w-4 h-4 text-emerald-600" />
-                    <span>معاينة حية للنموذج المطلوب (Structure du Modèle) :</span>
+                    <span>Aperçu de la structure requise (Structure du Modèle) :</span>
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium">
-                    الأعمدة تتعرف عليها المنصة تلقائياً بالعربية والفرنسية والإنجليزية
+                    Détection automatique des colonnes en Français, Arabe et Anglais
                   </span>
                 </div>
 
@@ -776,28 +776,28 @@ function testConnection() {
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5">
                 <h4 className="font-black text-slate-900 text-xs flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>طريقة العمل على هذا النموذج في 3 خطوات بسيطة :</span>
+                  <span>Guide d'utilisation en 3 étapes simples :</span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-600">
                   <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                     <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">1</span>
-                    <h5 className="font-bold text-slate-900">فتح أو استيراد</h5>
+                    <h5 className="font-bold text-slate-900">Ouvrir ou Importer</h5>
                     <p className="text-[10px] leading-relaxed">
-                      افتح Google Sheet جديد وقم بلصق الترويسة، أو حمّل ملف CSV وافتحه عبر Google Drive.
+                      Créez un nouveau Google Sheet et collez les en-têtes, ou téléchargez le fichier CSV pré-rempli.
                     </p>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                     <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">2</span>
-                    <h5 className="font-bold text-slate-900">إدخال الطلبات</h5>
+                    <h5 className="font-bold text-slate-900">Saisir les Commandes</h5>
                     <p className="text-[10px] leading-relaxed">
-                      سجّل طلبات زبنائك اليومية (الاسم، الهاتف المغربي 06/07، المدينة، المنتج والمبلغ).
+                      Renseignez vos commandes clients (Nom, Téléphone marocain 06/07, Ville, Produit et Montant).
                     </p>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
                     <span className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-800 font-black inline-flex items-center justify-center text-[10px]">3</span>
-                    <h5 className="font-bold text-slate-900">المزامنة بنقرة واحدة</h5>
+                    <h5 className="font-bold text-slate-900">Synchroniser en 1 Clic</h5>
                     <p className="text-[10px] leading-relaxed">
-                      انتقل للتبويب 2 والصق رابط الشيت لاستيراد جميع الطلبات فوراً إلى مرحلة التأكيد!
+                      Accédez à l'onglet 2, collez le lien et importez instantanément toutes les commandes en confirmation !
                     </p>
                   </div>
                 </div>
@@ -819,17 +819,17 @@ function testConnection() {
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="font-black text-slate-900 text-xs">
-                          الإعدادات محفوظة ومتصلة بقواعد البيانات (MySQL Hostinger)
+                          Paramètres enregistrés et connectés à la base de données (MySQL Hostinger)
                         </span>
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-200">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                          قاعدة البيانات متصلة
+                          Base connectée
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-500 mt-0.5">
-                        {dbSettings.lastSyncAt ? `آخر مزامنة: ${new Date(dbSettings.lastSyncAt).toLocaleTimeString('ar-MA')} | ` : ''}
-                        إجمالي الطلبات المستوردة: <span className="font-bold text-emerald-700">{dbSettings.totalSynced || 0} طلب</span>
-                        {dbSettings.lastSavedAt ? ` | آخر حفظ: ${new Date(dbSettings.lastSavedAt).toLocaleDateString('fr-FR')}` : ''}
+                        {dbSettings.lastSyncAt ? `Dernière synchro : ${new Date(dbSettings.lastSyncAt).toLocaleTimeString('fr-FR')} | ` : ''}
+                        Total commandes synchronisées : <span className="font-bold text-emerald-700">{dbSettings.totalSynced || 0} commande(s)</span>
+                        {dbSettings.lastSavedAt ? ` | Dernier enregistrement : ${new Date(dbSettings.lastSavedAt).toLocaleDateString('fr-FR')}` : ''}
                       </p>
                     </div>
                   </div>
@@ -840,10 +840,10 @@ function testConnection() {
                       onClick={() => handleSaveSettings()}
                       disabled={isSavingSettings || !sheetUrl.trim()}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-900 text-xs font-bold shadow-2xs transition-all disabled:opacity-50 cursor-pointer"
-                      title="تحديث وحفظ الرابط في قاعدة البيانات"
+                      title="Mettre à jour et enregistrer l'URL dans la base de données"
                     >
                       <Save className={`w-3.5 h-3.5 ${isSavingSettings ? 'animate-spin' : 'text-emerald-600'}`} />
-                      <span>{isSavingSettings ? 'جاري الحفظ...' : 'تحديث الحفظ'}</span>
+                      <span>{isSavingSettings ? 'Enregistrement...' : 'Mettre à jour'}</span>
                     </button>
                   </div>
                 </div>
@@ -852,11 +852,11 @@ function testConnection() {
                   <div className="flex items-center gap-2">
                     <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                     <span className="text-[11px] text-amber-900 font-medium">
-                      لم يتم حفظ إعدادات رابط الشيت في قاعدة البيانات بعد. ألصق الرابط واضغط <strong>«حفظ الإعدادات في قاعدة البيانات»</strong> للربط التلقائي الدائم.
+                      Les paramètres de l'URL Google Sheets ne sont pas encore enregistrés. Collez l'URL et cliquez sur <strong>« Enregistrer dans la base de données »</strong> pour une synchronisation permanente.
                     </span>
                   </div>
                   <span className="text-[10px] font-bold bg-amber-200/80 text-amber-900 px-2 py-0.5 rounded-full shrink-0">
-                    غير محفوظ
+                    Non enregistré
                   </span>
                 </div>
               )}
@@ -885,12 +885,12 @@ function testConnection() {
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                       <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>رابط Google Sheets (URL de partage) :</span>
+                      <span>Lien Google Sheets (URL de partage public) :</span>
                     </label>
                     {dbSettings.saved && (
                       <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md flex items-center gap-1">
                         <CheckCheck className="w-3 h-3 text-emerald-600" />
-                        محفوظ في MySQL
+                        Enregistré dans MySQL
                       </span>
                     )}
                   </div>
@@ -911,10 +911,10 @@ function testConnection() {
                       onClick={() => handleSaveSettings()}
                       disabled={isSavingSettings || !sheetUrl.trim()}
                       className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 font-bold text-xs shadow-2xs transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
-                      title="حفظ الرابط وخيارات المزامنة في قاعدة البيانات"
+                      title="Enregistrer le lien et les options dans la base de données"
                     >
                       <Save className={`w-3.5 h-3.5 ${isSavingSettings ? 'animate-spin' : 'text-teal-700'}`} />
-                      <span>{isSavingSettings ? 'جاري الحفظ...' : '💾 حفظ الإعدادات في قاعدة البيانات'}</span>
+                      <span>{isSavingSettings ? 'Enregistrement...' : '💾 Enregistrer dans la base de données'}</span>
                     </button>
 
                     {/* Sync Now Button */}
@@ -922,10 +922,10 @@ function testConnection() {
                       type="submit"
                       disabled={isSyncingSheet || !sheetUrl.trim()}
                       className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white font-bold text-xs shadow-xs transition-all disabled:opacity-50 shrink-0 cursor-pointer"
-                      title="المزامنة الفورية واستيراد الطلبات الجديدة الآن"
+                      title="Synchronisation instantanée et importation des nouvelles commandes"
                     >
                       <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
-                      <span>{isSyncingSheet ? 'مزامنة جارية...' : '⚡ مزامنة الآن واستيراد الطلبات'}</span>
+                      <span>{isSyncingSheet ? 'Synchronisation...' : '⚡ Synchroniser & Importer'}</span>
                     </button>
                   </div>
                 </div>
@@ -937,21 +937,21 @@ function testConnection() {
                       <div className="flex items-center gap-2">
                         <Zap className="w-4 h-4 text-emerald-600" />
                         <span className="font-black text-slate-900 text-xs">
-                          المزامنة التلقائية اللحظية (Auto-Sync Live في نفس الوقت)
+                          Synchronisation Automatique en Temps Réel (Auto-Sync Live)
                         </span>
                         <span className="bg-emerald-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
                           Automatique
                         </span>
                       </div>
                       <p className="text-[11px] text-slate-600 leading-relaxed">
-                        أي طلب جديد يسقط في Google Sheets يتم استيراده إلى المنصة وقاعدة البيانات تلقائياً وفوراً مع إرسال رسالة التأكيد عبر واتساب.
+                        Toute nouvelle commande saisie dans Google Sheets est importée automatiquement dans la plateforme et la base de données sans intervention manuelle.
                       </p>
                     </div>
 
                     {/* Toggle Switch */}
                     <div className="flex items-center gap-2.5 shrink-0">
                       <span className={`text-xs font-bold ${autoSyncEnabled ? 'text-emerald-700' : 'text-slate-400'}`}>
-                        {autoSyncEnabled ? '🟢 مفعلة وتعمل بالخلفية' : '⚪ معطلة (يدوية)'}
+                        {autoSyncEnabled ? '🟢 Activée en arrière-plan' : '⚪ Désactivée (Manuelle)'}
                       </span>
                       <button
                         type="button"
@@ -973,13 +973,13 @@ function testConnection() {
                   <div className="pt-2 border-t border-emerald-200/60 flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-1.5 text-[11px] text-slate-600">
                       <Clock className="w-3.5 h-3.5 text-slate-500" />
-                      <span>دورية الفحص والاستيراد التلقائي :</span>
+                      <span>Fréquence de vérification et d'importation :</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       {[
-                        { val: 15, label: 'كل 15 ثانية (فائق السرعة)' },
-                        { val: 30, label: 'كل 30 ثانية (موصى به)' },
-                        { val: 60, label: 'كل دقيقة' },
+                        { val: 15, label: 'Toutes les 15s (Ultra-rapide)' },
+                        { val: 30, label: 'Toutes les 30s (Recommandé)' },
+                        { val: 60, label: 'Toutes les 60s (1 min)' },
                       ].map((opt) => (
                         <button
                           key={opt.val}
@@ -1003,7 +1003,7 @@ function testConnection() {
 
                 <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200">
                   <span className="text-[11px] text-slate-600">
-                    أو جرّب المزامنة الفورية بـ 5 طلبات تجريبية دون الحاجة لشيت خارجي :
+                    Ou testez la synchronisation avec 5 commandes d'exemple sans fichier externe :
                   </span>
                   <button
                     type="button"
@@ -1012,7 +1012,7 @@ function testConnection() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-bold text-xs transition-colors shrink-0 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>استيراد تجريبي فوري</span>
+                    <span>Import Démo Immédiat</span>
                   </button>
                 </div>
               </form>
@@ -1039,12 +1039,12 @@ function testConnection() {
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
                 <h4 className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 text-slate-500" />
-                  <span>تأكد من تفعيل إمكانية القراءة (Partage) :</span>
+                  <span>Vérifiez l'activation de l'accès public (Partage Google Sheets) :</span>
                 </h4>
                 <ol className="list-decimal list-inside space-y-1 text-[11px] text-slate-600 leading-relaxed pr-1">
-                  <li>في مستند Google Sheets، اضغط على زر <strong>Partager (Share)</strong> في الزاوية العلوية اليمنى.</li>
-                  <li>تحت قسم "Accès général"، اختر : <strong>Tous les utilisateurs disposant du lien (Lecteur)</strong>.</li>
-                  <li>انسخ الرابط والصقه في الحقل أعلاه واضغط على زر المزامنة أو حفظ الإعدادات.</li>
+                  <li>Dans votre fichier Google Sheets, cliquez sur le bouton <strong>Partager (Share)</strong> en haut à droite.</li>
+                  <li>Sous la section « Accès général », choisissez : <strong>Tous les utilisateurs disposant du lien (Lecteur)</strong>.</li>
+                  <li>Copiez le lien, collez-le dans le champ ci-dessus et cliquez sur <strong>Enregistrer dans la base de données</strong> ou <strong>Synchroniser</strong>.</li>
                 </ol>
               </div>
             </div>
@@ -1058,9 +1058,9 @@ function testConnection() {
                 <div className="flex items-center gap-2.5">
                   <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                   <div>
-                    <span className="font-bold text-emerald-950 text-xs">نقطة الويب هوك نشطة وجاهزة (Live Webhook Active)</span>
+                    <span className="font-bold text-emerald-950 text-xs">Point de terminaison Webhook actif (Live Webhook Active)</span>
                     <p className="text-[11px] text-emerald-700 mt-0.5">
-                      تقوم المنصة باستقبال كل طلب فور إدخاله في Google Sheets في أقل من ثانية وتوجيهه فوراً إلى مركز الاتصال ورسائل التأكيد.
+                      La plateforme reçoit chaque commande saisie dans Google Sheets en temps réel et l'achemine directement vers le Call Center et les confirmations.
                     </p>
                   </div>
                 </div>
@@ -1072,7 +1072,7 @@ function testConnection() {
               {/* Webhook URL Field */}
               <div className="space-y-1.5">
                 <label className="font-bold text-slate-900 block text-xs">
-                  1. عنوان الويب هوك الخاص بحسابك (Webhook Ingestion Endpoint) :
+                  1. URL Webhook d'ingestion de votre compte (Endpoint Webhook) :
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1090,7 +1090,7 @@ function testConnection() {
                     }`}
                   >
                     {copiedUrl ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                    <span>{copiedUrl ? 'تم النسخ !' : 'نسخ الرابط'}</span>
+                    <span>{copiedUrl ? 'Copié !' : 'Copier l\'URL'}</span>
                   </button>
                 </div>
               </div>
@@ -1099,14 +1099,14 @@ function testConnection() {
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="font-bold text-slate-900 text-xs">
-                    2. كود Google Apps Script الذكي (Smart Multi-language Trigger) :
+                    2. Code Google Apps Script intelligent (Smart Multi-language Trigger) :
                   </label>
                   <button
                     onClick={() => copyToClipboard(smartScriptCode, 'code')}
-                    className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1"
+                    className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                    <span>{copiedCode ? 'تم نسخ الكود !' : 'نسخ كود Apps Script'}</span>
+                    <span>{copiedCode ? 'Code copié !' : 'Copier le script'}</span>
                   </button>
                 </div>
                 <pre className="p-3.5 bg-slate-900 text-slate-200 rounded-2xl font-mono text-[11px] overflow-x-auto max-h-48 border border-slate-800 leading-relaxed dir-ltr text-left">
@@ -1118,33 +1118,33 @@ function testConnection() {
               <div className="p-4 bg-emerald-50/80 rounded-2xl border border-emerald-200 space-y-3">
                 <h4 className="font-black text-xs text-emerald-950 flex items-center gap-1.5">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>طريقة التشغيل التلقائي بنقرة واحدة (Guide d'Installation en 3 étapes) :</span>
+                  <span>Guide d'installation en 3 étapes :</span>
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-700">
                   <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
                     <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">1</span>
-                    <h5 className="font-bold text-slate-900">فتح محرر Apps Script</h5>
+                    <h5 className="font-bold text-slate-900">Ouvrir l'éditeur Apps Script</h5>
                     <p className="text-[10px] text-slate-600 leading-relaxed">
-                      في ملف Google Sheet، اضغط على <strong>الإضافات (Extensions)</strong> ثم <strong>Apps Script</strong>.
+                      Dans votre Google Sheets, cliquez sur <strong>Extensions</strong> puis <strong>Apps Script</strong>.
                     </p>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
                     <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">2</span>
-                    <h5 className="font-bold text-slate-900">لصق الكود والحفظ</h5>
+                    <h5 className="font-bold text-slate-900">Coller le code & Enregistrer</h5>
                     <p className="text-[10px] text-slate-600 leading-relaxed">
-                      احذف أي كود موجود والصق الكود أعلاه ثم اضغط على زر <strong>حفظ (Enregistrer 💾)</strong>.
+                      Effacez le code existant, collez le script ci-dessus et cliquez sur <strong>Enregistrer (💾)</strong>.
                     </p>
                   </div>
                   <div className="p-3 bg-white rounded-xl border border-emerald-100 space-y-1 shadow-2xs">
                     <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black inline-flex items-center justify-center text-[10px]">3</span>
-                    <h5 className="font-bold text-slate-900">تفعيل المزامنة التلقائية</h5>
+                    <h5 className="font-bold text-slate-900">Activer la synchronisation</h5>
                     <p className="text-[10px] text-slate-600 leading-relaxed">
-                      أعد تحديث الشيت (F5)، ستظهر قائمة جديدة <strong>«🚀 SENDIT Platform»</strong>، اضغط عليها واختر <strong>«⚡ تفعيل المزامنة التلقائية»</strong>.
+                      Actualisez la feuille (F5) : un menu <strong>« 🚀 SENDIT Platform »</strong> apparaît. Cliquez sur <strong>« ⚡ Activer la Synchro Automatique »</strong>.
                     </p>
                   </div>
                 </div>
                 <div className="text-[10px] text-emerald-800 font-medium bg-emerald-100/60 p-2 rounded-lg">
-                  💡 بمجرد التفعيل، سيقوم السكربت بمراقبة أي سطر جديد (أو طلب قادم من Google Forms) وتحويله تلقائياً للمنصة وكتابة <span className="font-bold text-emerald-900">«✅ محوّل للمنصة»</span> أمامه فوراً دون أي تدخل منك!
+                  💡 Une fois activé, le script détecte chaque nouvelle ligne (ou soumission Google Forms), l'envoie instantanément à la plateforme et inscrit <span className="font-bold text-emerald-900">« ✅ Transféré à SENDIT »</span> en temps réel !
                 </div>
               </div>
 
@@ -1154,19 +1154,19 @@ function testConnection() {
                   <div>
                     <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
                       <Play className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
-                      <span>3. تجربة الحقن المباشر في لوحة التحكم (Live Simulation) :</span>
+                      <span>3. Tester l'injection directe dans le tableau de bord (Live Simulation) :</span>
                     </h4>
                     <p className="text-[11px] text-slate-500 mt-0.5">
-                      اضغط لتجربة إرسال طلب مغربي وهمي والتأكد من ظهوره فوراً في مرحلة التأكيد بدون إعادة تحميل الصفحة.
+                      Cliquez pour simuler une commande test et vérifier son apparition immédiate en Confirmation sans rechargement.
                     </p>
                   </div>
                   <button
                     onClick={handleSimulateOrder}
                     disabled={isSimulating}
-                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 shrink-0"
+                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 shrink-0 cursor-pointer"
                   >
                     <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isSimulating ? 'إرسال جاري...' : 'حقن طلب تجريبي الآن'}</span>
+                    <span>{isSimulating ? 'Envoi en cours...' : 'Injecter une commande test'}</span>
                   </button>
                 </div>
 
@@ -1195,13 +1195,13 @@ function testConnection() {
         {/* Modal Footer */}
         <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-200 flex items-center justify-between shrink-0">
           <span className="text-[11px] text-slate-500 font-medium">
-            متوافق مع Google Forms, WooCommerce, Shopify, وجميع ملفات Excel و Google Sheets.
+            Compatible avec Google Forms, WooCommerce, Shopify, Excel et Google Sheets.
           </span>
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-colors cursor-pointer"
           >
-            إغلاق النافذة
+            Fermer
           </button>
         </div>
 

@@ -376,9 +376,8 @@ export function ProductEditModal({
                     type="text"
                     value={nameAr}
                     onChange={(e) => setNameAr(e.target.value)}
-                    placeholder="ساعة ذكية Smart Watch Ultra مع مكالمات بلوتوث"
-                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium text-right"
-                    dir="rtl"
+                    placeholder="Smart Watch Ultra avec appels Bluetooth..."
+                    className="w-full text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>
               </div>
@@ -517,9 +516,8 @@ export function ProductEditModal({
                   rows={3}
                   value={descriptionAr}
                   onChange={(e) => setDescriptionAr(e.target.value)}
-                  placeholder="اكتب وصفاً جذاباً يشرح مميزات المنتج بالدارجة..."
-                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 text-right leading-relaxed"
-                  dir="rtl"
+                  placeholder="Rédigez une description attractive présentant les avantages du produit..."
+                  className="w-full text-xs p-3 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 leading-relaxed"
                 />
               </div>
             </div>
@@ -811,7 +809,7 @@ export function ProductEditModal({
                           type="text"
                           value={offer.badge || ''}
                           onChange={(e) => handleUpdateOffer(offer.id, { badge: e.target.value })}
-                          placeholder="Ex: توفير 100 درهم + شحن مجاني"
+                          placeholder="Ex: Économisez 100 MAD + Livraison Gratuite"
                           className="w-full text-xs p-2 bg-white border border-slate-200 rounded-xl text-emerald-700 font-bold"
                         />
                       </div>

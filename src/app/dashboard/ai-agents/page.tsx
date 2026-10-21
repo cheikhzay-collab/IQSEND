@@ -394,7 +394,7 @@ export default function AiAgentsPage() {
         const errMsg: ChatMessage = {
           id: `err-${Date.now()}`,
           role: 'model',
-          text: `عذراً، حدث خطأ: ${data.error || 'يرجى المحاولة مجدداً'}`,
+          text: `Désolé, une erreur est survenue : ${data.error || 'Veuillez réessayer.'}`,
           timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
         };
         setMessages((prev) => [...prev, errMsg]);
@@ -403,7 +403,7 @@ export default function AiAgentsPage() {
       const errMsg: ChatMessage = {
         id: `err-${Date.now()}`,
         role: 'model',
-        text: 'تعذر الاتصال بخادم المحاكاة. يرجى التأكد من تشغيل السيرفر.',
+        text: 'Impossible de joindre le serveur de simulation. Veuillez vérifier que le serveur est démarré.',
         timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages((prev) => [...prev, errMsg]);
@@ -964,10 +964,10 @@ export default function AiAgentsPage() {
                       </span>
                     </div>
                     <div className="text-xs font-bold text-slate-800">
-                      🗣️ اعتراض الزبون: <span className="text-slate-900 font-semibold">{obj.objection}</span>
+                      🗣️ Objection Client : <span className="text-slate-900 font-semibold">{obj.objection}</span>
                     </div>
                     <div className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-100 p-2.5 rounded-lg leading-relaxed font-medium">
-                      🤖 رد الوكيل بالدارجة: {obj.replyDarija}
+                      🤖 Réponse Agent IA (Darija) : {obj.replyDarija}
                     </div>
                   </div>
                 ))}

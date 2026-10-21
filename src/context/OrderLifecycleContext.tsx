@@ -584,7 +584,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       const data = await res.json();
       if (data.success && data.newOrdersCount > 0) {
         await fetchDbOrders(true);
-        showToast(`⚡ سقط ${data.newOrdersCount} طلب(ات) جديدة تلقائياً من Google Sheets في نفس الوقت!`, 'success');
+        showToast(`⚡ ${data.newOrdersCount} nouvelle(s) commande(s) synchronisée(s) automatiquement depuis Google Sheets !`, 'success');
       }
     } catch {
       // Ignore background sync errors

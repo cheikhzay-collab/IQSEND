@@ -221,10 +221,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => logout()}
               className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200/80 transition-all cursor-pointer shadow-2xs active:scale-95 group"
-              title="تسجيل الخروج • Déconnexion"
+              title="Déconnexion"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-500 group-hover:text-white transition-colors" />
-              <span className="hidden sm:inline">خروج</span>
+              <span className="hidden sm:inline">Déconnexion</span>
             </button>
           </div>
         </div>
@@ -613,7 +613,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200/80 transition-all cursor-pointer"
               >
                 <LogOut className="w-4 h-4" />
-                <span>تسجيل الخروج (Déconnexion)</span>
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>
@@ -1068,10 +1068,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               <button
                 onClick={() => logout()}
                 className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200/80 transition-all cursor-pointer shadow-2xs group"
-                title="تسجيل الخروج من الحساب"
+                title="Se déconnecter du compte"
               >
                 <LogOut className="w-4 h-4 text-rose-500 group-hover:text-white transition-colors" />
-                <span>تسجيل الخروج (Déconnexion)</span>
+                <span>Déconnexion</span>
               </button>
             </div>
           </div>

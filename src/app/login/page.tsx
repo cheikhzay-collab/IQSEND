@@ -41,7 +41,7 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMessage('يرجى إدخال البريد الإلكتروني وكلمة المرور / Veuillez renseigner tous les champs');
+      setErrorMessage('Veuillez renseigner votre adresse email et votre mot de passe.');
       return;
     }
 
@@ -51,15 +51,15 @@ export default function LoginPage() {
     try {
       const res = await login(email, password);
       if (res.success) {
-        setSuccessMessage('تم التحقق بنجاح! جاري التوجيه إلى لوحة التحكم...');
+        setSuccessMessage('Connexion réussie ! Redirection vers le tableau de bord...');
         setTimeout(() => {
           router.push('/dashboard/orders');
         }, 600);
       } else {
-        setErrorMessage(res.error || 'فشل تسجيل الدخول. يرجى التحقق من بيانات الدخول.');
+        setErrorMessage(res.error || 'Identifiants invalides. Veuillez vérifier vos accès.');
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'حدث خطأ أثناء الاتصال بالخادم.');
+      setErrorMessage(err.message || 'Une erreur est survenue lors de la connexion au serveur.');
     } finally {
       setIsSubmitting(false);
     }
@@ -112,10 +112,10 @@ export default function LoginPage() {
 
           <div>
             <h1 className="text-2xl font-black text-white tracking-tight mt-3">
-              تسجيل الدخول الإداري
+              Connexion Administrateur
             </h1>
             <p className="text-xs text-slate-400 mt-1 font-medium">
-              Espace de Connexion • لوحة التحكم وإدارة الشحنات
+              Espace Sécurisé • Pilotage Logistique & Commandes COD
             </p>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function LoginPage() {
             <div className="space-y-1 text-xs">
               <div className="flex items-center gap-1.5 font-bold text-teal-300">
                 <KeyRound className="w-4 h-4 text-teal-400" />
-                <span>بيانات الدخول كمدير (Admin Credentials)</span>
+                <span>Identifiants Administrateur (Admin Credentials)</span>
               </div>
               <div className="text-[11px] text-slate-300 space-y-0.5 pl-5 font-mono">
                 <div>Email : <span className="text-teal-200 font-bold">admin@sendit.ma</span></div>
@@ -138,9 +138,9 @@ export default function LoginPage() {
               type="button"
               onClick={handleQuickAdminFill}
               className="text-[11px] font-bold bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 px-2.5 py-1.5 rounded-xl transition-all shrink-0 active:scale-95 shadow-sm"
-              title="ملء تلقائي للبيانات"
+              title="Remplir automatiquement les identifiants administrateur"
             >
-              ملء كمدير ⚡
+              Remplir Admin ⚡
             </button>
           </div>
         </div>
@@ -168,7 +168,7 @@ export default function LoginPage() {
             {/* Email Field */}
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-slate-300">
-                البريد الإلكتروني <span className="text-slate-500 font-normal">/ Adresse Email</span>
+                Adresse Email
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
@@ -189,10 +189,10 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <div className="flex items-center justify-between">
                 <label className="block text-xs font-bold text-slate-300">
-                  كلمة المرور <span className="text-slate-500 font-normal">/ Mot de passe</span>
+                  Mot de passe
                 </label>
                 <span className="text-[11px] text-teal-400 hover:text-teal-300 cursor-pointer transition-colors font-medium">
-                  مساعدة في الدخول
+                  Aide à la connexion
                 </span>
               </div>
               <div className="relative">
@@ -226,12 +226,12 @@ export default function LoginPage() {
                   onChange={(e) => setRememberMe(e.target.checked)}
                   className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-teal-600 focus:ring-teal-500 focus:ring-offset-slate-900"
                 />
-                <span className="text-xs text-slate-300 font-medium">تذكر بيانات تسجيل الدخول</span>
+                <span className="text-xs text-slate-300 font-medium">Se souvenir de moi</span>
               </label>
 
               <div className="flex items-center gap-1 text-[11px] font-bold text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-lg border border-teal-500/20">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>دخول محمي SSL</span>
+                <span>Sécurisé SSL</span>
               </div>
             </div>
 
@@ -244,11 +244,11 @@ export default function LoginPage() {
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>جاري تسجيل الدخول...</span>
+                  <span>Connexion en cours...</span>
                 </>
               ) : (
                 <>
-                  <span>تسجيل الدخول كمدير</span>
+                  <span>Se connecter</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -258,7 +258,7 @@ export default function LoginPage() {
           {/* Quick Account Switch Bar */}
           <div className="pt-4 border-t border-slate-800/80">
             <div className="text-[11px] text-slate-400 text-center mb-2 font-medium">
-              أدوار النظام المعتمدة (Rôles RBAC)
+              Rôles Système Prédéfinis (RBAC)
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <button
@@ -268,7 +268,7 @@ export default function LoginPage() {
               >
                 <div className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
                 <div className="truncate">
-                  <div className="font-bold text-white text-[10px]">المدير العام</div>
+                  <div className="font-bold text-white text-[10px]">Directeur Général (Admin)</div>
                   <div className="text-[9px] text-slate-400 truncate">admin@sendit.ma</div>
                 </div>
               </button>
@@ -283,7 +283,7 @@ export default function LoginPage() {
               >
                 <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                 <div className="truncate">
-                  <div className="font-bold text-white text-[10px]">مسؤولة التأكيد</div>
+                  <div className="font-bold text-white text-[10px]">Chargée de Confirmation</div>
                   <div className="text-[9px] text-slate-400 truncate">sarah@sendit.ma</div>
                 </div>
               </button>
@@ -297,12 +297,12 @@ export default function LoginPage() {
           <div className="flex items-center justify-center gap-4 text-[11px]">
             <span className="flex items-center gap-1">
               <Truck className="w-3.5 h-3.5 text-teal-500" />
-              ربط مباشر مع Sendit.ma
+              Connexion directe Sendit.ma
             </span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              تأكيد ذكي بالدارجة
+              Confirmation intelligente COD Maroc
             </span>
           </div>
           <p className="text-[10px] text-slate-600">

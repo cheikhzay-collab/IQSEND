@@ -60,7 +60,7 @@ export default function DraftsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Drafts (مسودات الطلبات)
+                  Brouillons & Drafts
                 </h1>
                 <span className="text-xs font-bold text-slate-400">
                   (En attente de finalisation)
