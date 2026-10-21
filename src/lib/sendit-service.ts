@@ -132,7 +132,8 @@ export type MappedShipmentStatus =
   | 'DELIVERY_FAILED'
   | 'DELIVERED_PAID'
   | 'RETURNED'
-  | 'CANCELLED';
+  | 'CANCELLED'
+  | 'CANCELED';
 
 // ─────────────────────────────────────────────
 //  2. SERVICE CLASS
@@ -840,7 +841,7 @@ export class SenditLogisticsService {
       // 7. Annulations
       case 'CANCELED':
       case 'CANCELLED':
-        return 'CANCELLED';
+        return 'CANCELED';
 
       default:
         return 'IN_TRANSIT';

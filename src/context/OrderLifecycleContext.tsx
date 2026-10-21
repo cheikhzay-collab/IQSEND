@@ -77,6 +77,10 @@ export interface LifecycleOrder {
     reviewComment?: string;
     returnStatus?: 'NONE' | 'REQUESTED' | 'APPROVED' | 'RETURNED';
   };
+  source?: {
+    name: string;
+    channel?: string;
+  };
 }
 
 const INITIAL_LIFECYCLE_ORDERS: LifecycleOrder[] = [];
@@ -175,9 +179,15 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   const clearToast = () => setToast(null);
 
-  // Computed Counts
+  // Computed Counts (Strict separation: pendingCount ONLY counts incoming leads awaiting confirmation, never Sendit logistics parcels)
   const pendingCount = useMemo(
-    () => orders.filter((o) => o.stage === 'PENDING_CONFIRMATION').length,
+    () =>
+      orders.filter(
+        (o) =>
+          o.stage === 'PENDING_CONFIRMATION' &&
+          o.source?.name !== 'SENDIT_SYNC' &&
+          !o.id.startsWith('snd-')
+      ).length,
     [orders]
   );
   const processingCount = useMemo(

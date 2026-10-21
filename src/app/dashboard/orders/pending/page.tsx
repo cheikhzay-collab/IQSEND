@@ -78,9 +78,14 @@ export default function PendingOrdersPage() {
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
 
-  // All pending orders (Stage 1)
+  // All pending orders (Stage 1: Only incoming leads awaiting phone confirmation, never Sendit logistics parcels)
   const allPendingOrders = useMemo(() => {
-    return orders.filter((o) => o.stage === 'PENDING_CONFIRMATION');
+    return orders.filter(
+      (o) =>
+        o.stage === 'PENDING_CONFIRMATION' &&
+        o.source?.name !== 'SENDIT_SYNC' &&
+        !o.id.startsWith('snd-')
+    );
   }, [orders]);
 
   // Counts by sub-state

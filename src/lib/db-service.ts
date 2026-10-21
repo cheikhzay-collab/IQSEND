@@ -34,10 +34,12 @@ export function mapStageToDbStatus(stage: string): string {
   }
 }
 
-export function mapDbStatusToStage(status: string): LifecycleStage {
+export function mapDbStatusToStage(status: string, storeSource?: string): LifecycleStage {
   switch (status) {
     case 'NEW':
     case 'AI_CHATTING':
+      // Sendit parcels are already in courier custody, never pending phone confirmation
+      if (storeSource === 'SENDIT_SYNC') return 'IN_TRANSIT';
       return 'PENDING_CONFIRMATION';
     case 'CONFIRMED':
     case 'PACKING':
@@ -48,11 +50,13 @@ export function mapDbStatusToStage(status: string): LifecycleStage {
     case 'DELIVERED_PAID':
       return 'COMPLETED';
     case 'DELIVERY_FAILED':
+    case 'RETURNED':
       return 'RETURNED';
     case 'CANCELED':
     case 'DUPLICATE':
       return 'CANCELED';
     default:
+      if (storeSource === 'SENDIT_SYNC') return 'IN_TRANSIT';
       return 'PENDING_CONFIRMATION';
   }
 }
@@ -99,7 +103,13 @@ export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
 
     return leads.map((lead: any): LifecycleOrder => {
       const orderItems = itemsByOrderId[lead.id] || [];
-      const stage = mapDbStatusToStage(lead.status);
+      let stage = mapDbStatusToStage(lead.status, lead.store_source);
+      
+      // Strict safeguard: Any parcel from Sendit logistics is already in delivery network, NEVER pending confirmation
+      const isSenditParcel = lead.store_source === 'SENDIT_SYNC' || (lead.id && lead.id.startsWith('snd-'));
+      if (isSenditParcel && stage === 'PENDING_CONFIRMATION') {
+        stage = 'IN_TRANSIT';
+      }
 
       return {
         id: lead.id,
@@ -163,6 +173,9 @@ export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
                 reviewRequested: false,
               }
             : undefined,
+        source: {
+          name: lead.store_source || 'Direct Funnel',
+        },
       };
     });
   } catch (error) {
