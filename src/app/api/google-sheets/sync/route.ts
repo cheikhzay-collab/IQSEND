@@ -1,18 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addInboundOrder, cleanMoroccanPhone, IngestedOrder } from '@/lib/orders-store';
 import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
+import { getMysqlPool } from '@/lib/db';
+import { realtimeHub } from '@/lib/realtime-events';
+
+export const dynamic = 'force-dynamic';
 
 /**
- * 1-Click Google Sheets Direct Sync API
- * Allows sellers to simply paste any shared Google Sheet URL.
- * Automatically converts to CSV export, parses rows with smart multilingual column mapping (FR/AR/EN),
- * and injects orders directly into the "En attente de confirmation" pipeline.
+ * 1-Click Google Sheets Direct Sync & Settings API
+ * 1. GET: Fetch saved Google Sheets settings & recent logs from MySQL store_settings
+ * 2. PUT: Save/update Google Sheet settings (URL, auto-sync, interval) in MySQL
+ * 3. POST: Execute direct synchronization with deduplication & real-time broadcast
  */
 
 function extractSheetId(url: string): { sheetId: string; gid?: string } | null {
   if (!url) return null;
-  
-  // Format: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit#gid=GID
   const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
   if (!match) return null;
 
@@ -64,16 +66,191 @@ function parseCSV(text: string): string[][] {
   return lines;
 }
 
+/**
+ * GET: Retrieve saved Google Sheets configuration and sync history
+ */
+export async function GET() {
+  try {
+    const pool = getMysqlPool();
+
+    // Query settings from store_settings
+    const [settingsRows]: any = await pool.execute(
+      `SELECT setting_key, setting_value, updated_at FROM store_settings WHERE setting_key LIKE 'GOOGLE_SHEET_%'`
+    );
+
+    const settingsMap: Record<string, { value: string; updatedAt: string }> = {};
+    if (Array.isArray(settingsRows)) {
+      settingsRows.forEach((r: any) => {
+        settingsMap[r.setting_key] = {
+          value: r.setting_value,
+          updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : '',
+        };
+      });
+    }
+
+    // Get recent logs from google_sheets_sync_logs
+    let recentLogs: any[] = [];
+    try {
+      const [logs]: any = await pool.execute(
+        `SELECT * FROM google_sheets_sync_logs ORDER BY created_at DESC LIMIT 5`
+      );
+      if (Array.isArray(logs)) {
+        recentLogs = logs;
+      }
+    } catch {
+      // Table may be empty
+    }
+
+    const latestLog = recentLogs[0] || null;
+
+    return NextResponse.json({
+      success: true,
+      settings: {
+        sheetUrl: settingsMap['GOOGLE_SHEET_URL']?.value || '',
+        autoSync: settingsMap['GOOGLE_SHEET_AUTO_SYNC']?.value === 'true',
+        syncInterval: parseInt(settingsMap['GOOGLE_SHEET_SYNC_INTERVAL']?.value || '30', 10),
+        lastSync: settingsMap['GOOGLE_SHEET_LAST_SYNC']?.value || (latestLog?.created_at ? new Date(latestLog.created_at).toISOString() : null),
+        lastStatus: settingsMap['GOOGLE_SHEET_LAST_STATUS']?.value || latestLog?.status || 'IDLE',
+        totalSynced: parseInt(settingsMap['GOOGLE_SHEET_TOTAL_SYNCED']?.value || '0', 10),
+        lastCount: parseInt(settingsMap['GOOGLE_SHEET_LAST_COUNT']?.value || '0', 10),
+        updatedAt: settingsMap['GOOGLE_SHEET_URL']?.updatedAt || null,
+      },
+      recentLogs,
+    });
+  } catch (error: any) {
+    console.error('[API Google Sheets GET] Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Impossible de lire les paramètres.' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PUT: Save or update Google Sheets settings in MySQL store_settings
+ */
+export async function PUT(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { sheetUrl, autoSync, syncInterval } = body;
+
+    const pool = getMysqlPool();
+
+    if (sheetUrl !== undefined) {
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [String(sheetUrl).trim()]
+      );
+    }
+
+    if (autoSync !== undefined) {
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_AUTO_SYNC', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [autoSync ? 'true' : 'false']
+      );
+    }
+
+    if (syncInterval !== undefined) {
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_SYNC_INTERVAL', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [String(syncInterval || 30)]
+      );
+    }
+
+    // Broadcast settings update to realtime hub
+    realtimeHub.broadcast({
+      eventType: 'AI_CONFIG_UPDATED',
+      entityType: 'SYSTEM',
+      entityId: 'GOOGLE_SHEETS_CONFIG',
+      title: 'إعدادات Google Sheets تم تحديثها في قاعدة البيانات',
+      payload: { sheetUrl, autoSync: !!autoSync, syncInterval },
+      source: 'GOOGLE_SHEETS_SETTINGS',
+    }).catch(() => {});
+
+    return NextResponse.json({
+      success: true,
+      message: 'تم حفظ إعدادات Google Sheets في قاعدة البيانات بنجاح!',
+      savedAt: new Date().toISOString(),
+      settings: {
+        sheetUrl: sheetUrl || '',
+        autoSync: !!autoSync,
+        syncInterval: syncInterval || 30,
+      },
+    });
+  } catch (error: any) {
+    console.error('[API Google Sheets PUT] Error:', error);
+    return NextResponse.json(
+      { success: false, error: error.message || 'Échec de la sauvegarde des paramètres.' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * POST: Save settings AND execute synchronization with Google Sheets
+ */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const sheetUrl = body.sheetUrl || body.url;
+    let sheetUrl = (body.sheetUrl || body.url || '').trim();
+    const pool = getMysqlPool();
 
-    if (!sheetUrl) {
+    // If no sheetUrl provided in request, check if one was saved in store_settings
+    if (!sheetUrl && !body.isDemo) {
+      const [rows]: any = await pool.execute(
+        `SELECT setting_value FROM store_settings WHERE setting_key = 'GOOGLE_SHEET_URL'`
+      );
+      if (Array.isArray(rows) && rows.length > 0 && rows[0].setting_value) {
+        sheetUrl = rows[0].setting_value;
+      }
+    }
+
+    if (!sheetUrl && !body.isDemo) {
       return NextResponse.json(
-        { success: false, error: 'URL Google Sheet manquante. Veuillez coller le lien de votre feuille.' },
+        { success: false, error: 'رابط Google Sheet مفقود. يرجى لصق الرابط وحفظه أولاً.' },
         { status: 400 }
       );
+    }
+
+    // Save autoSync and syncInterval if provided
+    if (body.autoSync !== undefined) {
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_AUTO_SYNC', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [body.autoSync ? 'true' : 'false']
+      );
+    }
+    if (body.syncInterval !== undefined) {
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_SYNC_INTERVAL', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [String(body.syncInterval)]
+      );
+    }
+
+    // If client only requested saving settings without running sync
+    if (body.saveOnly) {
+      if (sheetUrl && sheetUrl !== 'DEMO') {
+        await pool.execute(
+          `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+           VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+          [sheetUrl]
+        );
+      }
+      return NextResponse.json({
+        success: true,
+        message: 'تم حفظ إعدادات صفحة Google Sheets بنجاح في قاعدة البيانات!',
+        sheetUrl,
+      });
     }
 
     let csvData = '';
@@ -90,7 +267,7 @@ export async function POST(req: NextRequest) {
       const extracted = extractSheetId(sheetUrl);
       if (!extracted) {
         return NextResponse.json(
-          { success: false, error: 'Format de lien Google Sheet invalide. Assurez-vous d\'inclure https://docs.google.com/spreadsheets/d/...' },
+          { success: false, error: 'صيغة رابط Google Sheet غير صالحة. تأكد من أن الرابط يحتوي على https://docs.google.com/spreadsheets/d/...' },
           { status: 400 }
         );
       }
@@ -112,27 +289,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
-            error: 'Impossible d\'accéder à la feuille Google Sheet. Vérifiez que le partage est bien réglé sur "Tous les utilisateurs disposant du lien (Lecteur)" dans Google Sheets.',
+            error: 'تعذر الوصول إلى Google Sheet. تأكد من ضبط إمكانية الوصول إلى "Tous les utilisateurs disposant du lien (Lecteur)" في Google Sheets.',
           },
           { status: 403 }
         );
       }
 
       csvData = await response.text();
+
+      // Persist the valid URL into store_settings
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [sheetUrl]
+      );
     }
 
     const rows = parseCSV(csvData);
 
     if (rows.length < 2) {
       return NextResponse.json(
-        { success: false, error: 'La feuille Google Sheet semble vide ou ne contient que les en-têtes.' },
+        { success: false, error: 'ورقة Google Sheet فارغة أو لا تحتوي إلا على العناوين.' },
         { status: 400 }
       );
     }
 
-    // Header mapping
+    // Header mapping: support Arabic, French, English synonyms
     const headers = rows[0].map(h => h.toLowerCase().trim());
-
     const findIndex = (possibleNames: string[]) => {
       return headers.findIndex(h => possibleNames.some(p => h.includes(p)));
     };
@@ -146,31 +330,59 @@ export async function POST(req: NextRequest) {
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
     const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات']);
 
+    // Fetch existing phone numbers and order numbers from order_leads to DEDUPLICATE
+    const existingPhones = new Set<string>();
+    const existingOrderIds = new Set<string>();
+    try {
+      const [existingLeads]: any = await pool.execute(
+        `SELECT id, order_number, phone_number FROM order_leads`
+      );
+      if (Array.isArray(existingLeads)) {
+        existingLeads.forEach((l: any) => {
+          if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
+          if (l.id) existingOrderIds.add(l.id);
+        });
+      }
+    } catch (e) {
+      console.warn('[Sync] Note querying existing leads:', e);
+    }
+
     const importedOrders: IngestedOrder[] = [];
+    let skippedCount = 0;
 
     // Parse data rows
     for (let r = 1; r < rows.length; r++) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
-      const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx] : `Client #${r}`;
-      const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx] : '';
+      const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : `Client #${r}`;
+      const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx].trim() : '';
       const phone = cleanMoroccanPhone(rawPhone);
 
-      // Skip empty test rows
+      // Skip invalid / empty rows
       if (!phone && !customerName) continue;
 
-      const city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx] : 'Casablanca';
-      const address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx] : 'Adresse à confirmer par appel';
-      const productName = (productIdx !== -1 && row[productIdx]) ? row[productIdx] : 'Pack E-commerce Standard';
+      // Deduplication check: if order with this phone already exists in DB, skip it (unless forceSync is true)
+      if (!body.forceSync && phone && existingPhones.has(phone)) {
+        skippedCount++;
+        continue;
+      }
+
+      const city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
+      const address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx].trim() : 'Adresse à confirmer par appel';
+      const productName = (productIdx !== -1 && row[productIdx]) ? row[productIdx].trim() : 'Pack E-commerce Standard';
       const rawPrice = (priceIdx !== -1 && row[priceIdx]) ? row[priceIdx].replace(/[^\d.]/g, '') : '299';
       const amount = parseFloat(rawPrice) || 299;
       const quantity = (qtyIdx !== -1 && row[qtyIdx]) ? parseInt(row[qtyIdx], 10) || 1 : 1;
-      const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx] : 'Importé automatiquement via Google Sheet';
+      const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'Importé automatiquement via Google Sheet';
+
+      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+      const orderId = `gs-${sheetIdTag}-${Date.now()}-${r}`;
+      const orderNumber = `#GS${randomSuffix}`;
 
       const order: IngestedOrder = {
-        id: `gs-${sheetIdTag}-${Date.now()}-${r}`,
-        orderNumber: `#GS${Math.floor(1000 + Math.random() * 9000)}`,
+        id: orderId,
+        orderNumber,
         stage: 'PENDING_CONFIRMATION',
         createdAt: new Date().toISOString(),
         source: 'GOOGLE_SHEETS',
@@ -183,9 +395,9 @@ export async function POST(req: NextRequest) {
         },
         items: [
           {
-            id: `item-${r}`,
+            id: `item-${orderId}`,
             name: productName,
-            sku: `SKU-${productName.slice(0, 3).toUpperCase()}-01`,
+            sku: `GS-${productName.slice(0, 3).toUpperCase()}-01`,
             thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
             quantity,
             price: amount,
@@ -193,24 +405,22 @@ export async function POST(req: NextRequest) {
         ],
         payment: {
           method: 'COD',
-          amount,
+          amount: amount * quantity,
           currency: 'MAD',
           status: 'PENDING',
         },
         aiVerification: {
           status: 'NEEDS_REVIEW',
           riskScore: 88,
-          notes: `Importé depuis Google Sheet. Numéro marocain détecté : ${phone}`,
+          notes: `Importé depuis Google Sheet. Numéro marocain : ${phone}`,
         },
       };
 
+      // Add to in-memory store
       addInboundOrder(order);
 
-      // Persist directly into Hostinger MySQL Database
+      // Persist directly into MySQL
       try {
-        const { getMysqlPool } = await import('@/lib/db');
-        const pool = getMysqlPool();
-
         await pool.execute(
           `INSERT INTO order_leads (
             id, order_number, customer_name, phone_number, city, address, total_amount, status,
@@ -234,56 +444,89 @@ export async function POST(req: NextRequest) {
              total_orders = total_orders + 1, updated_at = CURRENT_TIMESTAMP`,
           [`cust-${(phone || '0000').slice(-4)}`, phone || '0600000000', customerName, city, address, notes]
         );
+
+        // Mark phone as seen to prevent duplicates within same sheet
+        if (phone) existingPhones.add(phone);
       } catch (dbErr: any) {
-        console.warn(`[Sync] Note persisting order ${order.orderNumber} to MySQL:`, dbErr.message);
+        console.warn(`[Sync] Note persisting order ${order.orderNumber}:`, dbErr.message);
       }
 
-      // Trigger Pillar 1 instant interactive WhatsApp confirmation + upselling
+      // WhatsApp interactive confirmation outreach
       try {
         await triggerOrderConfirmationOutreach(order);
       } catch (err: any) {
-        console.warn(`[Sync] WhatsApp confirmation outreach failed for ${order.orderNumber}:`, err.message);
+        console.warn(`[Sync] WhatsApp outreach error for ${order.orderNumber}:`, err.message);
       }
+
       importedOrders.push(order);
     }
 
-    // Record sync operation in google_sheets_sync_logs and store_settings
+    // Update settings & record log in google_sheets_sync_logs
     try {
-      const { getMysqlPool } = await import('@/lib/db');
-      const pool = getMysqlPool();
-
       await pool.execute(
         `INSERT INTO google_sheets_sync_logs (id, spreadsheet_id, sheet_name, rows_synced, status, details)
          VALUES (?, ?, 'Feuille 1', ?, 'SUCCESS', ?)`,
-        [`log-sync-${Date.now()}`, sheetIdTag, importedOrders.length, `Importation réussie de ${importedOrders.length} lignes Google Sheets`]
+        [
+          `log-sync-${Date.now()}`,
+          sheetIdTag,
+          importedOrders.length,
+          `استيراد ${importedOrders.length} طلبات جديدة وتخطي ${skippedCount} مسجلة مسبقاً`
+        ]
       );
 
-      if (sheetUrl && sheetUrl !== 'DEMO') {
-        await pool.execute(
-          `INSERT INTO store_settings (setting_key, setting_value, updated_at)
-           VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
-           ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
-          [sheetUrl]
-        );
-      }
+      const nowIso = new Date().toISOString();
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_LAST_SYNC', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [nowIso]
+      );
 
-      const { realtimeHub } = await import('@/lib/realtime-events');
-      realtimeHub.broadcast({
-        eventType: 'ORDER_CREATED',
-        entityType: 'ORDER',
-        entityId: 'BATCH_GOOGLE_SHEETS',
-        title: `Mise à jour Google Sheets (${importedOrders.length} nouvelles commandes)`,
-        payload: { count: importedOrders.length },
-        source: 'GOOGLE_SHEETS_SYNC',
-      }).catch(() => {});
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_LAST_STATUS', 'SUCCESS', CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = 'SUCCESS', updated_at = CURRENT_TIMESTAMP`
+      );
+
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_LAST_COUNT', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [String(importedOrders.length)]
+      );
+
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_TOTAL_SYNCED', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = CAST(COALESCE(setting_value, 0) AS UNSIGNED) + ?, updated_at = CURRENT_TIMESTAMP`,
+        [String(importedOrders.length), importedOrders.length]
+      );
+
+      // Broadcast real-time event to all open dashboards
+      if (importedOrders.length > 0) {
+        realtimeHub.broadcast({
+          eventType: 'ORDER_CREATED',
+          entityType: 'ORDER',
+          entityId: 'BATCH_GOOGLE_SHEETS',
+          title: `تم استيراد ${importedOrders.length} طلبات جديدة من Google Sheets`,
+          payload: { count: importedOrders.length, orders: importedOrders },
+          source: 'GOOGLE_SHEETS_SYNC',
+        }).catch(() => {});
+      }
     } catch (logErr) {
       console.warn('[Sync] Note saving sync log:', logErr);
     }
 
+    const message = importedOrders.length > 0
+      ? `✅ تم استيراد ${importedOrders.length} طلب(ات) جديدة بنجاح إلى مرحلة التأكيد! (${skippedCount} طلبات سابقة تم تخطيها)`
+      : `ℹ️ لم يتم العثور على طلبات جديدة. جميع الطلبات (${skippedCount}) مسجلة مسبقاً في قاعدة البيانات.`;
+
     return NextResponse.json({
       success: true,
-      message: `${importedOrders.length} commande(s) synchronisée(s) avec succès depuis Google Sheet!`,
+      message,
       importedCount: importedOrders.length,
+      skippedCount,
+      totalRows: rows.length - 1,
       orders: importedOrders,
       targetStage: 'En attente de confirmation',
     });

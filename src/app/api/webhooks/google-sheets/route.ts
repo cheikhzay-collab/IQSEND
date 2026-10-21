@@ -238,11 +238,23 @@ export async function POST(req: NextRequest) {
         [`cust-${cleanedPhone.slice(-4)}`, cleanedPhone, newOrder.customer.name, newOrder.customer.city, newOrder.customer.address, notes]
       );
 
-      // 4. Log sync execution in google_sheets_sync_logs
+      // 4. Log sync execution in google_sheets_sync_logs & store_settings
       await pool.execute(
         `INSERT INTO google_sheets_sync_logs (id, spreadsheet_id, sheet_name, rows_synced, status, details)
          VALUES (?, 'webhook-live', 'Google Sheets Inbound Webhook', 1, 'SUCCESS', ?)`,
         [`log-gs-${Date.now()}`, `Commande ${orderNumber} (${newOrder.customer.name} - ${cleanedPhone})`]
+      );
+
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_LAST_SYNC', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP`
+      );
+
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_TOTAL_SYNCED', '1', CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = CAST(COALESCE(setting_value, 0) AS UNSIGNED) + 1, updated_at = CURRENT_TIMESTAMP`
       );
 
       // 5. Broadcast real-time event to all open tabs and dashboards

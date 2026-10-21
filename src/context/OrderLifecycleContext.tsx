@@ -576,13 +576,36 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   };
 
-  // Live auto-polling: checks for new inbound orders every 8 seconds
+  // 14.1 Continuous Auto-Sync from Google Sheets URL (Auto-drops new rows into platform)
+  const checkGoogleSheetsAutoSync = useCallback(async () => {
+    try {
+      const res = await fetch('/api/google-sheets/auto-sync');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.newOrdersCount > 0) {
+        await fetchDbOrders(true);
+        showToast(`⚡ سقط ${data.newOrdersCount} طلب(ات) جديدة تلقائياً من Google Sheets في نفس الوقت!`, 'success');
+      }
+    } catch {
+      // Ignore background sync errors
+    }
+  }, [fetchDbOrders]);
+
+  // Live auto-polling: checks for new inbound orders every 8 seconds & Google Sheets auto-sync every 15 seconds
   useEffect(() => {
     const timer = setInterval(() => {
       refreshInboundOrders();
     }, 8000);
-    return () => clearInterval(timer);
-  }, []);
+
+    const sheetTimer = setInterval(() => {
+      checkGoogleSheetsAutoSync();
+    }, 15000);
+
+    return () => {
+      clearInterval(timer);
+      clearInterval(sheetTimer);
+    };
+  }, [checkGoogleSheetsAutoSync]);
 
   // 15. Direct stage transition for Kanban Drag & Drop
   const moveOrderStage = (orderId: string, targetStage: LifecycleStage) => {
