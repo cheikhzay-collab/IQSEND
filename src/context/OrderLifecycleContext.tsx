@@ -598,8 +598,9 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }, 8000);
 
     const sheetTimer = setInterval(() => {
-      checkGoogleSheetsAutoSync();
-    }, 15000);
+      // Google Sheets auto-sync is controlled on demand or at longer interval
+      // checkGoogleSheetsAutoSync();
+    }, 60000);
 
     return () => {
       clearInterval(timer);

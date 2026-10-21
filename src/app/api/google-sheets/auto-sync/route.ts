@@ -147,14 +147,16 @@ export async function GET(req: NextRequest) {
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
     const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات']);
 
-    // 4. Query existing phone numbers in order_leads for deduplication
+    // 4. Query existing phone numbers and order IDs in order_leads for deduplication
     const existingPhones = new Set<string>();
+    const existingOrderIds = new Set<string>();
     const [existingLeads]: any = await pool.execute(
-      `SELECT phone_number FROM order_leads`
+      `SELECT id, phone_number FROM order_leads`
     );
     if (Array.isArray(existingLeads)) {
       existingLeads.forEach((l: any) => {
         if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
+        if (l.id) existingOrderIds.add(l.id);
       });
     }
 
@@ -166,17 +168,32 @@ export async function GET(req: NextRequest) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
-      const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : `Client #${r}`;
+      const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : '';
       const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx].trim() : '';
       const phone = cleanMoroccanPhone(rawPhone);
 
-      if (!phone && !customerName) continue;
-
-      // Already imported previously?
-      if (phone && existingPhones.has(phone)) {
+      // Strict validation: A valid Moroccan phone number (at least 9 digits, e.g. 06..., 07..., 05...) is MANDATORY
+      const isValidMoroccanPhone = phone && phone.length >= 9 && phone !== '0600000000' && /^(0[567]\d{8}|\+?212[567]\d{8})$/.test(phone);
+      if (!isValidMoroccanPhone) {
         skippedCount++;
         continue;
       }
+
+      // Already imported previously by phone?
+      if (existingPhones.has(phone)) {
+        skippedCount++;
+        continue;
+      }
+
+      // Deterministic order ID and number per sheet row to prevent duplicate insertions
+      const orderId = `gs-${sheetIdTag}-r${r}`;
+      if (existingOrderIds.has(orderId)) {
+        skippedCount++;
+        continue;
+      }
+
+      const orderNumber = `#GS${1000 + (r % 9000)}`;
+      const finalCustomerName = customerName || `Client ${phone.slice(-4)}`;
 
       const city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
       const address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx].trim() : 'Adresse à confirmer par appel';
@@ -186,10 +203,6 @@ export async function GET(req: NextRequest) {
       const quantity = (qtyIdx !== -1 && row[qtyIdx]) ? parseInt(row[qtyIdx], 10) || 1 : 1;
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'مزامنة تلقائية حية من Google Sheet';
 
-      const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const orderId = `gs-${sheetIdTag}-${Date.now()}-${r}`;
-      const orderNumber = `#GS${randomSuffix}`;
-
       const order: IngestedOrder = {
         id: orderId,
         orderNumber,
@@ -197,8 +210,8 @@ export async function GET(req: NextRequest) {
         createdAt: new Date().toISOString(),
         source: 'GOOGLE_SHEETS',
         customer: {
-          name: customerName,
-          phone: phone || '0600000000',
+          name: finalCustomerName,
+          phone: phone,
           address,
           city,
           notes,

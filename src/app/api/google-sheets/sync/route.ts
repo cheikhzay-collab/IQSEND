@@ -360,7 +360,11 @@ export async function POST(req: NextRequest) {
       const phone = cleanMoroccanPhone(rawPhone);
 
       // Skip invalid / empty rows
-      if (!phone && !customerName) continue;
+      const isValidMoroccanPhone = phone && phone.length >= 9 && phone !== '0600000000' && /^(0[567]\d{8}|\+?212[567]\d{8})$/.test(phone);
+      if (!isValidMoroccanPhone) {
+        skippedCount++;
+        continue;
+      }
 
       // Deduplication check: if order with this phone already exists in DB, skip it (unless forceSync is true)
       if (!body.forceSync && phone && existingPhones.has(phone)) {
@@ -377,7 +381,7 @@ export async function POST(req: NextRequest) {
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'Importé automatiquement via Google Sheet';
 
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const orderId = `gs-${sheetIdTag}-${Date.now()}-${r}`;
+      const orderId = `gs-${sheetIdTag}-r${r}`;
       const orderNumber = `#GS${randomSuffix}`;
 
       const order: IngestedOrder = {
@@ -388,7 +392,7 @@ export async function POST(req: NextRequest) {
         source: 'GOOGLE_SHEETS',
         customer: {
           name: customerName,
-          phone: phone || '0600000000',
+          phone: phone,
           address,
           city,
           notes,
