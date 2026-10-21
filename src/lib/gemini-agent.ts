@@ -733,6 +733,27 @@ async function processWithRulesFallback(
 
   const wantsToOrder = orderIntents.some((kw) => text.includes(kw));
 
+  // 0. Greeting detection: greetings must NEVER trigger accidental order creation!
+  const greetings = [
+    'سلام', 'السلام', 'سلام عليكم', 'السلام عليكم', 'سلامو عليكم', 'صباح الخير', 
+    'مساء الخير', 'salam', 'salut', 'bonjour', 'bonsoir', 'hello', 'hi', 'ahlan', 'أهلا', 'أهلاً', 'مرحبا', 'مرحباً'
+  ];
+  const cleanPunc = text.replace(/[,،.!?؛\-]/g, '').trim();
+  const isGreetingOnly = greetings.includes(cleanPunc);
+
+  if (isGreetingOnly) {
+    if (context.sessionState?.lastOfferedProduct) {
+      return {
+        replyText: `وعليكم السلام ورحمة الله أخي الكريم! 👋 مرحباً بك.\nواش تحب تكمل الطلب ديالك بخصوص *${context.sessionState.lastOfferedProduct}* (الثمن: *${context.sessionState.price || 179} درهم*)، أو عندك أي استفسار آخر؟ على الراس والعين! 🛍️✨`,
+        requiresHumanHandover: false,
+      };
+    }
+    return {
+      replyText: `وعليكم السلام ورحمة الله أخي الكريم! 👋 مرحباً بك في متجرنا.\nكيف نقدر نعاونك اليوم؟ (الاطلاع على الكتالوج والمنتجات، تسجيل طلبية جديدة، أو تتبع طلبك) ✨`,
+      requiresHumanHandover: false,
+    };
+  }
+
   // Common Moroccan Cities dictionary
   const moroccanCities = [
     { ar: 'الدار البيضاء', fr: 'casablanca', aliases: ['كازا', 'casa', 'casablanca', 'الدار البيضاء', 'بيضاء'] },
@@ -758,7 +779,19 @@ async function processWithRulesFallback(
     { ar: 'العيون', fr: 'laayoune', aliases: ['العيون', 'laayoune'] },
   ];
 
-  const detectedCity = moroccanCities.find((c) => c.aliases.some((alias) => text.includes(alias)));
+  // Robust whole-word city matching: prevents "سلام" from matching "سلا"
+  const wordsInText = text.replace(/[,،.!?؛\-]/g, ' ').split(/\s+/).filter(Boolean);
+  const detectedCity = moroccanCities.find((c) =>
+    c.aliases.some((alias) =>
+      wordsInText.some((w) => {
+        if (w === alias) return true;
+        if (w.startsWith('ب') && w.slice(1) === alias) return true;
+        if (w.startsWith('ل') && w.slice(1) === alias) return true;
+        if (w.startsWith('ف') && w.slice(1) === alias) return true;
+        return false;
+      })
+    )
+  );
   
   // Resolve product: 1) from incoming text, 2) from sessionState.lastOfferedProduct, 3) from context items
   let matchedProduct = findProductByNameOrKeyword(text);
@@ -769,7 +802,16 @@ async function processWithRulesFallback(
     matchedProduct = findProductByNameOrKeyword(context.items[0].name);
   }
 
-  if (wantsToOrder || (detectedCity && matchedProduct)) {
+  // An order should ONLY be created if the customer explicitly stated they want to order,
+  // OR they are currently answering the bot's prompt for city/address details!
+  const isAwaitingOrderDetails =
+    context.sessionState?.step === 'AWAITING_SIZE_OR_DETAILS' ||
+    context.sessionState?.step === 'AWAITING_CITY' ||
+    context.sessionState?.step === 'AWAITING_ADDRESS';
+
+  const shouldProcessOrder = wantsToOrder || (isAwaitingOrderDetails && Boolean(detectedCity));
+
+  if (shouldProcessOrder) {
     // If we have both product and city, create the order directly!
     const targetProduct = matchedProduct || (context.sessionState?.lastOfferedProduct ? {
       name: context.sessionState.lastOfferedProduct,

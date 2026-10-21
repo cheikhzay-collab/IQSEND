@@ -31,6 +31,8 @@ export async function GET(request: Request) {
   return new NextResponse('Verification failed', { status: 403 });
 }
 
+const processedWebhookIds = new Set<string>();
+
 // POST: inbound messages from WhatsApp Business API
 export async function POST(request: Request) {
   try {
@@ -46,6 +48,19 @@ export async function POST(request: Request) {
     }
 
     const msg = messages[0];
+    const msgId = msg.id;
+    if (msgId) {
+      if (processedWebhookIds.has(msgId)) {
+        console.log(`[WhatsApp Webhook] ⏩ Skipping duplicate webhook message ID: ${msgId}`);
+        return new NextResponse('EVENT_RECEIVED', { status: 200 });
+      }
+      processedWebhookIds.add(msgId);
+      if (processedWebhookIds.size > 2000) {
+        const first = processedWebhookIds.values().next().value;
+        if (first) processedWebhookIds.delete(first);
+      }
+    }
+
     const rawFrom = msg.from || '';
     const cleanedFrom = cleanMoroccanPhone(rawFrom);
 

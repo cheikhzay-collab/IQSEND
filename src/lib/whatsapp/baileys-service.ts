@@ -30,6 +30,9 @@ interface GlobalWaHolder {
   state: WhatsAppBridgeState;
 }
 
+// In-memory message deduplication set (prevents duplicate processing on reconnects/status updates)
+const processedMessageIds = new Set<string>();
+
 // Preserve singleton across fast-refresh and route invocations in Node memory
 const globalForWa = globalThis as unknown as {
   __waBridge?: GlobalWaHolder;
@@ -190,12 +193,27 @@ export async function startBaileysService(): Promise<void> {
     });
 
     currentSocket.ev.on('messages.upsert', async (m: any) => {
-      if (!m.messages || m.messages.length === 0) return;
+      // Only process live incoming messages (skip history sync, read receipts, and appends)
+      if (m.type !== 'notify' || !m.messages || m.messages.length === 0) return;
 
       const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
 
       for (const msg of m.messages) {
         if (!msg.message || msg.key.fromMe) continue;
+
+        // Message Deduplication: never process the exact same message twice
+        const msgKeyId = msg.key?.id;
+        if (msgKeyId) {
+          if (processedMessageIds.has(msgKeyId)) {
+            console.log(`[Baileys In-Process] ⏩ Skipping duplicate message ID: ${msgKeyId}`);
+            continue;
+          }
+          processedMessageIds.add(msgKeyId);
+          if (processedMessageIds.size > 2000) {
+            const first = processedMessageIds.values().next().value;
+            if (first) processedMessageIds.delete(first);
+          }
+        }
 
         const fromJid = msg.key.remoteJid || '';
         // Skip groups, status broadcast, etc.
