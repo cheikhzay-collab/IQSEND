@@ -118,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (typeof window !== 'undefined') {
           localStorage.setItem(LOCAL_STORAGE_KEY, data.user.id);
         }
-        await fetchUsers();
+        fetchUsers().catch(() => {});
         return { success: true, user: data.user };
       } else {
         return { success: false, error: data.error || 'Identifiants incorrects' };

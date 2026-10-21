@@ -52,9 +52,7 @@ export default function LoginPage() {
       const res = await login(email, password);
       if (res.success) {
         setSuccessMessage('Connexion réussie ! Redirection vers le tableau de bord...');
-        setTimeout(() => {
-          router.push('/dashboard/orders');
-        }, 600);
+        router.push('/dashboard/orders');
       } else {
         setErrorMessage(res.error || 'Identifiants invalides. Veuillez vérifier vos accès.');
       }

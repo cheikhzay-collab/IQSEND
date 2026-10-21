@@ -100,13 +100,11 @@ export async function POST(req: NextRequest) {
       permissions: parsedPermissions,
     };
 
-    // Update user online status
-    try {
-      await pool.execute(
-        `UPDATE users SET is_online = 1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [user.id]
-      );
-    } catch {}
+    // Update user online status asynchronously without blocking login response
+    pool.execute(
+      `UPDATE users SET is_online = 1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?`,
+      [user.id]
+    ).catch(() => {});
 
     const response = NextResponse.json({
       success: true,

@@ -35,10 +35,13 @@ export async function GET() {
   // In development, also sync orders that arrived at the live Hostinger webhook
   if (process.env.NODE_ENV === 'development' || !process.env.HOSTINGER_DEPLOYMENT) {
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 1200);
       const liveRes = await fetch('https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets', {
         headers: { 'Cache-Control': 'no-cache' },
-        next: { revalidate: 0 },
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       if (liveRes.ok) {
         const liveData = await liveRes.json();
         if (liveData.success && Array.isArray(liveData.orders)) {
