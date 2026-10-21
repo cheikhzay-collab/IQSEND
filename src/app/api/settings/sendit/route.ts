@@ -73,11 +73,37 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { publicKey, secretKey, webhookSecret, testOnly } = body;
 
-    const trimmedPublic = (publicKey || '').trim();
-    const trimmedSecret = (secretKey || '').trim();
+    let finalPublic = (publicKey || '').trim();
+    let finalSecret = (secretKey || '').trim();
     const trimmedWebhook = (webhookSecret || '').trim() || 'iqsend_webhook_secret_2025';
 
-    if (!trimmedPublic || !trimmedSecret) {
+    const pool = getMysqlPool();
+
+    // If public key is masked or empty, preserve existing valid key
+    if (!finalPublic || finalPublic.includes('...')) {
+      const [existingPub]: any = await pool.execute(
+        "SELECT setting_value FROM store_settings WHERE setting_key = 'SENDIT_PUBLIC_KEY' LIMIT 1"
+      );
+      if (existingPub?.[0]?.setting_value && !existingPub[0].setting_value.includes('...')) {
+        finalPublic = existingPub[0].setting_value;
+      } else {
+        finalPublic = process.env.SENDIT_PUBLIC_KEY || '';
+      }
+    }
+
+    // If secret key is empty or masked, preserve existing valid key
+    if (!finalSecret || finalSecret.includes('...')) {
+      const [existingSec]: any = await pool.execute(
+        "SELECT setting_value FROM store_settings WHERE setting_key = 'SENDIT_PRIVATE_KEY' LIMIT 1"
+      );
+      if (existingSec?.[0]?.setting_value) {
+        finalSecret = existingSec[0].setting_value;
+      } else {
+        finalSecret = process.env.SENDIT_SECRET_KEY || process.env.SENDIT_PRIVATE_KEY || '';
+      }
+    }
+
+    if (!finalPublic || !finalSecret) {
       return NextResponse.json(
         { success: false, error: 'La Clé Publique (Public Key) et la Clé Secrète (Secret Key) sont requises.' },
         { status: 400 }
@@ -85,19 +111,18 @@ export async function POST(req: NextRequest) {
     }
 
     // 1. Save directly to Hostinger MySQL store_settings table
-    const pool = getMysqlPool();
     await pool.execute(
       `INSERT INTO store_settings (setting_key, setting_value, updated_at)
        VALUES ('SENDIT_PUBLIC_KEY', ?, CURRENT_TIMESTAMP)
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
-      [trimmedPublic]
+      [finalPublic]
     );
 
     await pool.execute(
       `INSERT INTO store_settings (setting_key, setting_value, updated_at)
        VALUES ('SENDIT_PRIVATE_KEY', ?, CURRENT_TIMESTAMP)
        ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
-      [trimmedSecret]
+      [finalSecret]
     );
 
     await pool.execute(
@@ -119,8 +144,8 @@ export async function POST(req: NextRequest) {
         CONFIG_PATH,
         JSON.stringify(
           {
-            publicKey: trimmedPublic,
-            secretKey: trimmedSecret,
+            publicKey: finalPublic,
+            secretKey: finalSecret,
             webhookSecret: trimmedWebhook,
             webhookUrl: 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/sendit',
             apiUrl: 'https://app.sendit.ma/api/v1',
@@ -132,13 +157,13 @@ export async function POST(req: NextRequest) {
       );
     } catch {}
 
-    process.env.SENDIT_PUBLIC_KEY = trimmedPublic;
-    process.env.SENDIT_SECRET_KEY = trimmedSecret;
-    process.env.SENDIT_PRIVATE_KEY = trimmedSecret;
+    process.env.SENDIT_PUBLIC_KEY = finalPublic;
+    process.env.SENDIT_SECRET_KEY = finalSecret;
+    process.env.SENDIT_PRIVATE_KEY = finalSecret;
     process.env.SENDIT_WEBHOOK_SECRET = trimmedWebhook;
 
     // 3. Apply credentials to senditService singleton
-    senditService.setCredentials(trimmedPublic, trimmedSecret, trimmedWebhook);
+    senditService.setCredentials(finalPublic, finalSecret, trimmedWebhook);
 
     // 4. Test live connection
     const testResult = await senditService.testConnection();
@@ -160,7 +185,7 @@ export async function POST(req: NextRequest) {
         isLiveConnected: false,
         message: `Identifiants Sendit.ma enregistrés dans MySQL ! Remarque API : ${testResult.message}.`,
         isConfigured: true,
-        maskedKey: `${trimmedPublic.slice(0, 6)}...${trimmedPublic.slice(-4)}`,
+        maskedKey: `${finalPublic.slice(0, 6)}...${finalPublic.slice(-4)}`,
       });
     }
 
@@ -170,7 +195,7 @@ export async function POST(req: NextRequest) {
       isLiveConnected: true,
       message: `✅ Connexion réussie à Sendit.ma Express ! ${testResult.message}`,
       isConfigured: true,
-      maskedKey: `${trimmedPublic.slice(0, 6)}...${trimmedPublic.slice(-4)}`,
+      maskedKey: `${finalPublic.slice(0, 6)}...${finalPublic.slice(-4)}`,
     });
   } catch (err: any) {
     return NextResponse.json(

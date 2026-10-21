@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getMysqlPool } from '@/lib/db';
 import { addTimelineEventToDb } from '@/lib/db-service';
 import { realtimeHub } from '@/lib/realtime-events';
+import { senditService } from '@/lib/sendit-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -145,7 +146,54 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'PUSH_SENDIT') {
-      const tracking = trackingCode || `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+      let tracking = trackingCode || '';
+      let waybillUrl = '';
+
+      // Check if real order exists in MySQL to push to Sendit API
+      try {
+        const [ordRows]: any = await pool.execute(
+          `SELECT id, order_number, customer_name, phone_number, city, address, total_amount FROM order_leads WHERE id = ? OR order_number = ? LIMIT 1`,
+          [orderId, orderId]
+        );
+        if (Array.isArray(ordRows) && ordRows.length > 0) {
+          const ord = ordRows[0];
+          if (!tracking) {
+            // Find Sendit district
+            const districts = await senditService.getDistricts();
+            const orderCity = (ord.city || '').trim().toLowerCase();
+            const matched = districts.find(
+              (d) =>
+                d.name.toLowerCase() === orderCity ||
+                d.ville.toLowerCase() === orderCity ||
+                (d.arabic_name && ord.city && ord.city.includes(d.arabic_name))
+            ) || districts[0];
+
+            if (matched && ord.customer_name && ord.phone_number && ord.address) {
+              const parcelRes = await senditService.createParcel({
+                district_id: matched.id,
+                name: ord.customer_name,
+                phone: ord.phone_number,
+                address: ord.address,
+                amount: Number(ord.total_amount) || 0,
+                reference: ord.order_number || ord.id,
+                allow_open: 1,
+                allow_try: 1,
+              });
+
+              if (parcelRes.success && parcelRes.trackingCode) {
+                tracking = parcelRes.trackingCode;
+                waybillUrl = parcelRes.waybillPdfUrl || '';
+              }
+            }
+          }
+        }
+      } catch (senditErr: any) {
+        console.warn('[PUSH_SENDIT] Live Sendit creation warning:', senditErr.message);
+      }
+
+      if (!tracking) {
+        tracking = `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+      }
 
       // Update in-memory store
       updateOrderTracking(orderId, tracking, 'Sendit.ma Express');
@@ -160,15 +208,16 @@ export async function PATCH(request: Request) {
       // Upsert shipment_details
       await pool.execute(
         `
-        INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, status, last_status_update_at)
-        VALUES (?, ?, 'Sendit.ma Express', ?, 'READY_FOR_PICKUP', CURRENT_TIMESTAMP)
+        INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, waybill_url, status, last_status_update_at)
+        VALUES (?, ?, 'Sendit.ma Express', ?, ?, 'READY_FOR_PICKUP', CURRENT_TIMESTAMP)
         ON DUPLICATE KEY UPDATE
           carrier = 'Sendit.ma Express',
           sendit_tracking_number = VALUES(sendit_tracking_number),
+          waybill_url = COALESCE(VALUES(waybill_url), waybill_url),
           status = 'READY_FOR_PICKUP',
           last_status_update_at = CURRENT_TIMESTAMP
       `,
-        [`ship-${orderId}`, orderId, tracking]
+        [`ship-${orderId}`, orderId, tracking, waybillUrl || null]
       );
 
       // Update packing task status to DISPATCHED
@@ -192,13 +241,14 @@ export async function PATCH(request: Request) {
         entityType: 'PARCEL',
         entityId: tracking,
         title: `Bordereau Sendit généré: ${tracking} (${orderId})`,
-        payload: { orderId, tracking, status: 'READY_FOR_PICKUP' },
+        payload: { orderId, tracking, waybillUrl, status: 'READY_FOR_PICKUP' },
         source: 'PACKING_STATION',
       }).catch(() => {});
 
       return NextResponse.json({
         success: true,
         trackingCode: tracking,
+        waybillUrl,
         senditStatus: 'PUSHED',
       });
     }

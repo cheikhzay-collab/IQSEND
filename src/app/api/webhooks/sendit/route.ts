@@ -108,63 +108,81 @@ export async function POST(req: NextRequest) {
       const { getMysqlPool } = await import('@/lib/db');
       const pool = getMysqlPool();
 
-      // تحديث shipment_details
-      await pool.execute(
+      // 1. Locate order by sendit_tracking_number in shipment_details or order_number/id in order_leads
+      const [matchedRows]: any = await pool.execute(
         `
-        INSERT INTO shipment_details
-          (id, order_id, sendit_tracking_number, status, failed_reason, last_status_update_at)
-        SELECT
-          CONCAT('ship-', l.id),
-          l.id,
-          ?,
-          ?,
-          ?,
-          NOW()
+        SELECT l.id AS order_id, l.order_number
         FROM order_leads l
-        WHERE l.sendit_tracking_number = ?
+        LEFT JOIN shipment_details s ON s.order_id = l.id
+        WHERE s.sendit_tracking_number = ?
            OR l.order_number = ?
-        ON DUPLICATE KEY UPDATE
-          status                = VALUES(status),
-          failed_reason         = VALUES(failed_reason),
-          last_status_update_at = NOW()
+           OR l.id = ?
+        LIMIT 1
         `,
-        [
-          trackingCode,
-          processed.mappedStatus,
-          processed.failureReason || null,
-          trackingCode,
-          trackingCode,
-        ]
+        [trackingCode, trackingCode, trackingCode]
       );
 
-      // تحديث مرحلة الطلب في order_leads إن وجدت
-      if (processed.mappedStatus === 'DELIVERED_PAID') {
-        await pool.execute(
-          `UPDATE order_leads SET status = 'DELIVERED', updated_at = NOW() WHERE sendit_tracking_number = ? OR order_number = ?`,
-          [trackingCode, trackingCode]
-        );
-      } else if (processed.mappedStatus === 'RETURNED' || processed.mappedStatus === 'CANCELLED') {
-        await pool.execute(
-          `UPDATE order_leads SET status = 'CANCELLED', updated_at = NOW() WHERE sendit_tracking_number = ? OR order_number = ?`,
-          [trackingCode, trackingCode]
-        );
+      let orderId: string | null = null;
+      if (Array.isArray(matchedRows) && matchedRows.length > 0) {
+        orderId = matchedRows[0].order_id;
       }
 
-      // إضافة حدث Timeline
-      const { addTimelineEventToDb } = await import('@/lib/db-service');
-      const [rows]: any = await pool.execute(
-        `SELECT id FROM order_leads WHERE sendit_tracking_number = ? OR order_number = ? LIMIT 1`,
-        [trackingCode, trackingCode]
-      );
+      // 2. Upsert shipment_details
+      if (orderId) {
+        await pool.execute(
+          `
+          INSERT INTO shipment_details
+            (id, order_id, carrier, sendit_tracking_number, status, failed_reason, last_status_update_at)
+          VALUES
+            (CONCAT('ship-', ?), ?, 'Sendit.ma Express', ?, ?, ?, NOW())
+          ON DUPLICATE KEY UPDATE
+            sendit_tracking_number = VALUES(sendit_tracking_number),
+            status                = VALUES(status),
+            failed_reason         = VALUES(failed_reason),
+            last_status_update_at = NOW()
+          `,
+          [
+            orderId,
+            orderId,
+            trackingCode,
+            processed.mappedStatus,
+            processed.failureReason || null,
+          ]
+        );
 
-      if (Array.isArray(rows) && rows.length > 0) {
+        // 3. Update order status in order_leads
+        if (processed.mappedStatus === 'DELIVERED_PAID') {
+          await pool.execute(
+            `UPDATE order_leads SET status = 'DELIVERED', updated_at = NOW() WHERE id = ?`,
+            [orderId]
+          );
+        } else if (processed.mappedStatus === 'RETURNED' || processed.mappedStatus === 'CANCELLED') {
+          await pool.execute(
+            `UPDATE order_leads SET status = 'CANCELLED', updated_at = NOW() WHERE id = ?`,
+            [orderId]
+          );
+        } else if (processed.mappedStatus === 'OUT_FOR_DELIVERY' || processed.mappedStatus === 'IN_TRANSIT') {
+          await pool.execute(
+            `UPDATE order_leads SET status = 'IN_TRANSIT', updated_at = NOW() WHERE id = ? AND status NOT IN ('DELIVERED', 'CANCELLED')`,
+            [orderId]
+          );
+        }
+
+        // 4. Add timeline event
+        const { addTimelineEventToDb } = await import('@/lib/db-service');
         await addTimelineEventToDb({
-          orderId: rows[0].id,
+          orderId,
           action: 'SENDIT_WEBHOOK',
           title: `Sendit: ${payload.oldStatus ? `${payload.oldStatus} -> ` : ''}${processed.newStatus}`,
-          details: payload.message || `Mise à jour automatique par webhook Sendit.ma`,
-          actor: 'SENDIT_MA',
+          details: payload.message || `Mise à jour automatique par webhook Sendit.ma (${trackingCode})`,
+          actor: 'SENDIT',
         });
+      } else {
+        // Fallback: update any existing shipment_details matching this tracking number
+        await pool.execute(
+          `UPDATE shipment_details SET status = ?, failed_reason = ?, last_status_update_at = NOW() WHERE sendit_tracking_number = ?`,
+          [processed.mappedStatus, processed.failureReason || null, trackingCode]
+        );
       }
     } catch (dbErr: any) {
       console.warn('[Webhook Sendit] Mise à jour DB passée:', dbErr.message);

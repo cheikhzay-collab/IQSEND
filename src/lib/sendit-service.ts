@@ -145,6 +145,15 @@ export class SenditLogisticsService {
   private webhookSecret: string;
   private sessionToken: string | null = null;
   private tokenExpiresAt: number = 0;
+  private cachedDistricts: Array<{
+    id: number;
+    ville: string;
+    name: string;
+    arabic_name?: string;
+    price?: number;
+    delais?: string;
+  }> | null = null;
+  private cachedDistrictsExpiresAt: number = 0;
 
   constructor() {
     this.apiBaseUrl = 'https://app.sendit.ma/api/v1';
@@ -187,6 +196,28 @@ export class SenditLogisticsService {
     };
   }
 
+  async ensureCredentials(): Promise<void> {
+    if (this.publicKey && this.secretKey) return;
+    this._loadConfigFromFile();
+    if (this.publicKey && this.secretKey) return;
+
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+      const [rows]: any = await pool.execute(`
+        SELECT setting_key, setting_value FROM store_settings
+        WHERE setting_key IN ('SENDIT_PUBLIC_KEY', 'SENDIT_PRIVATE_KEY', 'SENDIT_WEBHOOK_SECRET')
+      `);
+      if (Array.isArray(rows)) {
+        for (const r of rows) {
+          if (!this.publicKey && r.setting_key === 'SENDIT_PUBLIC_KEY') this.publicKey = r.setting_value;
+          if (!this.secretKey && r.setting_key === 'SENDIT_PRIVATE_KEY') this.secretKey = r.setting_value;
+          if (!this.webhookSecret && r.setting_key === 'SENDIT_WEBHOOK_SECRET') this.webhookSecret = r.setting_value;
+        }
+      }
+    } catch {}
+  }
+
   // ──────────────────────────────────────────
   //  2a. Authentication — POST /login
   // ──────────────────────────────────────────
@@ -200,6 +231,8 @@ export class SenditLogisticsService {
     if (this.sessionToken && this.tokenExpiresAt > now) {
       return this.sessionToken;
     }
+
+    await this.ensureCredentials();
 
     if (!this.publicKey || !this.secretKey) {
       throw new Error('[Sendit] Clés API manquantes: public_key et secret_key sont requises.');
@@ -437,14 +470,38 @@ export class SenditLogisticsService {
     price?: number;
     delais?: string;
   }>> {
+    // Return cached list if valid and not a specific pickup query
+    const now = Date.now();
+    if (!pickupDistrictId && this.cachedDistricts && this.cachedDistrictsExpiresAt > now) {
+      return this.cachedDistricts;
+    }
+
     try {
       const headers = await this.authHeaders();
       const query = pickupDistrictId ? `?pickup-district=${pickupDistrictId}` : '';
       const response = await fetch(`${this.apiBaseUrl}/districts${query}`, { headers });
       const resJson = await response.json();
-      const rawList = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);
+      let rawList: any[] = Array.isArray(resJson.data) ? resJson.data : (Array.isArray(resJson) ? resJson : []);
 
-      return rawList.map((item: any) => ({
+      // If paginated (Sendit returns up to 6 pages for 500+ cities in Morocco)
+      const lastPage = Number(resJson.last_page) || 1;
+      if (!pickupDistrictId && lastPage > 1) {
+        const pagePromises = [];
+        for (let p = 2; p <= Math.min(lastPage, 10); p++) {
+          pagePromises.push(
+            fetch(`${this.apiBaseUrl}/districts?page=${p}`, { headers })
+              .then((r) => r.json())
+              .then((j) => (Array.isArray(j.data) ? j.data : []))
+              .catch(() => [])
+          );
+        }
+        const extraPages = await Promise.all(pagePromises);
+        for (const pageItems of extraPages) {
+          rawList = rawList.concat(pageItems);
+        }
+      }
+
+      const mapped = rawList.map((item: any) => ({
         id: item.id,
         ville: item.ville || item.name || 'Maroc',
         name: item.name || item.ville || 'Maroc',
@@ -452,6 +509,13 @@ export class SenditLogisticsService {
         price: Number(item.price) || 30,
         delais: item.delais || '24-48h',
       }));
+
+      if (!pickupDistrictId && mapped.length > 0) {
+        this.cachedDistricts = mapped;
+        this.cachedDistrictsExpiresAt = now + 60 * 60 * 1000; // Cache 1 heure
+      }
+
+      return mapped;
     } catch {
       // Liste de secours standard des principales villes marocaines
       return [

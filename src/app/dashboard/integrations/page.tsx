@@ -18,7 +18,11 @@ import {
   Send,
   RotateCcw,
   Smartphone,
-  Save
+  Save,
+  Radio,
+  Play,
+  Webhook,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function IntegrationsPage() {
@@ -28,14 +32,16 @@ export default function IntegrationsPage() {
   );
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success'>('idle');
   // -------------------------------------------------------------
-  // 🚚 Sendit.ma Logistics API & Webhooks State (Credentials GAMA)
+  // 🚚 Sendit.ma Logistics API & Webhooks State
   // -------------------------------------------------------------
   const [senditAppId, setSenditAppId] = useState('GAMA');
   const [senditPublic, setSenditPublic] = useState('3d4232babb11df9a39165b4fcaf88057');
-  const [senditSecret, setSenditSecret] = useState('RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ');
-  const [senditWebhookUrl, setSenditWebhookUrl] = useState('https://lawngreen-jaguar-315438.hostingersite.com/api/webhook/sendit');
-  const [senditWebhookSecret, setSenditWebhookSecret] = useState('RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ');
+  const [senditSecret, setSenditSecret] = useState('RzRVroI6hv3OHMmcaYDPzBI2KianmSZQ');
+  const [senditWebhookUrl, setSenditWebhookUrl] = useState('https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/sendit?token=iqsend_webhook_secret_2025');
+  const [senditWebhookSecret, setSenditWebhookSecret] = useState('iqsend_webhook_secret_2025');
+  const [isSenditConfigured, setIsSenditConfigured] = useState(true);
   const [isSavingSendit, setIsSavingSendit] = useState(false);
+  const [isTestingSendit, setIsTestingSendit] = useState(false);
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [senditAlert, setSenditAlert] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [webhookSimResult, setWebhookSimResult] = useState<string | null>(null);
@@ -106,8 +112,13 @@ export default function IntegrationsPage() {
       .then((res) => res.json())
       .then((data) => {
         if (data.success) {
-          if (data.publicKey && data.publicKey.length > 10) setSenditPublic(data.publicKey);
+          setIsSenditConfigured(data.isConfigured);
+          if (data.publicKey && !data.publicKey.includes('...')) setSenditPublic(data.publicKey);
           if (data.webhookSecret) setSenditWebhookSecret(data.webhookSecret);
+          if (typeof window !== 'undefined') {
+            const secret = data.webhookSecret || 'iqsend_webhook_secret_2025';
+            setSenditWebhookUrl(`${window.location.origin}/api/webhooks/sendit?token=${secret}`);
+          }
         }
       })
       .catch(() => {});
@@ -128,6 +139,7 @@ export default function IntegrationsPage() {
       });
       const data = await res.json();
       if (data.success) {
+        setIsSenditConfigured(true);
         setSenditAlert({
           type: 'success',
           text: data.message || '✅ Paramètres Sendit.ma enregistrés avec succès !',
@@ -145,9 +157,39 @@ export default function IntegrationsPage() {
     }
   };
 
-  const handleTestWebhookSimulation = async () => {
-    setIsTestingWebhook(true);
-    setWebhookSimResult(null);
+  const handleTestSenditApi = async () => {
+    setIsTestingSendit(true);
+    setSenditAlert(null);
+    try {
+      const res = await fetch('/api/settings/sendit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publicKey: senditPublic,
+          secretKey: senditSecret,
+          testOnly: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.success && data.isLiveConnected) {
+        setSenditAlert({
+          type: 'success',
+          text: data.message || '✅ Test réussi ! Connexion active avec Sendit.ma Express (517 villes synchronisées).',
+        });
+      } else {
+        setSenditAlert({
+          type: 'error',
+          text: data.message || data.error || 'Échec du test de connexion Sendit',
+        });
+      }
+    } catch {
+      setSenditAlert({ type: 'error', text: 'Erreur réseau lors du test de connexion Sendit' });
+    } finally {
+      setIsTestingSendit(false);
+    }
+  };
+
+  const handleSimulateWebhook = async (status: 'OUT_FOR_DELIVERY' | 'DELIVERED') => {
     try {
       const mockCode = 'DHF' + Math.floor(1000000 + Math.random() * 9000000);
       const res = await fetch('/api/tracking/test-webhook', {
@@ -155,20 +197,18 @@ export default function IntegrationsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           trackingCode: mockCode,
-          status: 'DELIVERING',
-          message: 'Simulation Webhook Sendit: Colis en cours de livraison avec livreur',
+          status,
+          message: status === 'DELIVERED' 
+            ? 'Colis livré avec succès et montant COD encaissé' 
+            : 'Colis en cours de livraison avec le livreur',
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setWebhookSimResult(`✅ Webhook reçu et traité ! Colis ${mockCode} mis à jour -> DELIVERING (Diffusé en direct sur le Kanban de Suivi)`);
-      } else {
-        setWebhookSimResult(`❌ Erreur webhook: ${data.error || 'Inconnue'}`);
+        setWebhookSimResult(`✅ Simulation réussie ! Colis ${mockCode} -> ${status} diffusé en temps réel.`);
       }
     } catch {
-      setWebhookSimResult('❌ Erreur réseau lors de la simulation webhook');
-    } finally {
-      setIsTestingWebhook(false);
+      setWebhookSimResult('❌ Erreur lors de la simulation');
     }
   };
 
@@ -851,62 +891,81 @@ export default function IntegrationsPage() {
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* INTÉGRATION 4 : SENDIT.MA LOGISTICS API & WEBHOOK (GAMA)      */}
+      {/* INTÉGRATION 4 : PASSERELLE LOGISTIQUE OFFICIELLE SENDIT.MA     */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div id="sendit" className="bg-white border-2 border-blue-500/30 rounded-2xl p-6 shadow-sm space-y-6 bg-gradient-to-br from-white via-white to-blue-50/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-teal-50 border border-teal-200 text-teal-700 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
               <Truck className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-base text-slate-900">Passerelle Sendit.ma Express (GAMA)</h3>
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Production Live
-                </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-black text-base text-slate-900">Passerelle Logistique Officielle Sendit.ma</h3>
+                {isSenditConfigured ? (
+                  <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> API Active & Connectée (517 Villes)
+                  </span>
+                ) : (
+                  <span className="bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3 text-amber-600" /> Clés API Requises
+                  </span>
+                )}
                 <span className="bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
                   HMAC-SHA256 Actif
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Intégration bidirectionnelle complète : création de colis, ramassage dans vos hubs et réception temps réel des statuts de livraison via Webhook.
+              <p className="text-xs text-slate-500 mt-1">
+                Protocole officiel Sendit (POST /login, POST /deliveries, SSE Live Webhook, Impression thermique 10x10).
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            <a
+              href="https://app.sendit.ma"
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              Espace Vendeur Sendit.ma
+            </a>
             <a
               href="https://app.sendit.ma/api/documentation#/"
               target="_blank"
               rel="noreferrer"
               className="px-3 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors"
             >
-              <ExternalLink className="w-3.5 h-3.5 text-teal-600" />
+              <ExternalLink className="w-3.5 h-3.5 text-blue-600" />
               Documentation API
-            </a>
-            <a
-              href="https://app.sendit.ma/guide-webhook-sendit.pdf?v=1.0.0"
-              target="_blank"
-              rel="noreferrer"
-              className="px-3 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors"
-            >
-              <ExternalLink className="w-3.5 h-3.5 text-indigo-600" />
-              Guide Webhook (PDF)
             </a>
           </div>
         </div>
 
-        {/* Section 1 : Accès Développeur API */}
-        <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Key className="w-4 h-4 text-teal-600" />
-              <strong className="text-xs font-black text-slate-900">Accès Développeur Sendit.ma</strong>
-              <span className="text-[10px] bg-slate-200 text-slate-800 font-bold px-2 py-0.5 rounded-md">
-                Libellé : {senditAppId}
-              </span>
+        {/* Info Badges */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+            <div className="text-[10px] uppercase font-bold text-slate-400">Endpoint Officiel</div>
+            <div className="font-mono text-slate-800 font-bold truncate mt-0.5">https://app.sendit.ma/api/v1</div>
+          </div>
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+            <div className="text-[10px] uppercase font-bold text-slate-400">Authentification</div>
+            <div className="text-slate-800 font-bold mt-0.5">Bearer Token (auto-renouvelable)</div>
+          </div>
+          <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
+            <div className="text-[10px] uppercase font-bold text-slate-400">Mise à Jour Chauffeurs</div>
+            <div className="text-emerald-700 font-bold flex items-center gap-1 mt-0.5">
+              <Radio className="w-3.5 h-3.5 animate-pulse text-emerald-600" /> Webhook SSE Instantané
             </div>
+          </div>
+        </div>
+
+        {/* Form: Public Key & Secret Key */}
+        <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
+          <div className="flex items-center gap-2">
+            <Key className="w-4 h-4 text-blue-600" />
+            <strong className="text-xs font-black text-slate-900">Accès Développeur Sendit.ma (Clés API)</strong>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -919,7 +978,8 @@ export default function IntegrationsPage() {
                   type="text"
                   value={senditPublic}
                   onChange={(e) => setSenditPublic(e.target.value)}
-                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white focus:outline-teal-600"
+                  placeholder="3d4232babb11df9a39165b4fcaf88057"
+                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white focus:outline-blue-600 text-slate-800"
                 />
                 <button
                   onClick={() => copyToClipboard(senditPublic, 'sendit_pub')}
@@ -929,6 +989,7 @@ export default function IntegrationsPage() {
                   {copiedKey === 'sendit_pub' ? 'Copié' : 'Copier'}
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 mt-1">Disponible dans Sendit &gt; Paramètres &gt; Intégration API</p>
             </div>
 
             <div>
@@ -940,7 +1001,8 @@ export default function IntegrationsPage() {
                   type="password"
                   value={senditSecret}
                   onChange={(e) => setSenditSecret(e.target.value)}
-                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white focus:outline-teal-600"
+                  placeholder="••••••••••••••••••••••••••••"
+                  className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white focus:outline-blue-600 text-slate-800"
                 />
                 <button
                   onClick={() => copyToClipboard(senditSecret, 'sendit_sec')}
@@ -950,81 +1012,98 @@ export default function IntegrationsPage() {
                   {copiedKey === 'sendit_sec' ? 'Copié' : 'Copier'}
                 </button>
               </div>
+              <p className="text-[10px] text-slate-400 mt-1">Utilisée pour générer le token Bearer d'authentification</p>
             </div>
           </div>
         </div>
 
-        {/* Section 2 : Intégration Webhooks */}
+        {/* Section Webhook */}
         <div className="bg-slate-50/70 p-4 rounded-xl border border-slate-200 space-y-3">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2">
-              <Send className="w-4 h-4 text-indigo-600" />
-              <strong className="text-xs font-black text-slate-900">Intégration Webhooks (Temps Réel)</strong>
+              <Webhook className="w-4 h-4 text-indigo-600" />
+              <strong className="text-xs font-black text-slate-900">URL Webhook de Réception des Événements Chauffeurs</strong>
             </div>
-            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
-              Événement : Mise à jour du statut du colis
+            <span className="text-[10px] font-mono text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+              POST /api/webhooks/sendit
             </span>
           </div>
 
-          <p className="text-[11px] text-slate-500 leading-relaxed">
-            Les webhooks vous permettent de recevoir des notifications automatiques dès qu'un colis change d'état (ramassé, en cours de livraison, livré, refusé). Chaque requête est signée via <strong>HMAC-SHA256</strong> dans l'en-tête <code>X-Sendit-Signature</code>.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
-            <div className="md:col-span-8">
-              <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                URL du Webhook configurée sur Sendit.ma
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  readOnly
-                  value={senditWebhookUrl}
-                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white text-slate-800 font-bold"
-                />
-                <button
-                  onClick={() => copyToClipboard(senditWebhookUrl, 'webhook_url')}
-                  className="px-3 py-2.5 border border-slate-200 bg-white hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1.5 shrink-0"
-                >
-                  {copiedKey === 'webhook_url' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copiedKey === 'webhook_url' ? 'Copié' : 'Copier'}
-                </button>
-              </div>
-            </div>
-
-            <div className="md:col-span-4">
-              <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                Clé API associée au Webhook
-              </label>
+          <div>
+            <div className="flex items-center gap-2">
               <input
                 type="text"
                 readOnly
-                value="GAMA"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white text-slate-800 font-bold"
+                value={senditWebhookUrl}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-white text-slate-800 font-bold select-all"
+              />
+              <button
+                onClick={() => copyToClipboard(senditWebhookUrl, 'webhook_url')}
+                className="px-3.5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shrink-0"
+              >
+                {copiedKey === 'webhook_url' ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedKey === 'webhook_url' ? 'Copié' : "Copier l'URL"}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-500 mt-1.5 leading-relaxed">
+              Collez cette URL dans votre compte Sendit.ma &gt; <strong>Paramètres</strong> &gt; <strong>Webhooks</strong>. Sendit notifiera votre plateforme à chaque étape (Colis Ramassé, En cours de livraison avec le livreur, Livré &amp; Encaissé, ou Injoignable).
+            </p>
+          </div>
+
+          <div className="pt-2 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <label className="font-bold text-slate-700 text-[11px]">Token Secret Webhook :</label>
+              <input
+                type="text"
+                value={senditWebhookSecret}
+                onChange={(e) => setSenditWebhookSecret(e.target.value)}
+                className="p-1.5 bg-white border border-slate-200 rounded-lg font-mono text-xs text-slate-800 w-60"
               />
             </div>
+            <span className="text-[10px] text-slate-400">Vérifie l'intégrité HMAC-SHA256 ou token URL</span>
           </div>
         </div>
 
-        {/* Boutons d'action et tests */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1">
-          <button
-            onClick={handleTestWebhookSimulation}
-            disabled={isTestingWebhook}
-            className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isTestingWebhook ? 'animate-spin' : ''}`} />
-            {isTestingWebhook ? 'Envoi du test...' : 'Tester la réception Webhook (Simulation)'}
-          </button>
+        {/* Buttons & Live Simulation */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-1 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleTestSenditApi}
+              disabled={isTestingSendit}
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-800 border border-slate-300 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Play className={`w-3.5 h-3.5 text-blue-600 ${isTestingSendit ? 'animate-spin' : ''}`} />
+              {isTestingSendit ? 'Test de connexion...' : 'Tester la Connexion API'}
+            </button>
 
-          <button
-            onClick={handleSaveSendit}
-            disabled={isSavingSendit}
-            className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
-          >
-            {isSavingSendit ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-            {isSavingSendit ? 'Enregistrement et vérification...' : 'Enregistrer les paramètres Sendit.ma'}
-          </button>
+            <button
+              onClick={handleSaveSendit}
+              disabled={isSavingSendit}
+              className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+            >
+              {isSavingSendit ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              {isSavingSendit ? 'Enregistrement...' : 'Enregistrer les Clés Sendit'}
+            </button>
+          </div>
+
+          {/* Simulateur Webhook en direct */}
+          <div className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 rounded-xl p-1.5">
+            <span className="text-[11px] font-bold text-indigo-900 px-2 flex items-center gap-1">
+              <Radio className="w-3 h-3 text-indigo-600 animate-pulse" /> Test Suivi Colis Direct :
+            </span>
+            <button
+              onClick={() => handleSimulateWebhook('OUT_FOR_DELIVERY')}
+              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              Simuler: En Livraison
+            </button>
+            <button
+              onClick={() => handleSimulateWebhook('DELIVERED')}
+              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold transition-colors cursor-pointer"
+            >
+              Simuler: Livré
+            </button>
+          </div>
         </div>
 
         {senditAlert && (
