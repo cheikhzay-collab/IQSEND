@@ -225,7 +225,32 @@ async function startBaileys() {
           }
         }
 
-        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone} (${pushName || 'Client'}): "${text}" (Audio: ${isAudio}, Location: ${isLocation})`);
+        const imageMsg = msg.message.imageMessage;
+        const isImage = !!imageMsg;
+        let imagePayload = null;
+
+        if (isImage) {
+          try {
+            console.log(`[WhatsApp Bridge] 📸 Inbound Photo from +${rawPhone} (Caption: "${imageMsg.caption || ''}")`);
+            const imageBuffer = await downloadMediaMessage(
+              msg,
+              'buffer',
+              {},
+              { logger: pino({ level: 'silent' }) }
+            );
+            if (imageBuffer && imageBuffer.length > 0) {
+              imagePayload = {
+                base64: imageBuffer.toString('base64'),
+                mimetype: imageMsg.mimetype || 'image/jpeg',
+                caption: imageMsg.caption || '',
+              };
+            }
+          } catch (imageDownloadErr) {
+            console.warn('[WhatsApp Bridge] Could not download image buffer:', imageDownloadErr.message);
+          }
+        }
+
+        console.log(`[WhatsApp Bridge] 💬 Inbound from +${rawPhone} (${pushName || 'Client'}): "${text}" (Audio: ${isAudio}, Image: ${isImage}, Location: ${isLocation})`);
 
         // Forward inbound message directly to Next.js webhook to trigger AI Agent
         try {
@@ -246,9 +271,10 @@ async function startBaileys() {
                             realPhone: realPhone || undefined,
                             isLid: isLid && !realPhone,
                             id: msg.key.id,
-                            type: isAudio ? 'audio' : isLocation ? 'location' : 'text',
+                            type: isAudio ? 'audio' : isImage ? 'image' : isLocation ? 'location' : 'text',
                             audio: audioPayload,
-                            text: { body: text },
+                            image: imagePayload,
+                            text: { body: text || imageMsg?.caption || '' },
                             location: isLocation
                               ? {
                                   latitude: msg.message.locationMessage.degreesLatitude,

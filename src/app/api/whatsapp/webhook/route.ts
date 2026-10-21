@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import { sendWhatsAppMessage, verifyWebhookChallenge } from '@/lib/whatsapp';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
-import { processCustomerWhatsAppMessage, processCustomerVoiceNote, OrderContext } from '@/lib/gemini-agent';
+import {
+  processCustomerWhatsAppMessage,
+  processCustomerVoiceNote,
+  processCustomerImage,
+  OrderContext,
+} from '@/lib/gemini-agent';
 import { getMysqlPool } from '@/lib/db';
 import { logWhatsAppMessageToDb, addTimelineEventToDb } from '@/lib/db-service';
 import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
@@ -282,6 +287,94 @@ export async function POST(request: Request) {
         return new NextResponse('EVENT_RECEIVED', { status: 200 });
       } catch (voiceErr) {
         console.error('[WhatsApp Webhook] Voice note handling error:', voiceErr);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 2C. Handle WhatsApp Image / Photo (Gemini Multimodal Vision AI)
+    // ─────────────────────────────────────────────────────────────
+    if ((msg.type === 'image' || msg.image) && msg.image?.base64) {
+      console.log(`[WhatsApp Webhook] 📸 Processing Photo from ${cleanedFrom} (Caption: "${msg.image.caption || ''}")`);
+      const orderContext: OrderContext = {
+        orderId: order?.id || 'lead_temp',
+        orderNumber: order?.orderNumber || 'MA-TEMP',
+        customerName: order?.customer?.name || 'الزبون المحترم',
+        phoneNumber: rawFrom,
+        city: order?.customer?.city || 'المغرب',
+        address: order?.customer?.address || 'غير محدد',
+        totalAmount: order?.payment?.amount || 299,
+        items: (order?.items || []).map((it: any) => ({
+          name: it.name,
+          sku: it.sku,
+          quantity: it.quantity,
+          price: it.price,
+        })),
+        conversationHistory: [],
+      };
+
+      try {
+        await logWhatsAppMessageToDb({
+          orderId: order?.id,
+          phone: rawFrom,
+          sender: 'CUSTOMER',
+          body: `[صورة مرفقة عبر الواتساب: ${msg.image.caption || 'بدون تعليق'}]`,
+          messageType: 'image',
+        });
+
+        const visionResult = await processCustomerImage(
+          msg.image.base64,
+          msg.image.mimetype || 'image/jpeg',
+          msg.image.caption,
+          orderContext,
+          {
+            onConfirm: async () => {
+              if (order) {
+                order.aiVerification = {
+                  status: 'CONFIRMED_BY_AI',
+                  riskScore: 5,
+                  notes: 'Confirmé suite à vérification de preuve/photo via Vision IA',
+                };
+                order.stage = 'CONFIRMED';
+              }
+              try {
+                const pool = getMysqlPool();
+                await pool.execute(
+                  `UPDATE order_leads 
+                   SET status = 'CONFIRMED', 
+                       ai_confirmation_status = 'CONFIRMED', 
+                       updated_at = CURRENT_TIMESTAMP 
+                   WHERE id = ? OR phone_number LIKE ?`,
+                  [order?.id || '', `%${cleanedFrom.slice(-9)}%`]
+                );
+              } catch (dbErr) {}
+            },
+            onUpdateDetails: async (args) => {
+              if (order && args.updatedPrice) {
+                order.payment.amount = args.updatedPrice;
+              }
+            },
+            onSaveGps: async (args) => {
+              if (order) order.gpsLocationUrl = args.googleMapsUrl;
+            },
+            onCancel: async () => {
+              if (order) order.stage = 'CANCELLED';
+            },
+            onHandover: async () => {},
+          }
+        );
+
+        if (visionResult.replyText) {
+          await sendWhatsAppMessage(rawFrom, visionResult.replyText);
+          await logWhatsAppMessageToDb({
+            orderId: order?.id,
+            phone: rawFrom,
+            sender: 'AI_BOT',
+            body: visionResult.replyText,
+          });
+        }
+        return new NextResponse('EVENT_RECEIVED', { status: 200 });
+      } catch (visionErr) {
+        console.error('[WhatsApp Webhook] Image handling error:', visionErr);
       }
     }
 

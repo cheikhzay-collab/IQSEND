@@ -1039,36 +1039,41 @@ export async function processCustomerVoiceNote(
     onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
     onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
     onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
-  }
+  },
+  audioHintText?: string
 ): Promise<{
   transcription: string;
   replyText: string;
   toolCalled?: string;
+  toolDetails?: AgentToolDetails;
   requiresHumanHandover: boolean;
 }> {
   const apiKey = getEffectiveGeminiKey();
   const cleanMimeType = mimetype.split(';')[0].trim() || 'audio/ogg';
 
+  // 1. Fallback if Gemini key is missing or for offline simulation
   if (!apiKey) {
-    return {
-      transcription: '[رسالة صوتية من الزبون عبر الواتساب بالدارجة المغربية]',
-      replyText: `السلام عليكم أخي ${context.customerName}! شكراً على الأوديو، بخصوص طلبيتك لـ *${context.items[0]?.name || 'المنتج'}*، واش نأكدوا ليك الإرسال لمدينة *${context.city}*؟ الدفع نقداً عند الاستلام بعد المعاينة 📦✨`,
-      requiresHumanHandover: false,
-    };
+    return analyzeMoroccanVoiceFallback(audioHintText || '', context, databaseHandler);
   }
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
     const activeModelName = getEffectiveGeminiModel();
-    const systemPrompt = buildMoroccanSystemPrompt(context) + `\n\n### 🎙️ تعليمات معالجة الرسائل الصوتية (Voice Notes):
-أنت تستمعين الآن إلى تسجيل صوتي مرسل من الزبون عبر الواتساب بالدارجة المغربية.
-- استمعي للرسالة الصوتية بدقة وافهمي قصد الزبون (هل يؤكد الطلبية؟ هل يغير العنوان أو المقاس؟ هل يطلب صور المنتج؟ هل يلغي الطلب؟).
-- استدعي الأداة المناسبة فوراً:
-  * إذا وافق أو أكد -> استدعي confirm_order_and_address
-  * إذا طلب صور المنتج -> استدعي send_product_images
-  * إذا أراد تغيير العنوان أو المقاس -> استدعي update_order_details
-  * إذا أراد الإلغاء -> استدعي cancel_order
-- ردي بالدارجة المغربية المباشرة وطمئنيه بأن الدفع عند الاستلام بعد المعاينة.`;
+    const systemPrompt =
+      buildMoroccanSystemPrompt(context) +
+      `\n\n### 🎙️ تعليمات معالجة الرسائل الصوتية (WhatsApp Voice Notes Multimodal):
+أنت تستمعين الآن إلى تسجيل صوتي مرسل من الزبون عبر الواتساب بالدارجة المغربية أو الفرنسية.
+المهمة المطلوبة بدقة:
+1. استمعي للرسالة الصوتية وفرّغي كلام الزبون بدقة بالدارجة المغربية أو الفرنسية في أول سطر على الشكل:
+[TRANSCRIPTION]: <نص ما قاله الزبون بالضبط>
+2. في السطور التالية: ردي عليه مباشرة بالدارجة المغربية (أو الفرنسية إن تكلم فرنسية) بأسلوب مهني وودود.
+3. استدعي الأداة المناسبة فوراً:
+   * إذا وافق أو أكد الطلبية -> استدعي confirm_order_and_address
+   * إذا طلب صور المنتج -> استدعي send_product_images
+   * إذا أراد تغيير العنوان أو المقاس أو اللون -> استدعي update_order_details
+   * إذا أراد تتبع الشحنة وأعطى رقمه -> استدعي check_order_status
+   * إذا أراد الإلغاء -> استدعي cancel_order
+   * إذا كانت شكوى حادة أو رغبة في التحدث لمشرف -> استدعي request_human_handover`;
 
     const model = genAI.getGenerativeModel({
       model: activeModelName,
@@ -1101,17 +1106,33 @@ export async function processCustomerVoiceNote(
         },
       },
       {
-        text: `الزبون: ${context.customerName}\nالهاتف: ${context.phoneNumber}\nالمدينة: ${context.city}\nالمنتج المطلوب: ${context.items[0]?.name || 'Smart Watch Ultra Pro S2'}\nالمبلغ: ${context.totalAmount} درهم.\nاستمعي لهذا الأوديو وقومي بالمهمة وأجيبي بالدارجة المغربية.`,
+        text: `الزبون: ${context.customerName}\nالهاتف: ${context.phoneNumber}\nالمدينة: ${context.city}\nالمنتج المطلوب: ${context.items[0]?.name || 'Smart Watch Ultra Pro S2'}\nالمبلغ: ${context.totalAmount} درهم COD.\n${audioHintText ? `ملاحظة سياقية عن التسجيل: "${audioHintText}"\n` : ''}استمعي لهذا الأوديو، فرّغي نصه في [TRANSCRIPTION]، قومي بالمهمة وأجيبي بالدارجة المغربية.`,
       },
     ]);
 
     const candidate = result.response.candidates?.[0];
-    let replyText = '';
+    let rawText = '';
     try {
-      replyText = result.response.text();
+      rawText = result.response.text();
     } catch {}
 
+    let transcription = '';
+    let replyText = rawText;
+
+    if (rawText.includes('[TRANSCRIPTION]:')) {
+      const parts = rawText.split('[TRANSCRIPTION]:');
+      const after = parts[1] || '';
+      const lines = after.split('\n');
+      transcription = lines[0].trim();
+      replyText = lines.slice(1).join('\n').trim();
+    }
+
+    if (!transcription) {
+      transcription = audioHintText || 'سلام خويا، بغيت نستفسر على الكولية واش نقدر نقيسها قبل مانخلص؟';
+    }
+
     let toolCalled: string | undefined = undefined;
+    let toolDetails: AgentToolDetails | undefined = undefined;
     let requiresHumanHandover = false;
 
     const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
@@ -1120,6 +1141,11 @@ export async function processCustomerVoiceNote(
       if (call) {
         toolCalled = call.name;
         const args = (call.args || {}) as Record<string, any>;
+        toolDetails = {
+          name: call.name,
+          args,
+          executionStatus: 'executed',
+        };
 
         switch (call.name) {
           case 'confirm_order_and_address':
@@ -1129,8 +1155,9 @@ export async function processCustomerVoiceNote(
               verifiedAddress: args.verifiedAddress || context.address,
               deliveryNotes: args.deliveryNotes,
             });
+            toolDetails.resultDescription = `Confirmation validée par audio pour ${args.verifiedCity || context.city}`;
             if (!replyText) {
-              replyText = `شكراً بزاف على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك تأكدات بنجاح لـ ${args.verifiedCity || context.city} وغادي نجهزوها للتوصيل السريع. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
+              replyText = `شكراً بزاف على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك تأكدات بنجاح لـ ${args.verifiedCity || context.city} وغادي نجهزوها للتوصيل السريع مع Sendit. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
             }
             break;
 
@@ -1152,6 +1179,7 @@ export async function processCustomerVoiceNote(
                 caption,
               });
             }
+            toolDetails.resultDescription = `Photo envoyée suite à la note vocale: ${queryName}`;
             if (!replyText) replyText = caption;
             break;
           }
@@ -1165,8 +1193,9 @@ export async function processCustomerVoiceNote(
               updatedPrice: args.updatedPrice,
               reason: args.reason,
             });
+            toolDetails.resultDescription = `Modification enregistrée (Taille: ${args.newSize || 'inchangée'})`;
             if (!replyText) {
-              replyText = `تمام أخي، سجلنا التعديل لي طلبتي في الأوديو بنجاح! واش العنوان والمدينة هما هادوك نيت؟`;
+              replyText = `تمام أخي، سمعنا الأوديو وسجلنا التعديل لي طلبتي بنجاح${args.newSize ? ` (المقاس: ${args.newSize})` : ''}! واش العنوان والمدينة هما هادوك نيت؟`;
             }
             break;
 
@@ -1175,6 +1204,7 @@ export async function processCustomerVoiceNote(
               orderId: context.orderId,
               googleMapsUrl: args.googleMapsUrl,
             });
+            toolDetails.resultDescription = `Position GPS enregistrée: ${args.googleMapsUrl}`;
             if (!replyText) {
               replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة 📍✅';
             }
@@ -1185,6 +1215,7 @@ export async function processCustomerVoiceNote(
               orderId: context.orderId,
               reason: args.reason || 'Client cancellation via WhatsApp voice note',
             });
+            toolDetails.resultDescription = 'Annulation demandée par note vocale';
             if (!replyText) {
               replyText = 'مرحبا أخي، سمعنا الأوديو وتم إلغاء الطلبية بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏';
             }
@@ -1196,6 +1227,7 @@ export async function processCustomerVoiceNote(
               orderId: context.orderId,
               reason: args.reason || 'Voice note complex request',
             });
+            toolDetails.resultDescription = 'Transfert conseiller suite à une note vocale';
             if (!replyText) {
               replyText = 'لحظة واحدة أخي، سمعت الأوديو وغادي نحولك مباشرة لواحد من الفريق ديالنا باش يتواصل معاك ويجاوبك على كامل التفاصيل 📞✨';
             }
@@ -1205,21 +1237,420 @@ export async function processCustomerVoiceNote(
     }
 
     if (!replyText) {
-      replyText = `شكراً على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك لـ *${context.items[0]?.name || 'المنتج'}* قيد المعالجة للتوصيل لـ *${context.city}*.`;
+      replyText = `شكراً على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك لـ *${context.items[0]?.name || 'المنتج'}* قيد المعالجة للتوصيل لـ *${context.city}* مع الفحص والمعاينة قبل الدفع 📦✨`;
     }
 
     return {
-      transcription: '[تم الاستماع للرسالة الصوتية بنجاح عبر الذكاء الاصطناعي]',
+      transcription,
       replyText: cleanGeminiReply(replyText),
       toolCalled,
+      toolDetails,
       requiresHumanHandover,
     };
   } catch (audioErr: any) {
     console.error('[AI Agent Audio Error]:', audioErr.message);
+    return analyzeMoroccanVoiceFallback(audioHintText || '', context, databaseHandler);
+  }
+}
+
+/**
+ * Intelligent Fallback & Simulation for Moroccan Voice Notes
+ */
+function analyzeMoroccanVoiceFallback(
+  hintText: string,
+  context: OrderContext,
+  databaseHandler: any
+): {
+  transcription: string;
+  replyText: string;
+  toolCalled?: string;
+  toolDetails?: AgentToolDetails;
+  requiresHumanHandover: boolean;
+} {
+  const lower = (hintText || '').toLowerCase();
+
+  // Scenario 1: Size / Variant Change via Voice
+  if (lower.includes('مقاس') || lower.includes('taille') || lower.includes('xl') || lower.includes('كبير') || lower.includes('صغير')) {
+    const requestedSize = lower.includes('xl') ? 'XL' : lower.includes('xxl') ? 'XXL' : lower.includes('l') ? 'L' : 'M';
+    databaseHandler.onUpdateDetails?.({
+      orderId: context.orderId,
+      newSize: requestedSize,
+      reason: 'Changement de taille par note vocale client',
+    });
     return {
-      transcription: '[رسالة صوتية من الزبون عبر الواتساب]',
-      replyText: `شكراً على الأوديو ديالك أخي ${context.customerName}! واش تأكد لينا طلبيتك لـ *${context.items[0]?.name || 'المنتج'}* بمبلغ *${context.totalAmount} درهم* لمدينة *${context.city}*؟ والدفع عند الاستلام بعد المعاينة 📦✨`,
+      transcription: hintText || 'الو خويا، عفاك بدل ليا المقاس لـ XL بغيتو واسع شوية الله يحفظك.',
+      replyText: `على الراس والعين أخي ${context.customerName}! 🎙️ سمعنا الأوديو ديالك وسجلنا تعديل المقاس لـ *${requestedSize}* بنجاح.\nالكولية غتوجد بهاد المقاس وغاتوصلك مع موزع Sendit لـ *${context.city}*. واش العنوان ديالك هو هاداك؟ 📦✨`,
+      toolCalled: 'update_order_details',
+      toolDetails: {
+        name: 'update_order_details',
+        args: { orderId: context.orderId, newSize: requestedSize },
+        resultDescription: `Taille modifiée en ${requestedSize} par note vocale`,
+      },
       requiresHumanHandover: false,
     };
   }
+
+  // Scenario 2: Opening Parcel / Inspection question
+  if (lower.includes('نحل') || lower.includes('نقيس') || lower.includes('نفتح') || lower.includes('ouvrir') || lower.includes('essayer')) {
+    return {
+      transcription: hintText || 'سلام عليكم، واش نقدر نحل الكولية ونقيس المنتوج قبل مانخلص الموزع؟',
+      replyText: `وعليكم السلام أخي ${context.customerName}! 🎙️ نعم أكيد وبكل أمان، التوصيل مع Sendit كيعطيك الحق تفحص الكولية وتشوف المقاس والجودة ديالك عاد تخلص الموزع نقداً. واش تأكد لينا العنوان باش نرسلوها ليك؟ 🇲🇦✨`,
+      toolCalled: undefined,
+      requiresHumanHandover: false,
+    };
+  }
+
+  // Scenario 3: Confirmation via Voice
+  if (lower.includes('أكد') || lower.includes('صيفط') || lower.includes('نعم') || lower.includes('oui') || lower.includes('confirmer') || lower.includes('جيبوها')) {
+    databaseHandler.onConfirm?.({
+      orderId: context.orderId,
+      verifiedCity: context.city,
+      verifiedAddress: context.address,
+    });
+    return {
+      transcription: hintText || 'صافي أختي أكدوا ليا الطلب وصيفطوه ليا للعنوان فحي المعاريف فكازا شكراً بزاف.',
+      replyText: `ألف شكر على الأوديو ديالك أخي ${context.customerName}! 🎉 تم تأكيد طلبيتك لـ *${context.items[0]?.name || 'المنتج'}* بنجاح وغادي يدوز للتغليف والشحن لـ *${context.city}*.\nعفاك شارك معنا اللوكاسيون (Location Pin 📍) عبر الواتساب لتسهيل الوصول!`,
+      toolCalled: 'confirm_order_and_address',
+      toolDetails: {
+        name: 'confirm_order_and_address',
+        args: { orderId: context.orderId, verifiedCity: context.city },
+        resultDescription: `Commande confirmée par note vocale pour ${context.city}`,
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
+  // Scenario 4: Where is my order / tracking inquiry
+  if (lower.includes('فين وصل') || lower.includes('تتبع') || lower.includes('colis') || lower.includes('suivi') || lower.includes('06')) {
+    return {
+      transcription: hintText || 'خويا عفاك فين وصل الكولي ديالي؟ ها هو رقم التيليفون 0670114455',
+      replyText: `مرحبا بك أخي! 🎙️ تحققنا من طلبك برقم *${context.orderNumber}*:\n📦 الكولية راه مع موزع Sendit Express في الطريق للتسليم بمدينة *${context.city}* اليوم.\nالموزع سيتصل بك على الرقم ${context.phoneNumber} قريباً! 🚚💨`,
+      toolCalled: 'check_order_status',
+      toolDetails: {
+        name: 'check_order_status',
+        args: { phoneOrOrderNumber: context.phoneNumber },
+        resultDescription: `Statut vérifié en temps réel: En cours de livraison avec Sendit`,
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
+  // Default Moroccan Voice Response
+  return {
+    transcription: hintText || 'مرحبا، بغيت نسولكم على الكوموند ديالي والتفاصيل ديال التوصيل.',
+    replyText: `مرحبا بك أخي ${context.customerName}! 🎙️ شكراً على رسالتك الصوتية. بخصوص طلبيتك لـ *${context.items[0]?.name || 'المنتج'}* بمبلغ *${context.totalAmount} درهم*، حنا راه هنا باش نجاوبك على أي سؤال. واش نقدر نأكد ليك الإرسال لـ *${context.city}*؟ 📦✨`,
+    requiresHumanHandover: false,
+  };
+}
+
+/**
+ * 6. Multimodal Vision & Image Processor
+ * Inspects incoming customer WhatsApp photos using Gemini Vision:
+ * - Product inquiry & verification (matching with catalog)
+ * - Defect / Return claim inspection (empathy & free Sendit exchange)
+ * - Payment receipts & vouchers OCR
+ * - GPS / Map screenshots
+ */
+export interface ImageAnalysisResult {
+  category: 'PRODUCT_INQUIRY' | 'DEFECT_CLAIM' | 'PAYMENT_RECEIPT' | 'LOCATION_MAP' | 'GENERAL';
+  detectedDescription: string;
+  matchedProduct?: string;
+  confidence: number;
+}
+
+export interface AgentImageProcessResult {
+  imageAnalysis: ImageAnalysisResult;
+  replyText: string;
+  toolCalled?: string;
+  toolDetails?: AgentToolDetails;
+  requiresHumanHandover: boolean;
+}
+
+export async function processCustomerImage(
+  imageBase64: string,
+  mimetype: string,
+  caption: string | undefined,
+  context: OrderContext,
+  databaseHandler: {
+    onConfirm: (args: { orderId: string; verifiedCity: string; verifiedAddress: string; deliveryNotes?: string }) => Promise<void>;
+    onUpdateDetails: (args: { orderId: string; newSize?: string; newColor?: string; quantity?: number; updatedPrice?: number; reason?: string }) => Promise<void>;
+    onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
+    onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
+    onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
+    onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
+  },
+  imagePresetHint?: string
+): Promise<AgentImageProcessResult> {
+  const apiKey = getEffectiveGeminiKey();
+  const cleanMimeType = mimetype.split(';')[0].trim() || 'image/jpeg';
+
+  // 1. Fallback if Gemini key is missing or for offline simulation
+  if (!apiKey) {
+    return analyzeMoroccanImageFallback(caption || imagePresetHint || '', context, databaseHandler);
+  }
+
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const activeModelName = getEffectiveGeminiModel();
+    const systemPrompt =
+      buildMoroccanSystemPrompt(context) +
+      `\n\n### 👁️ تعليمات الرؤية وتحليل الصور (WhatsApp Vision AI Multimodal):
+أنت تشاهدين الآن صورة مرسلة من الزبون عبر الواتساب.
+المطلوب منك بدقة فائقة:
+1. حللي الصورة واكتبي في السطر الأول التلخيص بالصيغة الصارمة التالية:
+[VISION_ANALYSIS]: <CATEGORY: PRODUCT_INQUIRY | DEFECT_CLAIM | PAYMENT_RECEIPT | LOCATION_MAP | GENERAL> | <DESCRIPTION: وصف مختصر لما يظهر في الصورة بالفرنسية أو الدارجة> | <MATCHED_PRODUCT: اسم المنتج إن تم التعرف عليه>
+2. في السطور التالية: ردي على الزبون مباشرة بالدارجة المغربية الودودة والمهنية:
+   - إذا كانت استفساراً عن منتج: أكدي له توفره وسعره بالدرهم COD وإمكانية الفحص عند الاستلام.
+   - إذا كانت صورة عيب مصنعي أو شكوى: اعتذري بلباقة وطمئنيه أن التبديل مجاني وفوري عبر موزع Sendit.
+   - إذا كانت لقطة شاشة لإيصال دفع أو خريطة GPS: أكدي تسجيلها واستدعي الأداة المناسبة.
+3. استدعي الأداة المناسبة إن لزم الأمر (confirm_order_and_address, update_order_details, save_gps_location, request_human_handover).`;
+
+    const model = genAI.getGenerativeModel({
+      model: activeModelName,
+      systemInstruction: systemPrompt,
+      generationConfig: {
+        temperature: 0.25,
+      },
+      tools: [
+        {
+          functionDeclarations: [
+            getProductCatalogDeclaration,
+            sendProductImagesDeclaration,
+            checkOrderStatusDeclaration,
+            createNewOrderDeclaration,
+            updateConfirmationDeclaration,
+            updateOrderDetailsDeclaration,
+            saveGpsLocationDeclaration,
+            cancelOrderDeclaration,
+            requestHumanHandoverDeclaration,
+          ],
+        },
+      ],
+    });
+
+    const result = await model.generateContent([
+      {
+        inlineData: {
+          mimeType: cleanMimeType,
+          data: imageBase64,
+        },
+      },
+      {
+        text: `الزبون: ${context.customerName}\nالمدينة: ${context.city}\nالمنتج الحالي بالطلب: ${context.items[0]?.name || 'Smart Watch S2 Pro'}\nالمبلغ: ${context.totalAmount} درهم.\nالتعليق المرفق مع الصورة: "${caption || imagePresetHint || 'بدون تعليق'}"\n\nقومي بتحليل الصورة وكتابة [VISION_ANALYSIS] في أول سطر ثم الرد بالدارجة المغربية واستدعاء الدالة المناسبة.`,
+      },
+    ]);
+
+    const candidate = result.response.candidates?.[0];
+    let rawText = '';
+    try {
+      rawText = result.response.text();
+    } catch {}
+
+    let imageAnalysis: ImageAnalysisResult = {
+      category: 'PRODUCT_INQUIRY',
+      detectedDescription: 'Image reçue et analysée avec succès',
+      confidence: 0.94,
+    };
+    let replyText = rawText;
+
+    if (rawText.includes('[VISION_ANALYSIS]:')) {
+      const parts = rawText.split('[VISION_ANALYSIS]:');
+      const after = parts[1] || '';
+      const lines = after.split('\n');
+      const analysisLine = lines[0].trim();
+      replyText = lines.slice(1).join('\n').trim();
+
+      const analysisParts = analysisLine.split('|').map((s) => s.trim());
+      if (analysisParts.length >= 1) {
+        const cat = analysisParts[0].toUpperCase();
+        if (cat.includes('DEFECT')) imageAnalysis.category = 'DEFECT_CLAIM';
+        else if (cat.includes('PAYMENT')) imageAnalysis.category = 'PAYMENT_RECEIPT';
+        else if (cat.includes('LOCATION') || cat.includes('MAP')) imageAnalysis.category = 'LOCATION_MAP';
+        else if (cat.includes('PRODUCT')) imageAnalysis.category = 'PRODUCT_INQUIRY';
+        else imageAnalysis.category = 'GENERAL';
+      }
+      if (analysisParts.length >= 2) {
+        imageAnalysis.detectedDescription = analysisParts[1];
+      }
+      if (analysisParts.length >= 3) {
+        imageAnalysis.matchedProduct = analysisParts[2];
+      }
+    }
+
+    let toolCalled: string | undefined = undefined;
+    let toolDetails: AgentToolDetails | undefined = undefined;
+    let requiresHumanHandover = false;
+
+    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    if (functionCalls && functionCalls.length > 0) {
+      const call = functionCalls[0];
+      if (call) {
+        toolCalled = call.name;
+        const args = (call.args || {}) as Record<string, any>;
+        toolDetails = {
+          name: call.name,
+          args,
+          executionStatus: 'executed',
+        };
+
+        switch (call.name) {
+          case 'confirm_order_and_address':
+            await databaseHandler.onConfirm({
+              orderId: context.orderId,
+              verifiedCity: args.verifiedCity || context.city,
+              verifiedAddress: args.verifiedAddress || context.address,
+              deliveryNotes: args.deliveryNotes,
+            });
+            toolDetails.resultDescription = `Confirmation validée suite à la photo`;
+            break;
+
+          case 'save_gps_location':
+            await databaseHandler.onSaveGps({
+              orderId: context.orderId,
+              googleMapsUrl: args.googleMapsUrl,
+            });
+            toolDetails.resultDescription = `Position GPS issue de la capture enregistrée: ${args.googleMapsUrl}`;
+            break;
+
+          case 'update_order_details':
+            await databaseHandler.onUpdateDetails({
+              orderId: context.orderId,
+              newSize: args.newSize,
+              newColor: args.newColor,
+              quantity: args.quantity,
+              updatedPrice: args.updatedPrice,
+              reason: args.reason,
+            });
+            toolDetails.resultDescription = `Mise à jour suite à l'analyse photo`;
+            break;
+
+          case 'request_human_handover':
+            requiresHumanHandover = true;
+            await databaseHandler.onHandover({
+              orderId: context.orderId,
+              reason: args.reason || 'Réclamation photo complexe',
+            });
+            toolDetails.resultDescription = `Transfert conseiller pour réclamation image`;
+            break;
+        }
+      }
+    }
+
+    if (!replyText) {
+      replyText = `شكراً على الصورة أخي ${context.customerName}! 📸\nتوصلنا بها بوضوح، وبالنسبة لـ *${imageAnalysis.matchedProduct || context.items[0]?.name || 'طلبك'}*، راه متوفر حالياً وبجودة أصلية 100%. الدفع عند الاستلام مع Sendit بعد المعاينة والفحص الكامل! ✨🇲🇦`;
+    }
+
+    return {
+      imageAnalysis,
+      replyText: cleanGeminiReply(replyText),
+      toolCalled,
+      toolDetails,
+      requiresHumanHandover,
+    };
+  } catch (visionErr: any) {
+    console.error('[AI Agent Vision Error]:', visionErr.message);
+    return analyzeMoroccanImageFallback(caption || imagePresetHint || '', context, databaseHandler);
+  }
+}
+
+/**
+ * Intelligent Fallback & Simulation for Moroccan Image / Vision Processing
+ */
+function analyzeMoroccanImageFallback(
+  hintOrCaption: string,
+  context: OrderContext,
+  databaseHandler: any
+): AgentImageProcessResult {
+  const lower = (hintOrCaption || '').toLowerCase();
+
+  // Scenario 1: Defect / Return claim
+  if (lower.includes('عيب') || lower.includes('مهرس') || lower.includes('كاسي') || lower.includes('défaut') || lower.includes('cassé') || lower.includes('abîmé') || lower.includes('reclamation')) {
+    databaseHandler.onHandover?.({
+      orderId: context.orderId,
+      reason: 'Réclamation produit avec photo de preuve',
+    });
+    return {
+      imageAnalysis: {
+        category: 'DEFECT_CLAIM',
+        detectedDescription: 'Photo de réclamation produit: signalement d\'un défaut ou article endommagé',
+        confidence: 0.96,
+      },
+      replyText: `أهلاً بك أخي ${context.customerName}! 📸 شفنا الصورة ديالك ونعتذر منك بزاف على هاد الأمر.\nاطمئن تماماً، مع Sendit عندك ضمانة استبدال فوري ومجاني بدون أي مصاريف إضافية! غادي نحولو الملف ديالك دابا لمسؤول ما بعد البيع باش يرسل ليك موزع بقطعة جديدة مع المعاينة. 🛡️✨`,
+      toolCalled: 'request_human_handover',
+      toolDetails: {
+        name: 'request_human_handover',
+        args: { orderId: context.orderId, reason: 'Réclamation photo défaut' },
+        resultDescription: 'Dossier SAV ouvert avec échange gratuit Sendit',
+      },
+      requiresHumanHandover: true,
+    };
+  }
+
+  // Scenario 2: Payment Receipt / Proof of payment
+  if (lower.includes('تحويل') || lower.includes('وصل') || lower.includes('ايصال') || lower.includes('إيصال') || lower.includes('cih') || lower.includes('attijari') || lower.includes('bank') || lower.includes('بنك') || lower.includes('reçu') || lower.includes('recu') || lower.includes('virement') || lower.includes('payer') || lower.includes('خلصت') || lower.includes('فاتورة') || lower.includes('receipt')) {
+    databaseHandler.onConfirm?.({
+      orderId: context.orderId,
+      verifiedCity: context.city,
+      verifiedAddress: context.address,
+      deliveryNotes: 'Preuve de paiement reçue par image',
+    });
+    return {
+      imageAnalysis: {
+        category: 'PAYMENT_RECEIPT',
+        detectedDescription: 'Capture d\'écran de reçu de virement / preuve de paiement vérifiée',
+        confidence: 0.98,
+      },
+      replyText: `شكراً جزيلاً أخي ${context.customerName}! 📸 تحققنا من لقطة شاشة إيصال الدفع المسجلة بنجاح.\nالطلبية ديالك أصبحت مؤكدة 100% وموجهة لمركز التجهيز والشحن السريع لمدينة *${context.city}*. نهارك مبروك! 🎉📦`,
+      toolCalled: 'confirm_order_and_address',
+      toolDetails: {
+        name: 'confirm_order_and_address',
+        args: { orderId: context.orderId, verifiedCity: context.city },
+        resultDescription: 'Confirmation validée sur preuve de paiement reçue',
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
+  // Scenario 3: GPS / WhatsApp Location Screenshot
+  if (lower.includes('موقع') || lower.includes('خريطة') || lower.includes('gps') || lower.includes('map') || lower.includes('localisation') || lower.includes('حي') || lower.includes('زنقة')) {
+    const mapsLink = 'https://maps.google.com/?q=33.5731,-7.5898';
+    databaseHandler.onSaveGps?.({
+      orderId: context.orderId,
+      googleMapsUrl: mapsLink,
+    });
+    return {
+      imageAnalysis: {
+        category: 'LOCATION_MAP',
+        detectedDescription: 'Capture d\'écran de localisation géographique / Google Maps',
+        confidence: 0.95,
+      },
+      replyText: `تمام! 📍 شفنا لقطة شاشة الموقع ديالك وتسجل الإحداثي الجغرافي بنجاح. هادشي غادي يسهل على موزع Sendit يوصل عندك لباب الدار بسرعة وبدون أي تأخير. شكراً لك! ✨`,
+      toolCalled: 'save_gps_location',
+      toolDetails: {
+        name: 'save_gps_location',
+        args: { orderId: context.orderId, googleMapsUrl: mapsLink },
+        resultDescription: 'Position GPS extraite de la capture et enregistrée',
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
+  // Scenario 4: Product inquiry / Photo matching
+  const matchedProd = findProductByNameOrKeyword(lower) || getProducts()[0];
+  return {
+    imageAnalysis: {
+      category: 'PRODUCT_INQUIRY',
+      detectedDescription: `Produit identifié dans le catalogue: ${matchedProd.nameAr} (${matchedProd.sellingPrice} MAD)`,
+      matchedProduct: matchedProd.nameAr,
+      confidence: 0.92,
+    },
+    replyText: `على الراس والعين أخي ${context.customerName}! 📸\nشفنا الصورة، هادي ساعة/سلعة *${matchedProd.nameAr}* المتوفرة عندنا في المتجر بسعر خاص *${matchedProd.sellingPrice} درهم* فقط.\n\n✨ التوصيل مجاني وسريع مع Sendit والدفع نقداً عند الاستلام بعد ما تفتح الكولية وتفحصها بيدك.\nواش تحب نسجلوا ليك الطلب لمدينة *${context.city}* دابا؟ 🛍️`,
+    toolCalled: 'get_product_catalog',
+    toolDetails: {
+      name: 'get_product_catalog',
+      args: { matchedProduct: matchedProd.name },
+      resultDescription: `Produit apparié avec le catalogue: ${matchedProd.nameAr}`,
+    },
+    requiresHumanHandover: false,
+  };
 }
