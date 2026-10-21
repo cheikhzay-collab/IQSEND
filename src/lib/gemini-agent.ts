@@ -16,11 +16,11 @@ import {
 } from './orders-store';
 
 /**
- * Retrieve effective Gemini API Key from environment or runtime ai_config.json
+ * Retrieve effective Gemini API Key from environment, runtime ai_config.json or MySQL
  */
 export function getEffectiveGeminiKey(): string {
   let key = process.env.GEMINI_API_KEY || '';
-  if (key && key !== 'votre_cle_gemini_ici' && key.trim().length > 15) {
+  if (key && key !== 'votre_cle_gemini_ici' && key.trim().length > 15 && !key.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
     return key.trim();
   }
 
@@ -28,7 +28,7 @@ export function getEffectiveGeminiKey(): string {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15) {
+      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15 && !data.apiKey.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
         const cleaned = data.apiKey.trim();
         process.env.GEMINI_API_KEY = cleaned;
         if (data.model) process.env.GEMINI_MODEL_NAME = data.model;
@@ -39,25 +39,26 @@ export function getEffectiveGeminiKey(): string {
     // Ignore read errors
   }
 
-  return 'AIzaSyBxbQA8H5E9RnmkUs_s7tAC7yBzjFAiWC0';
+  // Read key dynamically from environment
+  return process.env.GEMINI_API_KEY || '';
 }
 
 export function getEffectiveGeminiModel(): string {
-  if (process.env.GEMINI_MODEL_NAME) {
+  if (process.env.GEMINI_MODEL_NAME && process.env.GEMINI_MODEL_NAME !== 'gemma-4-26b-a4b-it' && process.env.GEMINI_MODEL_NAME !== 'gemini-2.5-flash') {
     return process.env.GEMINI_MODEL_NAME;
   }
   try {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.model) {
+      if (data.model && data.model !== 'gemma-4-26b-a4b-it' && data.model !== 'gemini-2.5-flash') {
         process.env.GEMINI_MODEL_NAME = data.model;
         return data.model;
       }
     }
   } catch (e) {}
 
-  return 'gemini-2.5-flash';
+  return 'gemini-flash-lite-latest';
 }
 
 /**
@@ -90,6 +91,12 @@ export interface OrderContext {
     body: string;
     timestamp: Date | string;
   }>;
+  sessionState?: {
+    lastOfferedProduct?: string;
+    price?: number;
+    step?: string;
+    metadata?: Record<string, any>;
+  };
 }
 
 export interface AgentPermissionsConfig {
@@ -379,6 +386,16 @@ ${productsList}
 - شركة التوصيل ورقم التتبع AWB: ${context.courier || 'Sendit Express'} (${context.trackingNumber || 'En cours'})
 - موزع التوصيل: ${context.driverName ? `${context.driverName} (${context.driverPhone || ''})` : 'En attente d affectation'}
 
+### 🧠 ذاكرة الجلسة والمنتج المعروض حالياً (Session State):
+${context.sessionState?.lastOfferedProduct ? `
+- المنتج المعروض حالياً على الزبون: *${context.sessionState.lastOfferedProduct}*
+- الثمن المقترح: *${context.sessionState.price || context.totalAmount} درهم*
+- المرحلة التفاعلية (Step): *${context.sessionState.step || 'AWAITING_SIZE_OR_DETAILS'}*
+- ⚠️ تنبيه حاسم: إذا رد الزبون بـ "بغيت واحد" أو "صيفط ليا" أو "حجز لي" أو "واخا"، فهو يقصد مباشرة شراء المنتج المعروض حالياً (*${context.sessionState.lastOfferedProduct}*). لا ترجعي لرسالة الترحيب الافتتاحية نهائياً! استمري فوراً في مسار البيع واطلبي منه المقاس أو المدينة والاسم لتسجيل طلبه فوراً.
+` : `
+- لا يوجد منتج معروض مسبقاً (جلسة جديدة).
+`}
+
 ### 🌐 التحدث باللغة المناسبة (Bilinguisme Darija / Français):
 - إذا كتب الزبون بالدارجة المغربية أو الحروف العربية، ردي بالدارجة المغربية الراقية والودودة.
 - إذا كتب الزبون بالفرنسية (Français)، ردي فوراً بالفرنسية المهنية الودودة والواضحة (Français commercial courtois).
@@ -477,13 +494,34 @@ export async function processCustomerWhatsAppMessage(
       ],
     });
 
-    const chatHistory = context.conversationHistory.map((msg) => ({
-      role: msg.sender === 'CUSTOMER' ? 'user' : 'model',
-      parts: [{ text: msg.body }],
-    }));
+    // Gemini API requires chat history to start with a 'user' turn and alternate roles
+    const rawHistory = (context.conversationHistory || [])
+      .filter((m) => m && m.body && m.body.trim().length > 0)
+      .map((msg) => ({
+        role: msg.sender === 'CUSTOMER' ? ('user' as const) : ('model' as const),
+        parts: [{ text: msg.body.trim() }],
+      }));
+
+    // If first turn is model (e.g. initial greeting from bot), prepend a virtual user prompt
+    if (rawHistory.length > 0 && rawHistory[0].role === 'model') {
+      rawHistory.unshift({
+        role: 'user',
+        parts: [{ text: 'سلام عليكم' }],
+      });
+    }
+
+    // Merge consecutive identical roles to adhere strictly to alternating structure
+    const sanitizedHistory: Array<{ role: 'user' | 'model'; parts: Array<{ text: string }> }> = [];
+    for (const turn of rawHistory) {
+      if (sanitizedHistory.length > 0 && sanitizedHistory[sanitizedHistory.length - 1].role === turn.role) {
+        sanitizedHistory[sanitizedHistory.length - 1].parts[0].text += `\n${turn.parts[0].text}`;
+      } else {
+        sanitizedHistory.push({ ...turn });
+      }
+    }
 
     const chat = model.startChat({
-      history: chatHistory,
+      history: sanitizedHistory,
     });
 
     const response = await chat.sendMessage(incomingMessage);
@@ -688,7 +726,9 @@ async function processWithRulesFallback(
   const orderIntents = [
     'بغيت نطلب', 'بغيت نشري', 'حجز ليا', 'حجز لي', 'كومونديت', 'صيفط ليا', 'صيفطو ليا',
     'بغات نطلب', 'سجل ليا', 'سجل لي', 'جيبو ليا', 'commander', 'je veux commander', 
-    'reserver', 'acheter', 'بغيت كولية', 'بغيت نكوموندي'
+    'reserver', 'acheter', 'بغيت كولية', 'بغيت نكوموندي', 'بغيت واحد', 'بغيت وحدة', 
+    'بغيت 1', 'بغيت زوج', 'بغيت جوج', 'بغيت 2', 'صيفط ليا واحد', 'صيفط ليا وحدة',
+    'بغيت منو', 'بغيت منها', 'احجز لي', 'احجز ليا', 'دير ليا واحد', 'دير لي واحد'
   ];
 
   const wantsToOrder = orderIntents.some((kw) => text.includes(kw));
@@ -719,11 +759,24 @@ async function processWithRulesFallback(
   ];
 
   const detectedCity = moroccanCities.find((c) => c.aliases.some((alias) => text.includes(alias)));
-  const matchedProduct = findProductByNameOrKeyword(text);
+  
+  // Resolve product: 1) from incoming text, 2) from sessionState.lastOfferedProduct, 3) from context items
+  let matchedProduct = findProductByNameOrKeyword(text);
+  if (!matchedProduct && context.sessionState?.lastOfferedProduct) {
+    matchedProduct = findProductByNameOrKeyword(context.sessionState.lastOfferedProduct);
+  }
+  if (!matchedProduct && context.items && context.items[0]?.name) {
+    matchedProduct = findProductByNameOrKeyword(context.items[0].name);
+  }
 
   if (wantsToOrder || (detectedCity && matchedProduct)) {
     // If we have both product and city, create the order directly!
-    const targetProduct = matchedProduct || getProducts()[0]; // Default to flagship product if not specified
+    const targetProduct = matchedProduct || (context.sessionState?.lastOfferedProduct ? {
+      name: context.sessionState.lastOfferedProduct,
+      nameAr: context.sessionState.lastOfferedProduct,
+      sellingPrice: context.sessionState.price || 179,
+    } : getProducts()[0]);
+    const targetPrice = context.sessionState?.price || targetProduct.sellingPrice;
     const customerCity = detectedCity?.ar || (context.city !== 'المغرب' && context.city !== 'غير محدد' ? context.city : '');
 
     // Extract customer name if provided
@@ -735,7 +788,7 @@ async function processWithRulesFallback(
 
     if (!customerCity) {
       return {
-        replyText: `على الراس والعين أخي! 🛍️✨\nبغيتي تطلب *${targetProduct.nameAr}* (الثمن: *${targetProduct.sellingPrice} درهم* والدفع عند الاستلام مع الفحص والمعاينة).\n\nعفاك كتب لينا:\n1️⃣ *المدينة ديالك* 📍\n2️⃣ *اسمك الكامل*\n3️⃣ *عنوان التوصيل أو الحي*\nوغادي نسجلوا طلبك ونجهزو الكولية ديالك دابا! 📦`,
+        replyText: `على الراس والعين أخي! 🛍️✨\nاختيار ممتاز بخصوص *${targetProduct.nameAr || targetProduct.name}* (الثمن: *${targetPrice} درهم* والدفع عند الاستلام مع الفحص والمعاينة).\n\nعفاك كتب لينا:\n1️⃣ *المدينة ديالك* 📍\n2️⃣ *اسمك الكامل*\n3️⃣ *المقاس أو العنوان ديالك*\nوغادي نسجلوا طلبك ونجهزو الكولية ديالك دابا! 📦`,
         requiresHumanHandover: false,
       };
     }
@@ -1000,8 +1053,18 @@ async function processWithRulesFallback(
   }
 
   // ─────────────────────────────────────────────────────────────
-  // H. INTELLIGENT DEFAULT
+  // H. INTELLIGENT DEFAULT (احترام سياق الجلسة والمنتج المعروض)
   // ─────────────────────────────────────────────────────────────
+  // 1. إذا كان هناك منتج معروض في الجلسة، استمر في مسار الطلب بدلاً من إعادة رسالة الترحيب
+  if (context.sessionState?.lastOfferedProduct) {
+    const prodName = context.sessionState.lastOfferedProduct;
+    const prodPrice = context.sessionState.price || context.totalAmount || 179;
+    return {
+      replyText: `أهلاً بك أخي الكريم! بخصوص طلبك لـ *${prodName}* (الثمن: *${prodPrice} درهم* والدفع عند الاستلام بعد المعاينة والفحص 🛍️✨):\nعفاك كتب لينا المقاس ديالك والمدينة والاسم الكامل باش نبرمجوا ليك التوصيل فوراً مع موزع Sendit! 📦🚚`,
+      requiresHumanHandover: false,
+    };
+  }
+
   const activeOrders = findOrdersByPhone(context.phoneNumber);
   if (activeOrders.length > 0) {
     const ord = activeOrders[0];

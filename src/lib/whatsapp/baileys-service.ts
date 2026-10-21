@@ -4,6 +4,12 @@ import QRCode from 'qrcode';
 import { processCustomerWhatsAppMessage, cleanGeminiReply, OrderContext } from '@/lib/gemini-agent';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
 import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
+import {
+  getRecentWhatsAppHistoryFromDb,
+  getWhatsAppSessionFromDb,
+  saveWhatsAppSessionToDb,
+  logWhatsAppMessageToDb,
+} from '@/lib/db-service';
 
 export type WhatsAppStatus = 'INITIALIZING' | 'SCAN_QR' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
 
@@ -328,8 +334,12 @@ export async function startBaileysService(): Promise<void> {
             continue;
           }
 
-          // Build context including recent conversation history
-          const recentHistory = (conversation?.messages || [])
+          // 1b. Fetch session state and DB history
+          const currentSession = await getWhatsAppSessionFromDb(cleanedPhone || rawPhone);
+          const dbHistory = await getRecentWhatsAppHistoryFromDb(cleanedPhone || rawPhone, 6);
+
+          // Build context including recent conversation history & session state
+          const historyToUse = dbHistory.length > 0 ? dbHistory : (conversation?.messages || [])
             .slice(-7, -1)
             .map((m) => ({
               sender: m.sender,
@@ -344,15 +354,29 @@ export async function startBaileysService(): Promise<void> {
             phoneNumber: rawPhone,
             city: order?.customer?.city || 'المغرب',
             address: order?.customer?.address || 'غير محدد',
-            totalAmount: order?.payment?.amount || 299,
+            totalAmount: order?.payment?.amount || currentSession?.price || 179,
             items: (order?.items || []).map((it) => ({
               name: it.name,
               sku: it.sku,
               quantity: it.quantity,
               price: it.price,
             })),
-            conversationHistory: recentHistory,
+            conversationHistory: historyToUse,
+            sessionState: currentSession ? {
+              lastOfferedProduct: currentSession.lastOfferedProduct,
+              price: currentSession.price,
+              step: currentSession.step,
+              metadata: currentSession.metadata,
+            } : undefined,
           };
+
+          // Log customer message to DB
+          await logWhatsAppMessageToDb({
+            orderId: order?.id,
+            phone: rawPhone,
+            sender: 'CUSTOMER',
+            body: incomingText,
+          });
 
           const aiResult = await processCustomerWhatsAppMessage(incomingText, orderContext, {
             onConfirm: async () => {
@@ -405,11 +429,57 @@ export async function startBaileysService(): Promise<void> {
 
             if (directRes.success) {
               console.log(`[Baileys In-Process] ✅ AI response successfully delivered to customer ${normalizedJid}, msgId: ${directRes.msgId}`);
+              
+              await logWhatsAppMessageToDb({
+                orderId: order?.id,
+                phone: rawPhone,
+                sender: 'AI_BOT',
+                body: cleanText,
+              });
+
               recordOutboundMessage({
                 phone: rawPhone,
                 text: cleanText,
                 sender: 'AI_BOT',
               });
+
+              // Update session state
+              try {
+                let nextProduct = currentSession?.lastOfferedProduct;
+                let nextPrice = currentSession?.price;
+                let nextStep = currentSession?.step || 'INITIAL';
+
+                const lowerReply = cleanText.toLowerCase();
+                if (lowerReply.includes('خف جلد') || lowerReply.includes('خف') || lowerReply.includes('babouche')) {
+                  nextProduct = 'خف جلد';
+                  nextPrice = 179;
+                  nextStep = 'AWAITING_SIZE_OR_DETAILS';
+                } else if (lowerReply.includes('smart watch') || lowerReply.includes('ساعة')) {
+                  nextProduct = 'Smart Watch Ultra Pro S2';
+                  nextPrice = 299;
+                  nextStep = 'AWAITING_SIZE_OR_DETAILS';
+                }
+
+                if (aiResult.toolCalled === 'create_new_order') {
+                  nextStep = 'ORDER_CREATED';
+                } else if (aiResult.toolCalled === 'confirm_order_and_address') {
+                  nextStep = 'ORDER_CONFIRMED';
+                }
+
+                if (nextProduct) {
+                  await saveWhatsAppSessionToDb({
+                    phone: cleanedPhone || rawPhone,
+                    orderId: order?.id,
+                    lastOfferedProduct: nextProduct,
+                    price: nextPrice,
+                    step: nextStep,
+                    metadata: {
+                      lastBotReply: cleanText.slice(0, 100),
+                      toolCalled: aiResult.toolCalled,
+                    },
+                  });
+                }
+              } catch (sessionErr) {}
             } else {
               console.error(`[Baileys In-Process] ❌ Failed to deliver AI message to ${normalizedJid}:`, directRes.error);
             }

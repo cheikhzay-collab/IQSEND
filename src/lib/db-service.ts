@@ -433,6 +433,122 @@ export async function logWhatsAppMessageToDb(params: {
   }
 }
 
+export interface WhatsAppSessionData {
+  phone: string;
+  orderId?: string;
+  lastOfferedProduct?: string;
+  price?: number;
+  step: string;
+  metadata?: Record<string, any>;
+}
+
+/**
+ * 5b. Fetch recent conversation history from MySQL whatsapp_messages
+ */
+export async function getRecentWhatsAppHistoryFromDb(
+  phone: string,
+  limit: number = 6
+): Promise<Array<{ sender: 'CUSTOMER' | 'AI_BOT' | 'AGENT'; body: string; timestamp: Date }>> {
+  try {
+    const pool = getMysqlPool();
+    const cleaned = cleanMoroccanPhone(phone);
+    const suffix = cleaned.slice(-9);
+
+    const [rows]: any = await pool.execute(
+      `SELECT sender, body, created_at 
+       FROM whatsapp_messages 
+       WHERE phone = ? OR phone LIKE ? 
+       ORDER BY created_at DESC 
+       LIMIT ?`,
+      [cleaned, `%${suffix}%`, limit]
+    );
+
+    if (!Array.isArray(rows)) return [];
+
+    // Reverse to chronological order (oldest first)
+    return rows.reverse().map((r: any) => ({
+      sender: r.sender as 'CUSTOMER' | 'AI_BOT' | 'AGENT',
+      body: r.body || '',
+      timestamp: r.created_at ? new Date(r.created_at) : new Date(),
+    }));
+  } catch (error) {
+    console.error('[DB Service] Error fetching recent WhatsApp history:', error);
+    return [];
+  }
+}
+
+/**
+ * 5c. Get customer WhatsApp Session State from MySQL
+ */
+export async function getWhatsAppSessionFromDb(phone: string): Promise<WhatsAppSessionData | null> {
+  try {
+    const pool = getMysqlPool();
+    const cleaned = cleanMoroccanPhone(phone);
+
+    const [rows]: any = await pool.execute(
+      `SELECT phone, order_id, last_offered_product, price, step, metadata 
+       FROM whatsapp_sessions 
+       WHERE phone = ? LIMIT 1`,
+      [cleaned]
+    );
+
+    if (!Array.isArray(rows) || rows.length === 0) return null;
+
+    const r = rows[0];
+    let meta = {};
+    if (r.metadata) {
+      meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata;
+    }
+
+    return {
+      phone: r.phone,
+      orderId: r.order_id || undefined,
+      lastOfferedProduct: r.last_offered_product || undefined,
+      price: r.price ? Number(r.price) : undefined,
+      step: r.step || 'INITIAL',
+      metadata: meta,
+    };
+  } catch (error) {
+    console.error('[DB Service] Error fetching WhatsApp session:', error);
+    return null;
+  }
+}
+
+/**
+ * 5d. Save / Upsert customer WhatsApp Session State in MySQL
+ */
+export async function saveWhatsAppSessionToDb(data: WhatsAppSessionData): Promise<boolean> {
+  try {
+    const pool = getMysqlPool();
+    const cleaned = cleanMoroccanPhone(data.phone);
+
+    await pool.execute(
+      `INSERT INTO whatsapp_sessions (phone, order_id, last_offered_product, price, step, metadata, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW())
+       ON DUPLICATE KEY UPDATE
+         order_id = VALUES(order_id),
+         last_offered_product = VALUES(last_offered_product),
+         price = VALUES(price),
+         step = VALUES(step),
+         metadata = VALUES(metadata),
+         updated_at = NOW()`,
+      [
+        cleaned,
+        data.orderId || null,
+        data.lastOfferedProduct || null,
+        data.price || null,
+        data.step || 'INITIAL',
+        JSON.stringify(data.metadata || {}),
+      ]
+    );
+
+    return true;
+  } catch (error) {
+    console.error('[DB Service] Error saving WhatsApp session:', error);
+    return false;
+  }
+}
+
 /**
  * 6. Add timeline event to MySQL database
  */

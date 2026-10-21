@@ -8,7 +8,13 @@ import {
   OrderContext,
 } from '@/lib/gemini-agent';
 import { getMysqlPool } from '@/lib/db';
-import { logWhatsAppMessageToDb, addTimelineEventToDb } from '@/lib/db-service';
+import {
+  logWhatsAppMessageToDb,
+  addTimelineEventToDb,
+  getRecentWhatsAppHistoryFromDb,
+  getWhatsAppSessionFromDb,
+  saveWhatsAppSessionToDb,
+} from '@/lib/db-service';
 import { recordInboundMessage, recordOutboundMessage } from '@/lib/inbox-store';
 
 // GET: verification challenge (Facebook/Meta webhook verification)
@@ -396,25 +402,37 @@ export async function POST(request: Request) {
     // ─────────────────────────────────────────────────────────────
     const incomingText = msg.text?.body || '';
     if (incomingText) {
-      // Execute Gemini AI Agent with Moroccan Context
-      const orderContext: OrderContext = {
-        orderId: order?.id || 'lead_temp',
-        orderNumber: order?.orderNumber || 'MA-TEMP',
-        customerName: order?.customer?.name || 'الزبون المحترم',
-        phoneNumber: rawFrom,
-        city: order?.customer?.city || 'المغرب',
-        address: order?.customer?.address || 'غير محدد',
-        totalAmount: order?.payment?.amount || 299,
-        items: (order?.items || []).map((it: any) => ({
-          name: it.name,
-          sku: it.sku,
-          quantity: it.quantity,
-          price: it.price,
-        })),
-        conversationHistory: [],
-      };
-
       try {
+        // 1. Fetch real session state from MySQL by customer phone
+        const currentSession = await getWhatsAppSessionFromDb(cleanedFrom || rawFrom);
+
+        // 2. Fetch last 6 chronological messages from MySQL whatsapp_messages
+        const dbHistory = await getRecentWhatsAppHistoryFromDb(cleanedFrom || rawFrom, 6);
+
+        // Execute Gemini AI Agent with Moroccan Context + Real Conversation History + Session State
+        const orderContext: OrderContext = {
+          orderId: order?.id || 'lead_temp',
+          orderNumber: order?.orderNumber || 'MA-TEMP',
+          customerName: order?.customer?.name || 'الزبون المحترم',
+          phoneNumber: rawFrom,
+          city: order?.customer?.city || 'المغرب',
+          address: order?.customer?.address || 'غير محدد',
+          totalAmount: order?.payment?.amount || currentSession?.price || 179,
+          items: (order?.items || []).map((it: any) => ({
+            name: it.name,
+            sku: it.sku,
+            quantity: it.quantity,
+            price: it.price,
+          })),
+          conversationHistory: dbHistory,
+          sessionState: currentSession ? {
+            lastOfferedProduct: currentSession.lastOfferedProduct,
+            price: currentSession.price,
+            step: currentSession.step,
+            metadata: currentSession.metadata,
+          } : undefined,
+        };
+
         // Log incoming customer message to Hostinger MySQL
         await logWhatsAppMessageToDb({
           orderId: order?.id,
@@ -565,6 +583,51 @@ export async function POST(request: Request) {
               sender: 'AI_BOT',
             });
           } catch (e) {}
+
+          // 3. Update session state with newly offered product / step
+          try {
+            let nextProduct = currentSession?.lastOfferedProduct;
+            let nextPrice = currentSession?.price;
+            let nextStep = currentSession?.step || 'INITIAL';
+
+            // Check if agent offered or mentioned a specific product in reply
+            const lowerReply = aiResult.replyText.toLowerCase();
+            if (lowerReply.includes('خف جلد') || lowerReply.includes('خف') || lowerReply.includes('babouche')) {
+              nextProduct = 'خف جلد';
+              nextPrice = 179;
+              nextStep = 'AWAITING_SIZE_OR_DETAILS';
+            } else if (lowerReply.includes('smart watch') || lowerReply.includes('ساعة')) {
+              nextProduct = 'Smart Watch Ultra Pro S2';
+              nextPrice = 299;
+              nextStep = 'AWAITING_SIZE_OR_DETAILS';
+            } else if (lowerReply.includes('سروال') || lowerReply.includes('جينز') || lowerReply.includes('jeans')) {
+              nextProduct = 'سروال جينز بريميوم';
+              nextPrice = 199;
+              nextStep = 'AWAITING_SIZE_OR_DETAILS';
+            }
+
+            if (aiResult.toolCalled === 'create_new_order') {
+              nextStep = 'ORDER_CREATED';
+            } else if (aiResult.toolCalled === 'confirm_order_and_address') {
+              nextStep = 'ORDER_CONFIRMED';
+            }
+
+            if (nextProduct) {
+              await saveWhatsAppSessionToDb({
+                phone: cleanedFrom || rawFrom,
+                orderId: order?.id,
+                lastOfferedProduct: nextProduct,
+                price: nextPrice,
+                step: nextStep,
+                metadata: {
+                  lastBotReply: aiResult.replyText.slice(0, 100),
+                  toolCalled: aiResult.toolCalled,
+                },
+              });
+            }
+          } catch (sessionSaveErr) {
+            console.warn('[Webhook] Error saving session state:', sessionSaveErr);
+          }
         }
       } catch (geminiError: any) {
         console.error('Error invoking Gemini conversational agent:', geminiError.message);
