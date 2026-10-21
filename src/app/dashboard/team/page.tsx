@@ -162,19 +162,19 @@ export default function TeamAndPermissionsPage() {
         await refreshUsers();
       }
     } catch (err) {
-      console.error('Error adding user:', err);
+      console.error('Erreur lors de l\'ajout du collaborateur:', err);
     } finally {
       setIsSaving(false);
     }
   };
 
   const handleDeleteMember = async (id: string, name: string) => {
-    if (!confirm(`هل أنت متأكد من حذف المستخدم "${name}" نهائياً من قاعدة بيانات MySQL؟`)) return;
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer définitivement le collaborateur "${name}" de la base de données MySQL ?`)) return;
     try {
       await fetch(`/api/team?id=${id}`, { method: 'DELETE' });
       await refreshUsers();
     } catch (err) {
-      console.error('Error deleting user:', err);
+      console.error('Erreur lors de la suppression du collaborateur:', err);
     }
   };
 
@@ -182,7 +182,7 @@ export default function TeamAndPermissionsPage() {
     try {
       await updateUser(user.id, { isOnline: !user.isOnline });
     } catch (err) {
-      console.error('Error toggling online status:', err);
+      console.error('Erreur lors du changement de statut de présence:', err);
     }
   };
 
@@ -195,22 +195,22 @@ export default function TeamAndPermissionsPage() {
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'ADMIN':
-        return <span className="bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">👑 مدير عام (Admin)</span>;
+        return <span className="bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">👑 Directeur Général (Admin)</span>;
       case 'CONFIRMATION_AGENT':
-        return <span className="bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">📞 تأكيد الطلبات</span>;
+        return <span className="bg-blue-100 text-blue-800 border border-blue-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">📞 Agent de Confirmation</span>;
       case 'PACKER':
-        return <span className="bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">📦 إعداد وتغليف (Hub)</span>;
+        return <span className="bg-amber-100 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">📦 Responsable Hub & Emballage</span>;
       case 'TRACKING_AGENT':
-        return <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">🚚 تتبع Sendit</span>;
+        return <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">🚚 Agent Suivi Sendit</span>;
       case 'CALL_AGENT':
-        return <span className="bg-indigo-100 text-indigo-800 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">🎧 مركز اتصالات</span>;
+        return <span className="bg-indigo-100 text-indigo-800 border border-indigo-200 px-2.5 py-0.5 rounded-full font-bold text-[10px]">🎧 Agent Centre d'Appels</span>;
       default:
         return <span className="bg-slate-100 text-slate-800 px-2.5 py-0.5 rounded-full font-bold text-[10px]">{role}</span>;
     }
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto font-sans">
       
       {/* ───────────────────────────────────────────────────────────── */}
       {/* 1. TOP HEADER & DATABASE PERSISTENCE BANNER                   */}
@@ -223,20 +223,20 @@ export default function TeamAndPermissionsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight font-cairo">
-                  إدارة المستخدمين والصلاحيات (RBAC)
+                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Gestion des Membres & Permissions (RBAC)
                 </h1>
                 <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold">
-                  حسابات الموظفين & الصلاحيات
+                  Comptes Collaborateurs & Droits d'Accès
                 </span>
                 {isLiveDb && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
-                    <Database className="w-2.5 h-2.5" /> متصل بـ Hostinger Cloud MySQL
+                    <Database className="w-2.5 h-2.5" /> Connecté à Hostinger Cloud MySQL
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1 font-cairo">
-                إدارة معلومات تسجيل الدخول، المسميات الوظيفية، الصلاحيات الدقيقة لكل موظف، وحالة الاتصال المباشرة
+              <p className="text-xs text-slate-500 mt-1">
+                Gérez les identifiants de connexion, les intitulés de poste, les autorisations granulaires par module et le statut de présence de vos équipes.
               </p>
             </div>
           </div>
@@ -246,17 +246,18 @@ export default function TeamAndPermissionsPage() {
           <button
             onClick={() => refreshUsers()}
             disabled={isLoading}
-            className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs"
+            className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+            title="Rafraîchir les données de l'équipe"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>تحديث</span>
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-teal-600' : ''}`} />
+            <span>Actualiser</span>
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-teal-700 to-slate-900 hover:from-teal-800 hover:to-slate-950 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98 font-cairo"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-teal-700 to-slate-900 hover:from-teal-800 hover:to-slate-950 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98 cursor-pointer"
           >
             <UserPlus className="w-4 h-4 text-teal-300" />
-            <span>إضافة مستخدم جديد</span>
+            <span>Ajouter un collaborateur</span>
           </button>
         </div>
       </div>
@@ -265,25 +266,27 @@ export default function TeamAndPermissionsPage() {
       {/* 2. STATS OVERVIEW CARDS                                       */}
       {/* ───────────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+        
+        {/* Total Users */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold font-cairo">إجمالي المستخدمين</span>
+            <span className="text-xs font-bold text-slate-700">Total Collaborateurs</span>
             <Users className="w-4 h-4 text-slate-500" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2 font-mono">
             {allUsers.length}
           </div>
           <span className="text-[10px] text-slate-500 mt-1 block">
-            مسجلين في جدول MySQL `users`
+            Enregistrés dans la table MySQL <code className="bg-slate-100 px-1 py-0.2 rounded text-slate-700 font-mono">users</code>
           </span>
         </div>
 
-        {/* Live Online Presence Card matching user screenshot */}
+        {/* Live Online Presence Card */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs relative overflow-hidden">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold font-cairo flex items-center gap-1.5">
+            <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              متصلون الآن (Online)
+              En ligne actuellement
             </span>
             <Activity className="w-4 h-4 text-emerald-600" />
           </div>
@@ -292,9 +295,9 @@ export default function TeamAndPermissionsPage() {
             <span className="text-xs font-bold text-slate-400">/ {allUsers.length}</span>
           </div>
           
-          {/* Visual Avatar Stack in card */}
+          {/* Visual Avatar Stack */}
           <div className="flex items-center -space-x-1.5 mt-2">
-            {allUsers.slice(0, 3).map((u, i) => (
+            {allUsers.slice(0, 3).map((u) => (
               <div key={u.id} className="relative">
                 {u.avatarUrl ? (
                   <img
@@ -303,7 +306,7 @@ export default function TeamAndPermissionsPage() {
                     className="w-5 h-5 rounded-full border border-white object-cover"
                   />
                 ) : (
-                  <div className="w-5 h-5 rounded-full bg-[#7c3aed] text-white text-[9px] font-bold flex items-center justify-center border border-white">
+                  <div className="w-5 h-5 rounded-full bg-purple-600 text-white text-[9px] font-bold flex items-center justify-center border border-white">
                     {u.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -320,29 +323,31 @@ export default function TeamAndPermissionsPage() {
           </div>
         </div>
 
+        {/* Distributed Roles */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold font-cairo">الأدوار الموزعة</span>
+            <span className="text-xs font-bold text-slate-700">Rôles configurés</span>
             <Briefcase className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2 font-mono">
             {new Set(allUsers.map((u) => u.role)).size}
           </div>
           <span className="text-[10px] text-slate-500 mt-1 block">
-            أدوار مخصصة مع صلاحيات فورية
+            Profils d'accès distincts avec permissions dédiées
           </span>
         </div>
 
+        {/* Security Isolation */}
         <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-bold font-cairo">التقييد الأمني</span>
+            <span className="text-xs font-bold text-slate-700">Sécurité & Cloisonnement</span>
             <ShieldCheck className="w-4 h-4 text-purple-600" />
           </div>
           <div className="text-2xl font-black text-purple-600 mt-2 font-mono">
             100%
           </div>
           <span className="text-[10px] text-emerald-600 font-bold mt-1 block">
-            ✓ كل مستخدم يرى خصائصه فقط
+            ✓ Chaque rôle accède uniquement à ses modules
           </span>
         </div>
       </div>
@@ -356,13 +361,13 @@ export default function TeamAndPermissionsPage() {
             <div className="flex items-center gap-2">
               <Laptop className="w-4 h-4 text-teal-400" />
               <span className="text-xs font-black uppercase tracking-wider text-teal-300">
-                الحساب النشط حالياً لتجربة المنصة (Role Simulator) :
+                Simulateur de rôle actif pour tester la plateforme :
               </span>
             </div>
-            <p className="text-xs text-slate-300 font-cairo">
-              أنت مسجل حالياً باسم:{' '}
+            <p className="text-xs text-slate-300">
+              Vous naviguez actuellement en tant que :{' '}
               <strong className="text-white font-bold">{currentUser?.name}</strong>{' '}
-              <span className="text-teal-300">({currentUser?.jobTitle})</span> — القائمة الجانبية والصلاحيات تتغير فورياً بناءً على المستخدم المختار.
+              <span className="text-teal-300">({currentUser?.jobTitle})</span> — La barre latérale et les autorisations de modules s'adaptent instantanément au collaborateur sélectionné.
             </p>
           </div>
 
@@ -374,7 +379,7 @@ export default function TeamAndPermissionsPage() {
                 <button
                   key={u.id}
                   onClick={() => switchUser(u.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-teal-500 text-white shadow-sm ring-2 ring-teal-300/50 scale-102'
                       : 'bg-white/10 text-slate-200 hover:bg-white/20 hover:text-white'
@@ -383,7 +388,7 @@ export default function TeamAndPermissionsPage() {
                   <span className={`w-2 h-2 rounded-full ${u.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
                   <span>{u.name.split(' ')[0]}</span>
                   <span className="text-[10px] opacity-80 font-normal">
-                    ({u.role === 'ADMIN' ? 'Admin' : u.role === 'CONFIRMATION_AGENT' ? 'تأكيد' : u.role === 'PACKER' ? 'تغليف' : 'تتبع'})
+                    ({u.role === 'ADMIN' ? 'Admin' : u.role === 'CONFIRMATION_AGENT' ? 'Confirmation' : u.role === 'PACKER' ? 'Emballage' : 'Suivi'})
                   </span>
                 </button>
               );
@@ -399,17 +404,17 @@ export default function TeamAndPermissionsPage() {
         
         <div className="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
-            <h2 className="text-sm font-black text-slate-900 font-cairo">
-              قائمة المستخدمين المسجلين في النظام ({allUsers.length})
+            <h2 className="text-sm font-black text-slate-900">
+              Liste des Membres de l'Équipe ({allUsers.length})
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5 font-cairo">
-              يمكنك ضبط المسمى الوظيفي، كلمة المرور، والصلاحيات التفصيلية لكل مستخدم
+            <p className="text-xs text-slate-400 mt-0.5">
+              Configuration des accès, mots de passe et modules autorisés pour chaque utilisateur
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500 font-medium font-cairo">
-              البيانات محفوظة ومتزامنة تلقائياً مع MySQL
+            <span className="text-xs text-slate-500 font-medium">
+              Données synchronisées en temps réel avec MySQL
             </span>
           </div>
         </div>
@@ -418,19 +423,19 @@ export default function TeamAndPermissionsPage() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50/80 text-slate-400 uppercase text-[10px] font-bold border-b border-slate-100">
               <tr>
-                <th className="p-4 text-right font-cairo">المستخدم والحساب</th>
-                <th className="p-4 text-right font-cairo">المسمى الوظيفي (Job Title)</th>
-                <th className="p-4 text-center font-cairo">الدور النظامي</th>
-                <th className="p-4 text-center font-cairo">حالة الاتصال (Online)</th>
-                <th className="p-4 text-right font-cairo">ملخص الصلاحيات الممنوحة</th>
-                <th className="p-4 text-center font-cairo">الإجراءات</th>
+                <th className="p-4 text-left">Collaborateur & Compte</th>
+                <th className="p-4 text-left">Intitulé de Poste</th>
+                <th className="p-4 text-center">Rôle Système</th>
+                <th className="p-4 text-center">Statut de Présence</th>
+                <th className="p-4 text-left">Modules & Droits Accordés</th>
+                <th className="p-4 text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading && allUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="p-12 text-center text-slate-400 font-cairo">
-                    جاري تحميل المستخدمين من قاعدة بيانات MySQL...
+                  <td colSpan={6} className="p-12 text-center text-slate-400">
+                    Chargement des collaborateurs depuis la base de données MySQL...
                   </td>
                 </tr>
               ) : allUsers.map((user) => {
@@ -455,7 +460,7 @@ export default function TeamAndPermissionsPage() {
                               className="w-10 h-10 rounded-full object-cover border border-slate-200 shadow-2xs"
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded-full bg-[#7c3aed] text-white font-bold flex items-center justify-center text-sm shadow-2xs">
+                            <div className="w-10 h-10 rounded-full bg-purple-600 text-white font-bold flex items-center justify-center text-sm shadow-2xs">
                               {user.name.charAt(0).toUpperCase()}
                             </div>
                           )}
@@ -463,7 +468,7 @@ export default function TeamAndPermissionsPage() {
                             className={`w-3 h-3 rounded-full absolute -bottom-0.5 -right-0.5 ring-2 ring-white ${
                               user.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-300'
                             }`}
-                            title={user.isOnline ? 'متصل الآن' : 'غير متصل'}
+                            title={user.isOnline ? 'En ligne' : 'Hors ligne'}
                           />
                         </div>
 
@@ -471,17 +476,17 @@ export default function TeamAndPermissionsPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900 text-xs">{user.name}</span>
                             {isCurrentActive && (
-                              <span className="bg-teal-100 text-teal-800 text-[9px] font-black px-1.5 py-0.2 rounded font-cairo">
-                                حسابك الحالي
+                              <span className="bg-teal-100 text-teal-800 text-[9px] font-black px-1.5 py-0.2 rounded">
+                                Votre compte actif
                               </span>
                             )}
                           </div>
-                          <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                          <div className="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5 font-mono">
                             <Mail className="w-3 h-3 text-slate-400" />
                             <span>{user.email}</span>
                           </div>
                           {user.phone && (
-                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+                            <div className="text-[10px] text-slate-400 flex items-center gap-1.5 mt-0.5 font-mono">
                               <Phone className="w-2.5 h-2.5 text-slate-400" />
                               <span>{user.phone}</span>
                             </div>
@@ -491,12 +496,12 @@ export default function TeamAndPermissionsPage() {
                     </td>
 
                     {/* Job Title */}
-                    <td className="p-4 text-right">
-                      <div className="font-bold text-slate-800 text-xs font-cairo">
-                        {user.jobTitle || 'موظف في المنصة'}
+                    <td className="p-4 text-left">
+                      <div className="font-bold text-slate-800 text-xs">
+                        {user.jobTitle || 'Collaborateur plateforme'}
                       </div>
-                      <span className="text-[10px] text-slate-400 font-cairo block mt-0.5">
-                        {user.assignedCity || 'كافة المناطق'}
+                      <span className="text-[10px] text-slate-400 block mt-0.5">
+                        {user.assignedCity || 'Toutes les régions'}
                       </span>
                     </td>
 
@@ -509,59 +514,59 @@ export default function TeamAndPermissionsPage() {
                     <td className="p-4 text-center">
                       <button
                         onClick={() => handleToggleOnline(user)}
-                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all cursor-pointer ${
                           user.isOnline
                             ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
                             : 'bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200'
                         }`}
-                        title="انقر لتغيير حالة الاتصال"
+                        title="Cliquer pour basculer le statut en ligne / hors ligne"
                       >
                         <span className={`w-2 h-2 rounded-full ${user.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
-                        <span className="font-cairo">{user.isOnline ? 'متصل الآن' : 'غير متصل'}</span>
+                        <span>{user.isOnline ? 'En ligne' : 'Hors ligne'}</span>
                       </button>
                     </td>
 
                     {/* Granted Permissions Badges Summary */}
-                    <td className="p-4 text-right">
+                    <td className="p-4 text-left">
                       <div className="flex flex-wrap gap-1 max-w-xs">
                         {perms?.canAccessOrders && (
                           <span className="bg-slate-100 text-slate-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            📦 الطلبات
+                            📦 Commandes
                           </span>
                         )}
                         {perms?.canAccessConfirmation && (
                           <span className="bg-blue-50 text-blue-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            📞 التأكيد
+                            📞 Confirmation
                           </span>
                         )}
                         {perms?.canAccessInbox && (
                           <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            💬 واتساب
+                            💬 WhatsApp
                           </span>
                         )}
                         {perms?.canAccessAiAgents && (
                           <span className="bg-teal-50 text-teal-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            🤖 ذكاء اصطناعي
+                            🤖 Agents IA
                           </span>
                         )}
                         {perms?.canAccessPacking && (
                           <span className="bg-amber-50 text-amber-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            🏷️ تغليف AWB
+                            🏷️ Emballage AWB
                           </span>
                         )}
                         {perms?.canAccessTracking && (
                           <span className="bg-indigo-50 text-indigo-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            🚚 تتبع Sendit
+                            🚚 Suivi Sendit
                           </span>
                         )}
                         {perms?.canAccessFinance && (
                           <span className="bg-purple-50 text-purple-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
-                            💰 مالية COD
+                            💰 Finances COD
                           </span>
                         )}
                         {user.role === 'ADMIN' && (
                           <span className="bg-purple-100 text-purple-800 text-[10px] px-2 py-0.5 rounded-md font-black">
-                            👑 صلاحيات كاملة
+                            👑 Accès Intégral
                           </span>
                         )}
                       </div>
@@ -574,29 +579,29 @@ export default function TeamAndPermissionsPage() {
                         {/* Manage Permissions */}
                         <button
                           onClick={() => handleOpenPermsModal(user)}
-                          className="flex items-center gap-1 text-slate-700 hover:text-purple-700 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all font-cairo shadow-2xs"
-                          title="إعدادات صلاحيات الوصول"
+                          className="flex items-center gap-1 text-slate-700 hover:text-purple-700 bg-slate-50 hover:bg-purple-50 border border-slate-200 hover:border-purple-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                          title="Gérer les droits d'accès et modules"
                         >
                           <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
-                          <span>الصلاحيات</span>
+                          <span>Permissions</span>
                         </button>
 
                         {/* Edit Account & Login Credentials */}
                         <button
                           onClick={() => handleOpenEditModal(user)}
-                          className="flex items-center gap-1 text-slate-700 hover:text-blue-700 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all font-cairo shadow-2xs"
-                          title="تعديل بيانات الحساب وكلمة المرور"
+                          className="flex items-center gap-1 text-slate-700 hover:text-blue-700 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                          title="Modifier le compte et le mot de passe"
                         >
                           <KeyRound className="w-3.5 h-3.5 text-blue-600" />
-                          <span>الحساب</span>
+                          <span>Modifier</span>
                         </button>
 
                         {/* Delete User */}
                         {user.role !== 'ADMIN' && (
                           <button
                             onClick={() => handleDeleteMember(user.id, user.name)}
-                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-                            title="حذف المستخدم نهائياً"
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                            title="Supprimer définitivement le collaborateur"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -615,7 +620,7 @@ export default function TeamAndPermissionsPage() {
       </div>
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 5. GRANULAR PERMISSIONS MODAL (إعدادات الصلاحيات)              */}
+      {/* 5. GRANULAR PERMISSIONS MODAL                                 */}
       {/* ───────────────────────────────────────────────────────────── */}
       {selectedUserForPerms && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -628,17 +633,17 @@ export default function TeamAndPermissionsPage() {
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-black text-slate-900 text-sm font-cairo">
-                    تعديل صلاحيات الوصول : {selectedUserForPerms.name}
+                  <h3 className="font-black text-slate-900 text-sm">
+                    Modifier les autorisations d'accès : {selectedUserForPerms.name}
                   </h3>
-                  <p className="text-[11px] text-slate-400 font-cairo">
-                    المسمى الوظيفي: {selectedUserForPerms.jobTitle} • {getRoleBadge(selectedUserForPerms.role)}
+                  <p className="text-[11px] text-slate-400">
+                    Poste : {selectedUserForPerms.jobTitle} • {getRoleBadge(selectedUserForPerms.role)}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setSelectedUserForPerms(null)}
-                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg"
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -646,37 +651,37 @@ export default function TeamAndPermissionsPage() {
 
             {/* Quick Templates Buttons */}
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-400 font-cairo block">
-                قوالب الصلاحيات الجاهزة (Presets) :
+              <label className="text-[11px] font-bold text-slate-400 block">
+                Modèles d'autorisations prédéfinis (Presets) :
               </label>
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   onClick={() => applyPresetRole('ADMIN')}
-                  className="text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors font-cairo"
+                  className="text-xs font-bold bg-purple-50 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-xl hover:bg-purple-100 transition-colors cursor-pointer"
                 >
-                  👑 قالب المدير العام (كل الصلاحيات)
+                  👑 Modèle Administrateur (Tous les accès)
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPresetRole('CONFIRMATION_AGENT')}
-                  className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors font-cairo"
+                  className="text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors cursor-pointer"
                 >
-                  📞 قالب تأكيد الطلبات
+                  📞 Modèle Agent Confirmation
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPresetRole('PACKER')}
-                  className="text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl hover:bg-amber-100 transition-colors font-cairo"
+                  className="text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-xl hover:bg-amber-100 transition-colors cursor-pointer"
                 >
-                  📦 قالب مسؤول التغليف
+                  📦 Modèle Responsable Hub & Emballage
                 </button>
                 <button
                   type="button"
                   onClick={() => applyPresetRole('TRACKING_AGENT')}
-                  className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors font-cairo"
+                  className="text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition-colors cursor-pointer"
                 >
-                  🚚 قالب تتبع الشحنات
+                  🚚 Modèle Suivi Sendit
                 </button>
               </div>
             </div>
@@ -686,15 +691,15 @@ export default function TeamAndPermissionsPage() {
               
               {/* Category 1: Sales & Orders */}
               <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-3">
-                <span className="text-xs font-black text-slate-900 font-cairo block border-b border-slate-200 pb-1.5">
-                  1. المبيعات وإدارة الطلبات (Orders & Sales)
+                <span className="text-xs font-black text-slate-900 block border-b border-slate-200 pb-1.5">
+                  1. Ventes & Traitement des Commandes (Orders & Sales)
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">لوحة التحكم الرئيسية</span>
-                      <span className="text-[10px] text-slate-400">الإحصائيات والمؤشرات العامة</span>
+                      <span className="font-bold text-xs text-slate-800 block">Tableau de bord principal</span>
+                      <span className="text-[10px] text-slate-400">Statistiques et indicateurs globaux</span>
                     </div>
                     <input
                       type="checkbox"
@@ -706,8 +711,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">إدارة الطلبات</span>
-                      <span className="text-[10px] text-slate-400">كافة الطلبات، التعديل والمراحل</span>
+                      <span className="font-bold text-xs text-slate-800 block">Gestion des commandes</span>
+                      <span className="text-[10px] text-slate-400">Toutes les commandes et modifications</span>
                     </div>
                     <input
                       type="checkbox"
@@ -719,8 +724,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">مركز الاتصالات (Call Center)</span>
-                      <span className="text-[10px] text-slate-400">تأكيد الطلبات وإدارة المكالمات</span>
+                      <span className="font-bold text-xs text-slate-800 block">Centre d'appels (Call Center)</span>
+                      <span className="text-[10px] text-slate-400">Validation téléphonique des commandes</span>
                     </div>
                     <input
                       type="checkbox"
@@ -732,8 +737,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">الـ Leads والتقاط البيانات</span>
-                      <span className="text-[10px] text-slate-400">معالجة Leads وتحليل النية</span>
+                      <span className="font-bold text-xs text-slate-800 block">Gestion des Leads & Capture</span>
+                      <span className="text-[10px] text-slate-400">Qualification et intention d'achat</span>
                     </div>
                     <input
                       type="checkbox"
@@ -747,15 +752,15 @@ export default function TeamAndPermissionsPage() {
 
               {/* Category 2: Communications & AI */}
               <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-3">
-                <span className="text-xs font-black text-slate-900 font-cairo block border-b border-slate-200 pb-1.5">
-                  2. التواصل والذكاء الاصطناعي (Messaging & AI)
+                <span className="text-xs font-black text-slate-900 block border-b border-slate-200 pb-1.5">
+                  2. Messagerie & Intelligence Artificielle (Messaging & AI)
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">صندوق محادثات واتساب</span>
-                      <span className="text-[10px] text-slate-400">WhatsApp Live Inbox والمحادثات</span>
+                      <span className="font-bold text-xs text-slate-800 block">Messagerie WhatsApp</span>
+                      <span className="text-[10px] text-slate-400">WhatsApp Live Inbox et échanges</span>
                     </div>
                     <input
                       type="checkbox"
@@ -767,8 +772,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">وكلاء الذكاء الاصطناعي (AI)</span>
-                      <span className="text-[10px] text-slate-400">Gemini بالدارجة والتأكيد الذاتي</span>
+                      <span className="font-bold text-xs text-slate-800 block">Agents IA Gemini (Darija)</span>
+                      <span className="text-[10px] text-slate-400">Confirmation automatique et réponses</span>
                     </div>
                     <input
                       type="checkbox"
@@ -782,15 +787,15 @@ export default function TeamAndPermissionsPage() {
 
               {/* Category 3: Logistics & Sendit */}
               <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-3">
-                <span className="text-xs font-black text-slate-900 font-cairo block border-b border-slate-200 pb-1.5">
-                  3. محطة التغليف والشحن (Fulfillment & Sendit)
+                <span className="text-xs font-black text-slate-900 block border-b border-slate-200 pb-1.5">
+                  3. Préparation & Expéditions Sendit.ma (Fulfillment & Logistics)
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">محطة التغليف وبوليصات AWB</span>
-                      <span className="text-[10px] text-slate-400">طباعة بوليصات الشحن والباركود</span>
+                      <span className="font-bold text-xs text-slate-800 block">Station d'emballage (AWB)</span>
+                      <span className="text-[10px] text-slate-400">Impression bordereaux et scan code-barres</span>
                     </div>
                     <input
                       type="checkbox"
@@ -802,8 +807,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">تتبع الشحنات واسترجاع الطرود</span>
-                      <span className="text-[10px] text-slate-400">متابعة Sendit وحالات التسليم</span>
+                      <span className="font-bold text-xs text-slate-800 block">Suivi & Sauvetage Colis</span>
+                      <span className="text-[10px] text-slate-400">Statuts de livraison Sendit en direct</span>
                     </div>
                     <input
                       type="checkbox"
@@ -817,15 +822,15 @@ export default function TeamAndPermissionsPage() {
 
               {/* Category 4: Products, Customers, Finance & Admin */}
               <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-100 space-y-3">
-                <span className="text-xs font-black text-slate-900 font-cairo block border-b border-slate-200 pb-1.5">
-                  4. المنتجات، المالية وإعدادات النظام
+                <span className="text-xs font-black text-slate-900 block border-b border-slate-200 pb-1.5">
+                  4. Produits, Finances & Administration Système
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">المنتجات والمخزون</span>
-                      <span className="text-[10px] text-slate-400">مخزون المستودعات والتسعير</span>
+                      <span className="font-bold text-xs text-slate-800 block">Catalogue & Stocks Hubs</span>
+                      <span className="text-[10px] text-slate-400">Gestion des articles et inventaire</span>
                     </div>
                     <input
                       type="checkbox"
@@ -837,8 +842,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">العملاء و CRM</span>
-                      <span className="text-[10px] text-slate-400">سجل العملاء وسجل المشتريات</span>
+                      <span className="font-bold text-xs text-slate-800 block">Clients & CRM</span>
+                      <span className="text-[10px] text-slate-400">Fiches clients et score de confiance</span>
                     </div>
                     <input
                       type="checkbox"
@@ -850,8 +855,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">الإدارة المالية وفواتير COD</span>
-                      <span className="text-[10px] text-slate-400">الأرباح، المصاريف والتحويلات</span>
+                      <span className="font-bold text-xs text-slate-800 block">Finances & Virements COD</span>
+                      <span className="text-[10px] text-slate-400">Rapprochements bancaires et encaissements</span>
                     </div>
                     <input
                       type="checkbox"
@@ -863,8 +868,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">قواعد الأتمتة الذكية</span>
-                      <span className="text-[10px] text-slate-400">التوزيع الآلي وقواعد النظام</span>
+                      <span className="font-bold text-xs text-slate-800 block">Règles d'automatisation</span>
+                      <span className="text-[10px] text-slate-400">Workflows et dispatching automatique</span>
                     </div>
                     <input
                       type="checkbox"
@@ -876,8 +881,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">الربط والتكامل (Integrations)</span>
-                      <span className="text-[10px] text-slate-400">Sendit API, Sheets, Webhooks</span>
+                      <span className="font-bold text-xs text-slate-800 block">Intégrations & Passerelles</span>
+                      <span className="text-[10px] text-slate-400">Sendit API, Google Sheets et Webhooks</span>
                     </div>
                     <input
                       type="checkbox"
@@ -889,8 +894,8 @@ export default function TeamAndPermissionsPage() {
 
                   <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
                     <div>
-                      <span className="font-bold text-xs text-slate-800 block font-cairo">إدارة المستخدمين (RBAC)</span>
-                      <span className="text-[10px] text-slate-400">إضافة وتعديل صلاحيات الفريق</span>
+                      <span className="font-bold text-xs text-slate-800 block">Gestion de l'Équipe (RBAC)</span>
+                      <span className="text-[10px] text-slate-400">Ajout et gestion des droits collaborateurs</span>
                     </div>
                     <input
                       type="checkbox"
@@ -909,18 +914,18 @@ export default function TeamAndPermissionsPage() {
               <button
                 type="button"
                 onClick={() => setSelectedUserForPerms(null)}
-                className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors font-cairo"
+                className="px-4 py-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs font-bold transition-colors cursor-pointer"
               >
-                إلغاء
+                Annuler
               </button>
               <button
                 type="button"
                 disabled={isSaving}
                 onClick={handleSavePermissions}
-                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm font-cairo"
+                className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all shadow-sm cursor-pointer"
               >
                 <Save className="w-4 h-4" />
-                <span>{isSaving ? 'جاري الحفظ في MySQL...' : 'حفظ الصلاحيات في MySQL'}</span>
+                <span>{isSaving ? 'Enregistrement dans MySQL...' : 'Enregistrer les permissions dans MySQL'}</span>
               </button>
             </div>
 
@@ -929,7 +934,7 @@ export default function TeamAndPermissionsPage() {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 6. EDIT ACCOUNT & CREDENTIALS MODAL (بيانات الدخول والحساب)   */}
+      {/* 6. EDIT ACCOUNT & CREDENTIALS MODAL                           */}
       {/* ───────────────────────────────────────────────────────────── */}
       {selectedUserForEdit && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -940,13 +945,13 @@ export default function TeamAndPermissionsPage() {
                 <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
                   <KeyRound className="w-4 h-4" />
                 </div>
-                <h3 className="font-black text-slate-900 text-sm font-cairo">
-                  تعديل الحساب وبيانات تسجيل الدخول
+                <h3 className="font-black text-slate-900 text-sm">
+                  Modifier le compte et les accès de connexion
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedUserForEdit(null)}
-                className="text-slate-400 hover:text-slate-700 p-1"
+                className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -954,7 +959,7 @@ export default function TeamAndPermissionsPage() {
 
             <form onSubmit={handleSaveEditUser} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">الاسم الكامل :</label>
+                <label className="font-bold text-slate-700 block mb-1">Nom complet :</label>
                 <input
                   type="text"
                   required
@@ -965,11 +970,11 @@ export default function TeamAndPermissionsPage() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">المسمى الوظيفي (Job Title) :</label>
+                <label className="font-bold text-slate-700 block mb-1">Intitulé de poste (Job Title) :</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: مسؤول تأكيد الطلبات - كول سنتر"
+                  placeholder="ex: Spécialiste Confirmation & Vente Additionnelle"
                   value={editJobTitle}
                   onChange={(e) => setEditJobTitle(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium"
@@ -977,24 +982,24 @@ export default function TeamAndPermissionsPage() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">البريد الإلكتروني لتسجيل الدخول :</label>
+                <label className="font-bold text-slate-700 block mb-1">Adresse email de connexion :</label>
                 <input
                   type="email"
                   required
                   value={editEmail}
                   onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium ltr"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">
-                  كلمة المرور الجديدة (اتركها فارغة إذا لم ترغب في التغيير) :
+                <label className="font-bold text-slate-700 block mb-1">
+                  Nouveau mot de passe (laisser vide pour conserver l'actuel) :
                 </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    placeholder="أدخل كلمة مرور جديدة"
+                    placeholder="Saisir un nouveau mot de passe"
                     value={editPassword}
                     onChange={(e) => setEditPassword(e.target.value)}
                     className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium pr-9"
@@ -1002,7 +1007,7 @@ export default function TeamAndPermissionsPage() {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 cursor-pointer"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
@@ -1010,27 +1015,27 @@ export default function TeamAndPermissionsPage() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">رقم الهاتف :</label>
+                <label className="font-bold text-slate-700 block mb-1">Numéro de téléphone :</label>
                 <input
                   type="text"
                   value={editPhone}
                   onChange={(e) => setEditPhone(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium ltr"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">الدور الأساسي في النظام :</label>
+                <label className="font-bold text-slate-700 block mb-1">Rôle principal dans le système :</label>
                 <select
                   value={editRole}
                   onChange={(e: any) => setEditRole(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-blue-600 font-medium cursor-pointer"
                 >
-                  <option value="CONFIRMATION_AGENT">Agent de Confirmation (تأكيد الطلبات)</option>
-                  <option value="PACKER">Packer (مسؤول التغليف والشحن)</option>
-                  <option value="TRACKING_AGENT">Tracking Agent (متابعة الشحنات Sendit)</option>
-                  <option value="CALL_AGENT">Call Center Agent (مركز الاتصالات)</option>
-                  <option value="ADMIN">Administrateur (مدير عام كامل الصلاحيات)</option>
+                  <option value="CONFIRMATION_AGENT">Agent de Confirmation (Validation des commandes)</option>
+                  <option value="PACKER">Responsable Hub & Emballage (Packer AWB)</option>
+                  <option value="TRACKING_AGENT">Agent Suivi & Sauvetage Colis (Sendit)</option>
+                  <option value="CALL_AGENT">Agent Centre d'Appels (Call Center)</option>
+                  <option value="ADMIN">Directeur Général (Administrateur complet)</option>
                 </select>
               </div>
 
@@ -1038,16 +1043,16 @@ export default function TeamAndPermissionsPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedUserForEdit(null)}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl font-bold font-cairo hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 cursor-pointer"
                 >
-                  إلغاء
+                  Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl font-cairo transition-all shadow-sm"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
                 >
-                  {isSaving ? 'جاري الحفظ...' : 'تحديث الحساب في MySQL'}
+                  {isSaving ? 'Enregistrement...' : 'Mettre à jour dans MySQL'}
                 </button>
               </div>
             </form>
@@ -1057,7 +1062,7 @@ export default function TeamAndPermissionsPage() {
       )}
 
       {/* ───────────────────────────────────────────────────────────── */}
-      {/* 7. ADD NEW USER MODAL (إضافة مستخدم جديد)                      */}
+      {/* 7. ADD NEW USER MODAL                                         */}
       {/* ───────────────────────────────────────────────────────────── */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1068,22 +1073,22 @@ export default function TeamAndPermissionsPage() {
                 <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
                   <UserPlus className="w-4 h-4" />
                 </div>
-                <h3 className="font-black text-slate-900 text-sm font-cairo">
-                  إضافة مستخدم جديد إلى قاعدة البيانات
+                <h3 className="font-black text-slate-900 text-sm">
+                  Ajouter un nouveau collaborateur dans MySQL
                 </h3>
               </div>
-              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1">
+              <button onClick={() => setIsAddModalOpen(false)} className="text-slate-400 hover:text-slate-700 p-1 cursor-pointer">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <form onSubmit={handleAddMember} className="space-y-3 text-xs">
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">الاسم الكامل :</label>
+                <label className="font-bold text-slate-700 block mb-1">Nom complet :</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: يونس العلوي"
+                  placeholder="ex: Younes El Alami"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium"
@@ -1091,11 +1096,11 @@ export default function TeamAndPermissionsPage() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">المسمى الوظيفي (Job Title) :</label>
+                <label className="font-bold text-slate-700 block mb-1">Intitulé de poste (Job Title) :</label>
                 <input
                   type="text"
                   required
-                  placeholder="مثال: وكيل تأكيد طلبات Call Center"
+                  placeholder="ex: Agent de Confirmation Call Center"
                   value={newJobTitle}
                   onChange={(e) => setNewJobTitle(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium"
@@ -1103,50 +1108,50 @@ export default function TeamAndPermissionsPage() {
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">البريد الإلكتروني المهني :</label>
+                <label className="font-bold text-slate-700 block mb-1">Adresse email professionnelle :</label>
                 <input
                   type="email"
                   required
-                  placeholder="younes@sendit-cod.ma"
+                  placeholder="younes@sendit.ma"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium ltr"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">كلمة المرور الأولية :</label>
+                <label className="font-bold text-slate-700 block mb-1">Mot de passe initial :</label>
                 <input
                   type="text"
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium ltr"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">رقم الهاتف :</label>
+                <label className="font-bold text-slate-700 block mb-1">Numéro de téléphone :</label>
                 <input
                   type="text"
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium ltr"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
                 />
               </div>
 
               <div>
-                <label className="font-bold text-slate-700 block mb-1 font-cairo">الدور في المنصة (Role) :</label>
+                <label className="font-bold text-slate-700 block mb-1">Rôle attribué (Role) :</label>
                 <select
                   value={newRole}
                   onChange={(e: any) => setNewRole(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium cursor-pointer"
                 >
-                  <option value="CONFIRMATION_AGENT">Agent Confirmation (تأكيد الطلبات)</option>
-                  <option value="PACKER">Packer (مسؤول التغليف والشحن)</option>
-                  <option value="TRACKING_AGENT">Tracking Agent (متابعة الشحنات Sendit)</option>
-                  <option value="CALL_AGENT">Call Center Agent (مركز اتصالات)</option>
-                  <option value="ADMIN">Administrateur (مدير عام كامل الصلاحيات)</option>
+                  <option value="CONFIRMATION_AGENT">Agent de Confirmation (Validation des commandes)</option>
+                  <option value="PACKER">Responsable Hub & Emballage (Packer AWB)</option>
+                  <option value="TRACKING_AGENT">Agent Suivi & Sauvetage Colis (Sendit)</option>
+                  <option value="CALL_AGENT">Agent Centre d'Appels (Call Center)</option>
+                  <option value="ADMIN">Directeur Général (Administrateur complet)</option>
                 </select>
               </div>
 
@@ -1154,16 +1159,16 @@ export default function TeamAndPermissionsPage() {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl font-bold font-cairo hover:bg-slate-50"
+                  className="px-4 py-2 border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 cursor-pointer"
                 >
-                  إلغاء
+                  Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-5 py-2 rounded-xl font-cairo transition-all shadow-sm"
+                  className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
                 >
-                  {isSaving ? 'جاري التسجيل في MySQL...' : 'تسجيل المستخدم في MySQL'}
+                  {isSaving ? 'Enregistrement dans MySQL...' : 'Créer le collaborateur dans MySQL'}
                 </button>
               </div>
             </form>
