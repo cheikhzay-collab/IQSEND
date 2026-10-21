@@ -143,7 +143,25 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       if (!res.ok) return;
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        setOrders(data.orders);
+        setOrders((prev) => {
+          // Prevent unnecessary re-renders across the entire platform if data is identical
+          if (prev.length === data.orders.length) {
+            let hasChanged = false;
+            for (let i = 0; i < prev.length; i++) {
+              if (
+                prev[i].id !== data.orders[i].id ||
+                prev[i].stage !== data.orders[i].stage ||
+                prev[i].customer?.notes !== data.orders[i].customer?.notes ||
+                prev[i].shipping?.liveStatus !== data.orders[i].shipping?.liveStatus
+              ) {
+                hasChanged = true;
+                break;
+              }
+            }
+            if (!hasChanged) return prev;
+          }
+          return data.orders;
+        });
       }
     } catch (err) {
       console.warn('[OrderLifecycleContext] DB fetch fallback to local:', err);
@@ -152,12 +170,13 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
-  // Initial load on mount + fallback polling
+  // Initial load on mount + sensible lightweight fallback polling (every 30s only when active tab)
   useEffect(() => {
     fetchDbOrders();
     const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
       fetchDbOrders(true);
-    }, 15000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [fetchDbOrders]);
 
@@ -601,22 +620,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   }, [fetchDbOrders]);
 
-  // Live auto-polling: checks for new inbound orders every 8 seconds & Google Sheets auto-sync every 15 seconds
-  useEffect(() => {
-    const timer = setInterval(() => {
-      refreshInboundOrders();
-    }, 8000);
 
-    const sheetTimer = setInterval(() => {
-      // Google Sheets auto-sync is controlled on demand or at longer interval
-      // checkGoogleSheetsAutoSync();
-    }, 60000);
-
-    return () => {
-      clearInterval(timer);
-      clearInterval(sheetTimer);
-    };
-  }, [checkGoogleSheetsAutoSync]);
 
   // 15. Direct stage transition for Kanban Drag & Drop
   const moveOrderStage = (orderId: string, targetStage: LifecycleStage) => {
@@ -654,12 +658,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   };
 
-  // Periodic polling for incoming Google Sheet orders (every 6 seconds)
-  useEffect(() => {
-    refreshInboundOrders();
-    const interval = setInterval(refreshInboundOrders, 6000);
-    return () => clearInterval(interval);
-  }, []);
+
 
   return (
     <OrderLifecycleContext.Provider

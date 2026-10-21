@@ -98,8 +98,11 @@ export default function WhatsAppInboxPage() {
 
   useEffect(() => {
     fetchConversations();
-    // Poll every 3.5s for live incoming messages from WhatsApp
-    const timer = setInterval(fetchConversations, 3500);
+    // Poll every 4s for live incoming messages from WhatsApp (only when tab is visible)
+    const timer = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      fetchConversations();
+    }, 4000);
     return () => clearInterval(timer);
   }, [selectedChatId]);
 

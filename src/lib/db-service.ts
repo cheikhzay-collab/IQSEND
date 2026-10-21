@@ -61,35 +61,49 @@ export function mapDbStatusToStage(status: string, storeSource?: string): Lifecy
   }
 }
 
+// In-memory cache for ultra-fast response (< 1ms vs ~400ms remote MySQL roundtrip)
+let ordersCache: { data: LifecycleOrder[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 5000; // 5 seconds cache
+
+export function invalidateOrdersCache() {
+  ordersCache = null;
+}
+
 /**
  * 1. Fetch all orders from MySQL database (order_leads + order_items + shipment_details)
  */
-export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
+export async function getOrdersFromDb(forceFresh: boolean = false): Promise<LifecycleOrder[]> {
   try {
-    const pool = getMysqlPool();
-
-    // Fetch leads
-    const [leads]: any = await pool.execute(`
-      SELECT 
-        l.*,
-        s.carrier,
-        s.sendit_tracking_number,
-        s.status as shipment_status,
-        s.waybill_url,
-        s.delivery_proof_url
-      FROM order_leads l
-      LEFT JOIN shipment_details s ON l.id = s.order_id
-      ORDER BY l.created_at DESC
-    `);
-
-    if (!Array.isArray(leads) || leads.length === 0) {
-      return [];
+    if (!forceFresh && ordersCache && Date.now() - ordersCache.timestamp < CACHE_TTL_MS) {
+      return ordersCache.data;
     }
 
-    // Fetch items for all leads
-    const [items]: any = await pool.execute(`
-      SELECT * FROM order_items
-    `);
+    const pool = getMysqlPool();
+
+    // Fetch leads and items concurrently in parallel
+    const [leadsRes, itemsRes]: any = await Promise.all([
+      pool.execute(`
+        SELECT 
+          l.*,
+          s.carrier,
+          s.sendit_tracking_number,
+          s.status as shipment_status,
+          s.waybill_url,
+          s.delivery_proof_url
+        FROM order_leads l
+        LEFT JOIN shipment_details s ON l.id = s.order_id
+        ORDER BY l.created_at DESC
+      `),
+      pool.execute(`SELECT * FROM order_items`),
+    ]);
+
+    const leads = leadsRes[0];
+    const items = itemsRes[0];
+
+    if (!Array.isArray(leads) || leads.length === 0) {
+      ordersCache = { data: [], timestamp: Date.now() };
+      return [];
+    }
 
     const itemsByOrderId: Record<string, any[]> = {};
     if (Array.isArray(items)) {
@@ -101,7 +115,7 @@ export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
       });
     }
 
-    return leads.map((lead: any): LifecycleOrder => {
+    const mappedOrders: LifecycleOrder[] = leads.map((lead: any): LifecycleOrder => {
       const orderItems = itemsByOrderId[lead.id] || [];
       let stage = mapDbStatusToStage(lead.status, lead.store_source);
       
@@ -178,6 +192,9 @@ export async function getOrdersFromDb(): Promise<LifecycleOrder[]> {
         },
       };
     });
+
+    ordersCache = { data: mappedOrders, timestamp: Date.now() };
+    return mappedOrders;
   } catch (error) {
     console.error('[DB Service] Error fetching orders from DB:', error);
     return [];
@@ -282,6 +299,7 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
       );
     }
 
+    invalidateOrdersCache();
     return true;
   } catch (error) {
     console.error('[DB Service] Error saving order to DB:', error);
@@ -318,6 +336,7 @@ export async function updateOrderStageInDb(orderId: string, stage: LifecycleStag
       );
     }
 
+    invalidateOrdersCache();
     return true;
   } catch (error) {
     console.error('[DB Service] Error updating order stage in DB:', error);
