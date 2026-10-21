@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { UserPermissions, DEFAULT_ROLE_PERMISSIONS, TeamMemberDto, AuthUser } from '@/types/rbac';
 export type { AuthUser };
 
@@ -9,6 +10,9 @@ interface AuthContextType {
   allUsers: AuthUser[];
   isLoading: boolean;
   isLiveDb: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<{ success: boolean; error?: string; user?: AuthUser }>;
+  logout: () => Promise<void>;
   switchUser: (userId: string) => void;
   refreshUsers: () => Promise<void>;
   hasPermission: (perm: keyof UserPermissions) => boolean;
@@ -23,6 +27,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY = 'iqsend_active_user_id';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
   const [allUsers, setAllUsers] = useState<AuthUser[]>([]);
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,15 +41,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAllUsers(data.members);
         setIsLiveDb(true);
 
-        // Determine current active user
         const savedId = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
         let selected: AuthUser | undefined;
 
         if (savedId) {
           selected = data.members.find((m: AuthUser) => m.id === savedId);
         }
+
+        // If not found in localStorage, check session from cookie
         if (!selected) {
-          selected = data.members.find((m: AuthUser) => m.role === 'ADMIN') || data.members[0];
+          try {
+            const meRes = await fetch('/api/auth/me', { cache: 'no-store' });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              if (meData.success && meData.user) {
+                selected = data.members.find((m: AuthUser) => m.id === meData.user.id) || meData.user;
+              }
+            }
+          } catch {}
         }
 
         if (selected) {
@@ -52,6 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (typeof window !== 'undefined') {
             localStorage.setItem(LOCAL_STORAGE_KEY, selected.id);
           }
+        } else {
+          setCurrentUser(null);
         }
       }
     } catch (err) {
@@ -65,6 +81,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchUsers();
   }, [fetchUsers]);
 
+  const login = useCallback(async (email: string, password: string) => {
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+
+      if (data.success && data.user) {
+        setCurrentUser(data.user);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(LOCAL_STORAGE_KEY, data.user.id);
+        }
+        await fetchUsers();
+        return { success: true, user: data.user };
+      } else {
+        return { success: false, error: data.error || 'Identifiants incorrects' };
+      }
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Erreur de connexion au serveur' };
+    }
+  }, [fetchUsers]);
+
+  const logout = useCallback(async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+    } catch {}
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+    }
+    setCurrentUser(null);
+    router.push('/login');
+  }, [router]);
+
   const switchUser = useCallback((userId: string) => {
     const user = allUsers.find((u) => u.id === userId);
     if (user) {
@@ -77,7 +128,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const hasPermission = useCallback((perm: keyof UserPermissions): boolean => {
     if (!currentUser) return false;
-    // ADMIN has bypass for everything by default, but still honors specific permission flags if explicitly set
     if (currentUser.role === 'ADMIN') return true;
     return Boolean(currentUser.permissions?.[perm]);
   }, [currentUser]);
@@ -86,7 +136,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!currentUser) return false;
     if (currentUser.role === 'ADMIN') return true;
 
-    // Exact or prefix route matches
     if (pathname === '/dashboard' || pathname === '/dashboard/') {
       return Boolean(currentUser.permissions?.canAccessDashboard ?? true);
     }
@@ -206,6 +255,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         allUsers,
         isLoading,
         isLiveDb,
+        isAuthenticated: Boolean(currentUser),
+        login,
+        logout,
         switchUser,
         refreshUsers: fetchUsers,
         hasPermission,

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   ShoppingBag,
@@ -38,7 +38,9 @@ import {
   RotateCcw,
   Shield,
   ShieldCheck,
-  UserCheck
+  UserCheck,
+  LogOut,
+  Power
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { useAuth } from '@/context/AuthContext';
@@ -47,6 +49,7 @@ import { AccessDeniedScreen } from '@/components/layout/AccessDeniedScreen';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
@@ -63,7 +66,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     clearToast,
   } = useOrderLifecycle();
 
-  const { currentUser, hasPermission, canAccessRoute } = useAuth();
+  const { currentUser, hasPermission, canAccessRoute, logout, isLoading } = useAuth();
+
+  // Redirect to login if user is not authenticated
+  useEffect(() => {
+    if (!isLoading && !currentUser) {
+      router.push('/login');
+    }
+  }, [isLoading, currentUser, router]);
 
   const isOrdersActive =
     pathname === '/dashboard/orders' ||
@@ -183,13 +193,39 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </span>
           </button>
 
-          {/* Workspace Selector */}
-          <div className="flex items-center gap-2 pl-3 border-l border-slate-200 cursor-pointer hover:opacity-80 transition-opacity">
-            <div className="w-6 h-6 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
-              AT
+          {/* Top Header User Profile & Logout */}
+          <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
+            <div className="flex items-center gap-2">
+              {currentUser?.avatarUrl ? (
+                <img
+                  src={currentUser.avatarUrl}
+                  alt={currentUser.name}
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-teal-500/20"
+                />
+              ) : (
+                <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
+                  {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                </div>
+              )}
+              <div className="hidden lg:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px]">
+                  {currentUser?.name || 'Admin'}
+                </span>
+                <span className="text-[9px] font-bold text-teal-600 uppercase tracking-wider">
+                  {currentUser?.role === 'ADMIN' ? 'Directeur Admin' : currentUser?.role || 'Agent'}
+                </span>
+              </div>
             </div>
-            <span className="text-xs font-black text-slate-800">ATLAS</span>
-            <ChevronDown className="w-3 h-3 text-slate-400" />
+
+            {/* Top Logout Button */}
+            <button
+              onClick={() => logout()}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200/80 transition-all cursor-pointer shadow-2xs active:scale-95 group"
+              title="تسجيل الخروج • Déconnexion"
+            >
+              <LogOut className="w-3.5 h-3.5 text-rose-500 group-hover:text-white transition-colors" />
+              <span className="hidden sm:inline">خروج</span>
+            </button>
           </div>
         </div>
       </header>
@@ -556,9 +592,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Drawer Footer */}
-            {hasPermission('canAccessSettings') && (
-              <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+            {/* Drawer Footer with Settings & Logout */}
+            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+              {hasPermission('canAccessSettings') && (
                 <Link
                   href="/dashboard/settings"
                   onClick={() => setMobileMenuOpen(false)}
@@ -567,8 +603,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Settings className="w-4 h-4 text-slate-500" />
                   <span>Paramètres & Passerelles</span>
                 </Link>
-              </div>
-            )}
+              )}
+
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  logout();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200/80 transition-all cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>تسجيل الخروج (Déconnexion)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -993,6 +1040,40 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <span>Paramètres</span>
               </Link>
             )}
+
+            {/* Active User Card & Dedicated Logout Button in Sidebar */}
+            <div className="pt-2 border-t border-slate-200/60 space-y-2">
+              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-300"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
+                    {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                  </div>
+                )}
+                <div className="flex-1 min-w-0 text-left">
+                  <div className="text-xs font-bold text-slate-900 truncate">
+                    {currentUser?.name || 'Administrateur'}
+                  </div>
+                  <div className="text-[10px] text-slate-500 truncate font-mono">
+                    {currentUser?.email || 'admin@sendit.ma'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => logout()}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-white bg-rose-50 hover:bg-rose-600 border border-rose-200/80 transition-all cursor-pointer shadow-2xs group"
+                title="تسجيل الخروج من الحساب"
+              >
+                <LogOut className="w-4 h-4 text-rose-500 group-hover:text-white transition-colors" />
+                <span>تسجيل الخروج (Déconnexion)</span>
+              </button>
+            </div>
           </div>
 
         </aside>
