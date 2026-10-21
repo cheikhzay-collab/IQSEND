@@ -403,6 +403,74 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
       },
     ],
   },
+  {
+    id: 'prod-7',
+    name: 'Babouche Marocaine en Cuir Véritable Cousue Main',
+    nameAr: 'خف جلد مغربي تقليدي أصلي خياطة اليد',
+    sku: 'BAB-LTHR-TRAD-179',
+    category: 'Chaussures & Artisanat',
+    image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&auto=format&fit=crop&q=80',
+    additionalImages: [
+      'https://images.unsplash.com/photo-1560769629-975ec94e6a86?w=600&auto=format&fit=crop&q=80',
+    ],
+    sellingPrice: 179,
+    costPrice: 55,
+    deliveryFee: 35,
+    totalStock: 85,
+    hubs: { casablanca: 40, fes: 25, marrakech: 15, tanger: 5 },
+    status: 'IN_STOCK',
+    pendingOrders: 12,
+    descriptionAr: 'خف وبلغة مغربية تقليدية مصنوعة 100% من الجلد الطبيعي المدبوغ أصيل، خياطة يدوية متقنة بنعل مريح ومقاوم، مناسبة للمناسبات والأعياد والاستعمال اليومي المريح.',
+    keywords: [
+      'خف', 'خف جلد', 'بلغة', 'بلغة جلد', 'شربيل', 'babouche', 'babouches', 'cuir',
+      'جلد', 'جلد طبيعي', 'خف مغربي', 'بلغة فاسية', 'بلغة مراكشية', 'خفاف'
+    ],
+    variants: [
+      {
+        type: 'size',
+        name: 'المقاس (Pointure)',
+        options: ['40', '41', '42', '43', '44', '45'],
+      },
+      {
+        type: 'color',
+        name: 'اللون (Couleur)',
+        options: ['Jaune Royal (أصفر ملكي)', 'Marron Cuir (بني طبيعي)', 'Noir (أسود)', 'Blanc (أبيض)'],
+      },
+    ],
+    offers: [
+      {
+        id: 'off-bab-1',
+        title: 'زوج واحد (1 Paire)',
+        quantity: 1,
+        priceMad: 179,
+        isDefault: true,
+      },
+      {
+        id: 'off-bab-2',
+        title: 'عرض زوجين (Pack 2 Paires)',
+        quantity: 2,
+        priceMad: 299,
+        discountPercent: 16,
+        badge: 'توفير 59 درهم + شحن مخفض',
+      },
+    ],
+    agentInstructions: 'أكد للزبون أن الخف مصنوع من الجلد الطبيعي الأصلي 100% مع نعل مريح، ويمكنه فتح العلبة وتجربة القياس ومعاينة الجلد مع موزع Sendit قبل دفع الـ 179 درهم.',
+    sellingPoints: [
+      'جلد طبيعي 100% خياطة يدوية تقليدية متينة',
+      'نعل طبي مريح جداً خفيف على القدم',
+      'الدفع نقداً عند الاستلام بعد فتح الكولية والمعاينة',
+    ],
+    objectionFaqs: [
+      {
+        question: 'واش نقدر نقيس الخف عاد نخلص؟',
+        answer: 'أكيد أخي الكريم! مع Sendit عندك كامل الحق تفتح الكولية وتفحص جودة الجلد وتقيس عاد تخلص الموزع نقداً.',
+      },
+      {
+        question: 'واش جلد طبيعي ولا صكلي / سكايل؟',
+        answer: 'جلد طبيعي 100% أصلي مدبوغ ومخيط باليد، كتحس بريحة ونعومة الجلد الحقيقي.',
+      },
+    ],
+  },
 ];
 
 const globalForProducts = globalThis as unknown as {

@@ -193,8 +193,8 @@ export async function startBaileysService(): Promise<void> {
     });
 
     currentSocket.ev.on('messages.upsert', async (m: any) => {
-      // Only process live incoming messages (skip history sync, read receipts, and appends)
-      if (m.type !== 'notify' || !m.messages || m.messages.length === 0) return;
+      // Process incoming messages (both 'notify' and 'append' to prevent message drop on reconnection)
+      if (!m.messages || m.messages.length === 0) return;
 
       const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
 
@@ -306,7 +306,11 @@ export async function startBaileysService(): Promise<void> {
           continue;
         }
 
-        const incomingText = (
+        // Check if message is a Voice Note or Audio
+        const isAudio = Boolean(unwrap.audioMessage);
+        const isImage = Boolean(unwrap.imageMessage);
+
+        let incomingText = (
           unwrap.conversation ||
           unwrap.extendedTextMessage?.text ||
           unwrap.buttonsResponseMessage?.selectedDisplayText ||
@@ -319,6 +323,13 @@ export async function startBaileysService(): Promise<void> {
           unwrap.videoMessage?.caption ||
           ''
         ).trim();
+
+        // If audio message without explicit text, provide clear voice placeholder so agent processes it
+        if (!incomingText && isAudio) {
+          incomingText = '[رسالة صوتية من الزبون]';
+        } else if (!incomingText && isImage) {
+          incomingText = '[صورة من الزبون]';
+        }
 
         if (!incomingText) continue;
 

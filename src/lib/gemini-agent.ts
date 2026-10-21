@@ -28,7 +28,7 @@ export function getEffectiveGeminiKey(): string {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15 && !data.apiKey.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
+      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15) {
         const cleaned = data.apiKey.trim();
         process.env.GEMINI_API_KEY = cleaned;
         if (data.model) process.env.GEMINI_MODEL_NAME = data.model;
