@@ -26,6 +26,10 @@ const isExcludedModel = (name: string): boolean => {
  */
 async function resolveWorkingGeminiModel(apiKey: string): Promise<string> {
   const standardPriority = [
+    'gemini-2.5-flash',
+    'gemini-2.5-pro',
+    'gemini-flash-latest',
+    'gemini-2.5-flash-lite',
     'gemini-1.5-flash',
     'gemini-1.5-flash-8b',
     'gemini-1.5-flash-latest',

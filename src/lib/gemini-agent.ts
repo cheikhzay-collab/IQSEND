@@ -39,7 +39,7 @@ export function getEffectiveGeminiKey(): string {
     // Ignore read errors
   }
 
-  return '';
+  return 'AIzaSyBxbQA8H5E9RnmkUs_s7tAC7yBzjFAiWC0';
 }
 
 export function getEffectiveGeminiModel(): string {
@@ -57,7 +57,7 @@ export function getEffectiveGeminiModel(): string {
     }
   } catch (e) {}
 
-  return 'gemini-1.5-flash-latest';
+  return 'gemini-2.5-flash';
 }
 
 /**

@@ -106,7 +106,20 @@ export async function POST(request: Request) {
             riskScore: 5,
             notes: 'Confirmé directement par le client via bouton interactif WhatsApp',
           };
+          order.stage = 'CONFIRMED';
         }
+        try {
+          const pool = getMysqlPool();
+          await pool.execute(
+            `UPDATE order_leads 
+             SET status = 'CONFIRMED', 
+                 ai_confirmation_status = 'CONFIRMED', 
+                 notes = CONCAT(IFNULL(notes, ''), ' [تأكيد عبر زر واتساب التفاعلي]'),
+                 updated_at = CURRENT_TIMESTAMP 
+             WHERE id = ? OR phone_number LIKE ?`,
+            [order?.id || '', `%${cleanedFrom.slice(-9)}%`]
+          );
+        } catch (dbErr) {}
         const reply = `شكراً بزاف ليك أخي${order?.customer?.name ? ` ${order.customer.name}` : ''}! الطلب ديالك تأكد بنجاح وغادي يدوز دابا للتجهيز والتغليف. 📦
 باش يوصل الموزع عندك بالزربة وبدون تعثر، عفاك صيفط لينا اللوكاسيون (Location Pin) ديالك عبر هاد المحادثة 📍👇`;
         await sendWhatsAppMessage(rawFrom, reply);

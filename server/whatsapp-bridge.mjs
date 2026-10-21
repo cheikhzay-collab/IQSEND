@@ -255,10 +255,7 @@ async function startBaileys() {
         // Forward inbound message directly to Next.js webhook to trigger AI Agent
         try {
           const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-          await fetch(`${appUrl}/api/whatsapp/webhook`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
+          const postPayload = JSON.stringify({
               entry: [
                 {
                   changes: [
@@ -288,10 +285,31 @@ async function startBaileys() {
                   ],
                 },
               ],
-            }),
-          });
+            });
+
+          let webhookSuccess = false;
+          try {
+            const localRes = await fetch(`${appUrl}/api/whatsapp/webhook`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: postPayload,
+            });
+            if (localRes.ok) webhookSuccess = true;
+          } catch (localErr) {
+            // Local Next.js not running
+          }
+
+          if (!webhookSuccess && !appUrl.includes('hostingersite.com')) {
+            try {
+              await fetch('https://lawngreen-jaguar-315438.hostingersite.com/api/whatsapp/webhook', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: postPayload,
+              });
+            } catch (liveErr) {}
+          }
         } catch (webhookErr) {
-          console.warn('[WhatsApp Bridge] Note: could not forward to local Next.js webhook:', webhookErr.message);
+          console.warn('[WhatsApp Bridge] Forwarding warning:', webhookErr.message);
         }
       }
     });
