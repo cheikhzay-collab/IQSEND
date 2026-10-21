@@ -425,6 +425,179 @@ export class SenditLogisticsService {
   }
 
   // ──────────────────────────────────────────
+  //  2cc. GET /deliveries — جلب قائمة الكوليات بالكامل من Sendit.ma
+  // ──────────────────────────────────────────
+
+  /**
+   * جلب الكوليات والطلبات من Sendit.ma مع دعم الترقيم والبحث
+   */
+  async getDeliveries(options?: {
+    page?: number;
+    querystring?: string;
+    status?: string;
+  }): Promise<{
+    success: boolean;
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+    data: any[];
+  }> {
+    try {
+      const headers = await this.authHeaders();
+      const page = options?.page || 1;
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      if (options?.querystring) params.set('querystring', options.querystring);
+      if (options?.status) params.set('status', options.status);
+
+      const url = `${this.apiBaseUrl}/deliveries?${params.toString()}`;
+      const res = await fetch(url, { headers, cache: 'no-store' });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch deliveries: HTTP ${res.status}`);
+      }
+
+      const resJson = await res.json();
+      return {
+        success: true,
+        total: Number(resJson.total) || (Array.isArray(resJson.data) ? resJson.data.length : 0),
+        per_page: Number(resJson.per_page) || 50,
+        current_page: Number(resJson.current_page) || page,
+        last_page: Number(resJson.last_page) || 1,
+        data: Array.isArray(resJson.data) ? resJson.data : [],
+      };
+    } catch (err: any) {
+      console.error('[Sendit Service] getDeliveries error:', err.message);
+      return {
+        success: false,
+        total: 0,
+        per_page: 50,
+        current_page: 1,
+        last_page: 1,
+        data: [],
+      };
+    }
+  }
+
+  /**
+   * مزامنة حية وشاملة لكافة الكوليات من حساب Sendit.ma إلى قاعدة بيانات المنصة (Hostinger MySQL)
+   * يقوم بإدخال/تحديث order_leads و shipment_details تلقائياً
+   */
+  async syncDeliveriesToDatabase(options?: { maxPages?: number }): Promise<{
+    success: boolean;
+    syncedCount: number;
+    totalOnSendit: number;
+    message: string;
+  }> {
+    try {
+      // 1. جلب الصفحة الأولى لمعرفة إجمالي الصفحات
+      const p1 = await this.getDeliveries({ page: 1 });
+      if (!p1.success || !Array.isArray(p1.data)) {
+        return {
+          success: false,
+          syncedCount: 0,
+          totalOnSendit: 0,
+          message: 'تعذر الاتصال بخوادم Sendit.ma أو التحقق من المفاتيح',
+        };
+      }
+
+      let allDeliveries = [...p1.data];
+      const maxPages = options?.maxPages || 20; // limit safety
+      const lastPage = Math.min(p1.last_page, maxPages);
+
+      // 2. جلب باقي الصفحات
+      for (let p = 2; p <= lastPage; p++) {
+        const pageRes = await this.getDeliveries({ page: p });
+        if (pageRes.success && Array.isArray(pageRes.data)) {
+          allDeliveries = allDeliveries.concat(pageRes.data);
+        }
+      }
+
+      // 3. كتابة البيانات في Hostinger MySQL
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+
+      let syncedCount = 0;
+
+      for (const item of allDeliveries) {
+        const code = item.code;
+        if (!code) continue;
+
+        const leadId = `snd-${code}`;
+        const name = item.name || 'Client Sendit';
+        const phone = item.phone || '';
+        const city = item.district?.ville || item.district?.name || item.district?.arabic_name || 'Maroc';
+        const address = item.address || (item.district?.ville ? `Ville: ${item.district.ville}` : 'Maroc');
+        const amount = Number(item.amount) || 0;
+        const rawStatus = (item.status || 'DELIVERING').toUpperCase().trim();
+        const mappedStatus = this.mapSenditStatus(rawStatus);
+        const waybill = `https://app.sendit.ma/signed-files/labels_${code}.pdf`;
+        const fee = Number(item.fee) || 35;
+        const lastAction = item.last_action_at ? new Date(item.last_action_at) : new Date();
+        const createdAt = item.created_at ? new Date(item.created_at) : new Date();
+
+        // حفظ / تحديث الطلب في order_leads
+        await pool.execute(
+          `INSERT INTO order_leads 
+             (id, order_number, customer_name, phone_number, city, address, total_amount, status, store_source, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SENDIT_SYNC', ?, ?)
+           ON DUPLICATE KEY UPDATE
+             status = VALUES(status),
+             total_amount = VALUES(total_amount),
+             updated_at = NOW()`,
+          [leadId, code, name, phone, city, address, amount, mappedStatus, createdAt, lastAction]
+        );
+
+        // حفظ / تحديث معلومات الشحن في shipment_details
+        await pool.execute(
+          `INSERT INTO shipment_details 
+             (id, order_id, carrier, sendit_tracking_number, status, waybill_url, shipping_fee, last_status_update_at, created_at, updated_at)
+           VALUES (CONCAT('ship-', ?), ?, 'Sendit.ma Express', ?, ?, ?, ?, ?, ?, NOW())
+           ON DUPLICATE KEY UPDATE
+             status = VALUES(status),
+             sendit_tracking_number = VALUES(sendit_tracking_number),
+             waybill_url = VALUES(waybill_url),
+             shipping_fee = VALUES(shipping_fee),
+             last_status_update_at = VALUES(last_status_update_at),
+             updated_at = NOW()`,
+          [leadId, leadId, code, mappedStatus, waybill, fee, lastAction, createdAt]
+        );
+
+        syncedCount++;
+      }
+
+      // 4. إشعار الـ Realtime Hub بحدوث المزامنة
+      try {
+        const { realtimeHub } = await import('@/lib/realtime-events');
+        realtimeHub.broadcast({
+          eventType: 'SHIPMENT_STATUS_UPDATED',
+          entityType: 'PARCEL',
+          entityId: 'ALL_SYNC',
+          title: `Mise à jour Sendit: ${syncedCount} colis synchronisés`,
+          payload: { syncedCount, totalOnSendit: p1.total },
+          source: 'SENDIT_SERVICE',
+        }).catch(() => {});
+      } catch {}
+
+      return {
+        success: true,
+        syncedCount,
+        totalOnSendit: p1.total,
+        message: `تمت مزامنة ${syncedCount} طلب بنجاح من أصل ${p1.total} كولي في Sendit.ma`,
+      };
+    } catch (err: any) {
+      console.error('[Sendit Service] syncDeliveriesToDatabase error:', err);
+      return {
+        success: false,
+        syncedCount: 0,
+        totalOnSendit: 0,
+        message: `خطأ أثناء المزامنة: ${err.message}`,
+      };
+    }
+  }
+
+  // ──────────────────────────────────────────
   //  2d. POST /deliveries/getlabels — طباعة الوصول
   // ──────────────────────────────────────────
 

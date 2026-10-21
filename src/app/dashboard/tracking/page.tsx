@@ -140,10 +140,32 @@ export default function TrackingPage() {
   const [selectedOrder, setSelectedOrder] = useState<TrackingOrder | null>(null);
   const [isDrawerOpen, setIsDrawerOpen]   = useState(false);
   const [isLoading, setIsLoading]         = useState(true);
+  const [isSyncing, setIsSyncing]         = useState(false);
   const [isLiveDb, setIsLiveDb]           = useState(false);
   const [lastLiveUpdate, setLastLiveUpdate] = useState<LiveTrackingUpdate | null>(null);
   // Track which order ids just got a live update (for animation)
   const [flashedOrders, setFlashedOrders]  = useState<Set<string>>(new Set());
+
+  // ── مزامنة الطلبات مباشرة من حساب Sendit.ma ─────────────────
+  const syncWithSendit = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      showToast('جاري الاتصال بـ Sendit.ma ومزامنة الكوليات...', 'info');
+      const res = await fetch('/api/tracking/sync', { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || `تم جلب ${data.syncedCount} طلب من Sendit.ma بنجاح!`, 'success');
+        await fetchOrders();
+      } else {
+        showToast(data.error || 'تعذر استكمال المزامنة مع Sendit.ma', 'error');
+      }
+    } catch (err: any) {
+      showToast(`خطأ في المزامنة: ${err.message}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // ── SSE: real-time Sendit updates ──────────────────────────
   const handleLiveUpdate = useCallback((update: LiveTrackingUpdate) => {
@@ -417,8 +439,18 @@ export default function TrackingPage() {
             </div>
 
             <button
+              onClick={syncWithSendit}
+              disabled={isSyncing || isLoading}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-xs hover:from-blue-700 hover:to-indigo-700 active:scale-98 transition-all shrink-0 disabled:opacity-50"
+              title="جلب ومزامنة كافة الطلبات والكوليات الحية مباشرة من حساب Sendit.ma"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+              <span>{isSyncing ? 'جاري المزامنة…' : '🔄 مزامنة Sendit.ma'}</span>
+            </button>
+
+            <button
               onClick={fetchOrders}
-              disabled={isLoading}
+              disabled={isLoading || isSyncing}
               className="p-2 border border-slate-200/90 rounded-xl bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-colors shrink-0"
               title="Actualiser depuis la base de données"
             >
