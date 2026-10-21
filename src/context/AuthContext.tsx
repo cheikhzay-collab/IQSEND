@@ -36,6 +36,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchUsers = useCallback(async () => {
     try {
       const res = await fetch('/api/team', { cache: 'no-store' });
+      if (!res.ok) {
+        console.warn('[AuthContext] /api/team returned', res.status, '– skipping user fetch');
+        setIsLoading(false);
+        return;
+      }
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        console.warn('[AuthContext] /api/team returned non-JSON response – skipping user fetch');
+        setIsLoading(false);
+        return;
+      }
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
         setAllUsers(data.members);
@@ -52,7 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!selected) {
           try {
             const meRes = await fetch('/api/auth/me', { cache: 'no-store' });
-            if (meRes.ok) {
+            if (meRes.ok && (meRes.headers.get('content-type') || '').includes('application/json')) {
               const meData = await meRes.json();
               if (meData.success && meData.user) {
                 selected = data.members.find((m: AuthUser) => m.id === meData.user.id) || meData.user;
@@ -88,6 +99,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('[AuthContext] Login API returned non-JSON:', text.slice(0, 200));
+        return { success: false, error: `Erreur serveur (${res.status}) – L'API de connexion est indisponible. Vérifiez la configuration du serveur.` };
+      }
       const data = await res.json();
 
       if (data.success && data.user) {
