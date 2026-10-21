@@ -277,12 +277,13 @@ export function cleanGeminiReply(raw: string): string {
   if (!raw) return '';
   let text = raw.trim();
 
-  // Strip any explicit thinking or thought tags
-  text = text.replace(/<(thought|thinking)>[\s\S]*?<\/(thought|thinking)>/gi, '');
-  text = text.replace(/```(?:thought|thinking)[\s\S]*?```/gi, '');
+  // 1. Strip explicit thinking or reasoning tags
+  text = text.replace(/<(thought|thinking|reasoning)>[\s\S]*?<\/(thought|thinking|reasoning)>/gi, '');
+  text = text.replace(/```(?:thought|thinking|reasoning)[\s\S]*?```/gi, '');
 
   const lines = text.split('\n');
   const cleaned: string[] = [];
+  let isInsideThinkingBlock = false;
   let messageStarted = false;
 
   for (let i = 0; i < lines.length; i++) {
@@ -292,43 +293,26 @@ export function cleanGeminiReply(raw: string): string {
       continue;
     }
 
-    if (!messageStarted) {
-      // Check if line is clearly English planning/meta text
-      const isEnglishMeta =
-        /^(?:the user|the closest|looking at|plan:|analysis:|thought:|note:|here is|output:)/i.test(line) ||
-        /^[-*•]\s+.*(?:\d+\s*MAD|\d+\s*درهم)/i.test(line);
+    // Detect thinking block markers
+    if (/^(?:\*{1,2})?(?:Thinking Process|Thinking|Thoughts?|Reasoning|Internal Monologue|Plan|Analysis|مراحل التفكير|تحليل الطلب|خطة الرد)(?:\*{1,2})?:?/i.test(line)) {
+      isInsideThinkingBlock = true;
+      continue;
+    }
 
-      if (isEnglishMeta) {
-        continue;
-      }
+    if (isInsideThinkingBlock || !messageStarted) {
+      const arabicChars = (line.match(/[\u0600-\u06FF]/g) || []).length;
+      const isArabicLine = arabicChars >= 3;
+      const isFrenchGreeting = /^(?:bonjour|bonsoir|salut|merci|cher|chère|oui|non|d['’]accord|salam|ahlan)/i.test(line);
 
-      // Check for numbered plan steps like "1. Acknowledge...", "5. Remind them..."
-      const isNumberedStep = /^\d+[\.\)]\s+[A-Za-z]/.test(line);
-      if (isNumberedStep) {
-        const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي|bonjour|bonsoir|salut|merci|cher|chère)/i);
-        if (greetingMatch !== -1) {
-          const cut = line.slice(greetingMatch).trim();
-          if (cut.length > 5) {
-            cleaned.push(cut);
-            messageStarted = true;
-          }
-        }
-        continue;
-      }
-
-      // Check if line starts with Arabic or French greeting / customer reply
-      const firstChar = line.charAt(0);
-      if (/[\u0600-\u06FF]/.test(firstChar) || /^(?:bonjour|bonsoir|salut|merci|chere?|oui|non|d['’]accord|salam)/i.test(line)) {
+      if (isArabicLine || isFrenchGreeting) {
+        isInsideThinkingBlock = false;
+        messageStarted = true;
         cleaned.push(line);
-        messageStarted = true;
         continue;
       }
 
-      // If line contains an Arabic or French greeting
-      const greetingMatch = line.search(/(مرحبا|سلام|أهلاً|اهلا|وعليكم|تبارك الله|على الراس|شكراً|أكيد|خويا|أخي|أختي|bonjour|bonsoir|salut|merci|cher|chère)/i);
-      if (greetingMatch !== -1) {
-        cleaned.push(line.slice(greetingMatch).trim());
-        messageStarted = true;
+      // Skip numbered reasoning steps or English planning text
+      if (/^(?:\d+[\.\)]|[-*•])\s+/i.test(line) || /^[A-Za-z0-9\s,.:'"()_-]+$/.test(line)) {
         continue;
       }
     } else {
@@ -337,7 +321,10 @@ export function cleanGeminiReply(raw: string): string {
   }
 
   const result = cleaned.join('\n').trim();
-  return result || text;
+  if (result) return result;
+
+  const arabicOnly = lines.filter(l => (l.match(/[\u0600-\u06FF]/g) || []).length >= 2).join('\n').trim();
+  return arabicOnly || text;
 }
 
 /**
@@ -470,6 +457,8 @@ export async function processCustomerWhatsAppMessage(
       systemInstruction: systemInstruction,
       generationConfig: {
         temperature: 0.3,
+        // @ts-ignore
+        thinkingConfig: { thinkingBudget: 0 },
       },
       tools: [
         {
@@ -502,7 +491,13 @@ export async function processCustomerWhatsAppMessage(
 
     let replyText = '';
     try {
-      replyText = response.response.text();
+      const candidateParts = candidate?.content?.parts || [];
+      const nonThoughtParts = candidateParts.filter((p: any) => !p.thought && p.text);
+      if (nonThoughtParts.length > 0) {
+        replyText = nonThoughtParts.map((p: any) => p.text).join('\n');
+      } else {
+        replyText = response.response.text();
+      }
     } catch {
       // function call only
     }
@@ -1410,6 +1405,8 @@ export async function processCustomerImage(
       systemInstruction: systemPrompt,
       generationConfig: {
         temperature: 0.25,
+        // @ts-ignore
+        thinkingConfig: { thinkingBudget: 0 },
       },
       tools: [
         {
