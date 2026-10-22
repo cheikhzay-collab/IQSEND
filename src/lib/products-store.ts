@@ -512,14 +512,42 @@ export function syncStoreWithDbProducts(dbProducts: ProductItem[]): void {
 export function findProductByNameOrKeyword(query: string): ProductItem | undefined {
   if (!query) return undefined;
   const q = query.toLowerCase().trim();
+  if (q.length < 2) return undefined;
+
+  // Generic words that must never trigger a product match
+  const genericWords = [
+    'تصويرة', 'تصاور', 'صورة', 'صور', 'برودوي', 'سلعة', 'منتج', 'منتوج', 'واش', 'كاين', 
+    'فين', 'شحال', 'بشحال', 'بغيت', 'عفاك', 'سلام', 'photo', 'image', 'photos', 'images', 
+    'produit', 'produits', 'article', 'articles', 'catalogue', 'prix', 'شوف', 'وريني'
+  ];
+  if (genericWords.includes(q)) return undefined;
+
   const products = getProducts();
 
-  // 1. Direct name match
-  const exact = products.find((p) => p.name.toLowerCase().includes(q) || p.nameAr.toLowerCase().includes(q));
-  if (exact) return exact;
+  // 1. Direct SKU match
+  const bySku = products.find((p) => p.sku && p.sku.toLowerCase() === q);
+  if (bySku) return bySku;
 
-  // 2. Keyword match
-  return products.find((p) => p.keywords.some((kw) => q.includes(kw.toLowerCase()) || kw.toLowerCase().includes(q)));
+  // 2. Direct name match
+  if (q.length >= 3) {
+    const exact = products.find(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        p.nameAr.toLowerCase().includes(q) ||
+        q.includes(p.name.toLowerCase()) ||
+        q.includes(p.nameAr.toLowerCase())
+    );
+    if (exact) return exact;
+  }
+
+  // 3. Keyword matching (tokens must be meaningful and not generic)
+  const cleanTokens = q.split(/[\s,،.!?؛\-]+/).filter((w) => w.length >= 3 && !genericWords.includes(w));
+  return products.find((p) =>
+    p.keywords.some((kw) => {
+      const lowerKw = kw.toLowerCase();
+      return cleanTokens.some((token) => token === lowerKw || token.includes(lowerKw)) || q.includes(lowerKw);
+    })
+  );
 }
 
 export function formatProductListForWhatsApp(): string {

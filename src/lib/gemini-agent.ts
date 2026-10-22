@@ -180,7 +180,7 @@ export const checkOrderStatusDeclaration: FunctionDeclaration = {
 
 export const createNewOrderDeclaration: FunctionDeclaration = {
   name: 'create_new_order',
-  description: 'Take and save a brand new customer order directly from the WhatsApp conversation.',
+  description: 'Take and save a brand new customer order directly from the WhatsApp conversation. STRICT RULE: The product requested MUST be an item from the store catalog list. NEVER create orders for items not sold in the store.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
@@ -188,7 +188,7 @@ export const createNewOrderDeclaration: FunctionDeclaration = {
       phone: { type: SchemaType.STRING, description: 'Moroccan phone number' },
       city: { type: SchemaType.STRING, description: 'Moroccan city for COD delivery' },
       address: { type: SchemaType.STRING, description: 'Street address or neighborhood' },
-      productName: { type: SchemaType.STRING, description: 'Product name requested by customer' },
+      productName: { type: SchemaType.STRING, description: 'Exact product name from store catalog' },
       quantity: { type: SchemaType.INTEGER, description: 'Quantity (defaults to 1)' },
     },
     required: ['customerName', 'city', 'productName'],
@@ -268,11 +268,11 @@ export const requestHumanHandoverDeclaration: FunctionDeclaration = {
 
 export const sendProductImagesDeclaration: FunctionDeclaration = {
   name: 'send_product_images',
-  description: 'Send high-resolution photo/media of the ordered product or requested product from store inventory directly to the customer via WhatsApp.',
+  description: 'Send high-resolution photo/media of a product from store inventory directly to the customer via WhatsApp. STRICT RULE: ONLY call this for products that actually exist in the store catalog list. NEVER call this for products, brands, or items that do not exist in the store.',
   parameters: {
     type: SchemaType.OBJECT,
     properties: {
-      productNameOrSku: { type: SchemaType.STRING, description: 'Product name or SKU to send photos of' },
+      productNameOrSku: { type: SchemaType.STRING, description: 'Exact product name or SKU that MUST match a product in the store catalog' },
       caption: { type: SchemaType.STRING, description: 'Friendly message in Moroccan Darija describing the photo' },
     },
     required: ['productNameOrSku'],
@@ -373,8 +373,19 @@ export function buildMoroccanSystemPrompt(context: OrderContext): string {
 ### 🛍️ قائمة المنتجات المتوفرة، المتغيرات وعروض الأبسل (Bundles) والتوجيهات:
 ${productsList}
 
+### 🔒 قاعدة حاسمة وصارمة جداً: الالتزام الحصري بمنتجات المتجر ومنع اختراع أي منتجات أو صور (STRICT CATALOG CONFINEMENT):
+1. **المتجر يبيع حصرياً وفقط المنتجات المذكورة في القائمة أعلاه.** لا توجد أي منتجات أخرى في المتجر نهائياً.
+2. **ممنوع منعاً باتاً:**
+   - اقتراح، أو بيع، أو تأكيد، أو إرسال صور، أو اختراع أي منتج أو ماركة أو سلعة غير مذكورة في القائمة أعلاه (مثل هواتف، أجهزة تلفاز، ملابس أخرى، أو أي سلعة خارج الكتالوج أعلاه).
+   - استدعاء دالة \`send_product_images\` لأي منتج أو سلعة غير متوفرة ومسجلة في المتجر.
+3. **إذا سأل الزبون عن منتج أو سلعة غير موجودة في القائمة أعلاه أو طلب صوراً لمنتج لا نبيعه:**
+   - أجيبي فوراً باحترام ولطف بالدارجة المغربية:
+     *"سمح لينا بزاف أخي/أختي، هاد المنتج ما متوفرش عندنا حالياً في المتجر. المنتجات المتوفرة عندنا دابا هي: [ذكري المنتجات المتوفرة فقط باختصار]، واش يعجبك تشوف تفاصيل شي واحد فيهم؟ 🛍️✨"*
+   - لا تبحثي أبداً عن أي صور خارجية ولا تعطي صوراً غير صحيحة.
+4. **الصور:** صور المنتجات مقتصرة حصرياً على المنتجات الرسمية المسجلة في المتجر.
+
 ### 💡 استغلال العروض والمتغيرات وتوجيهات المنتج:
-- عندما يسأل الزبون عن منتج، اقترحي عليه خيارات المتغيرات (المقاسات والألوان المتوفرة).
+- عندما يسأل الزبون عن منتج متوفر، اقترحي عليه خيارات المتغيرات (المقاسات والألوان المتوفرة).
 - اقترحي دائماً عروض الأبسل (مثل باك قطعتين مع شحن مجاني أو تخفيض) لزيادة قيمة السلة عند اهتمام الزبون.
 - التزمي بتوجيهات الوكيل الخاصة بكل منتج واستعيني بنقاط البيع وأجوبة الاعتراضات الشائعة المذكورة أعلاه.
 
@@ -591,8 +602,17 @@ export async function processCustomerWhatsAppMessage(
           case 'send_product_images': {
             const queryName = args.productNameOrSku || context.items[0]?.name || '';
             const foundProd = findProductByNameOrKeyword(queryName);
-            const imgUrl = foundProd?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800';
-            const caption = args.caption || `ها هي صورة المنتج *${foundProd?.nameAr || queryName}* أخي! 📸✨`;
+
+            // STRICT: Never send fake images if product is not in the store catalog!
+            if (!foundProd || !foundProd.image) {
+              const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+              replyText = `سمح لينا بزاف أخي/أختي! منتج "${queryName}" ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف الصور أو التفاصيل ديال شي منتج من هادو؟ ✨`;
+              toolDetails.resultDescription = `Produit non répertorié dans le catalogue: ${queryName}`;
+              break;
+            }
+
+            const imgUrl = foundProd.image;
+            const caption = args.caption || `ها هي صورة *${foundProd.nameAr}* أخي! 📸✨`;
 
             try {
               const { sendWhatsAppImage } = await import('./whatsapp');
@@ -603,13 +623,13 @@ export async function processCustomerWhatsAppMessage(
 
             if (databaseHandler.onSendProductImages) {
               await databaseHandler.onSendProductImages({
-                productNameOrSku: queryName,
+                productNameOrSku: foundProd.name,
                 imageUrl: imgUrl,
                 caption,
               });
             }
 
-            toolDetails.resultDescription = `Photo produit envoyée: ${foundProd?.nameAr || queryName}`;
+            toolDetails.resultDescription = `Photo officielle envoyée: ${foundProd.nameAr}`;
             if (!replyText) {
               replyText = caption;
             }
@@ -637,15 +657,23 @@ export async function processCustomerWhatsAppMessage(
           }
 
           case 'create_new_order': {
+            const prod = findProductByNameOrKeyword(args.productName);
+            if (!prod) {
+              const available = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+              replyText = `سمح لينا أخي، منتج "${args.productName}" ما كاينش عندنا في المتجر للتسجيل.\n\nالمنتجات المتوفرة حالياً هي:\n${available}\n\nواش تحب نسجلو ليك شي منتج من هادو؟ 🛍️`;
+              toolDetails.resultDescription = `Tentative de commande pour produit hors-catalogue: ${args.productName}`;
+              break;
+            }
+
             const newOrd = createDirectCustomerOrder({
               customerName: args.customerName || context.customerName,
               phone: args.phone || context.phoneNumber,
               city: args.city || context.city,
               address: args.address || context.address,
-              productName: args.productName,
+              productName: prod.name,
               quantity: args.quantity || 1,
             });
-            replyText = `ألف مبروك أخي ${newOrd.customer.name}! 🎉 تم تسجيل الطلب ديالك بنجاح برقم *${newOrd.orderNumber}* لمدينة *${newOrd.customer.city}*.\n📦 السلعة: ${newOrd.items[0]?.name}\n💰 المبلغ المطلوب عند الاستلام: *${newOrd.payment.amount} درهم* (COD بعد الفحص والمعاينة).\nالموزع ديال Sendit غادي يتصل بيك للتسليم. نهارك مبروك! 🚚✨`;
+            replyText = `ألف مبروك أخي ${newOrd.customer.name}! 🎉 تم تسجيل الطلب ديالك بنجاح برقم *${newOrd.orderNumber}* لمدينة *${newOrd.customer.city}*.\n📦 السلعة: ${prod.nameAr}\n💰 المبلغ المطلوب عند الاستلام: *${newOrd.payment.amount} درهم* (COD بعد الفحص والمعاينة).\nالموزع ديال Sendit غادي يتصل بيك للتسليم. نهارك مبروك! 🚚✨`;
             toolDetails.resultDescription = `Nouvelle commande créée: ${newOrd.orderNumber} (${newOrd.payment.amount} درهم)`;
             break;
           }
@@ -747,6 +775,7 @@ async function processWithRulesFallback(
     onSaveGps: (args: { orderId: string; googleMapsUrl: string }) => Promise<void>;
     onCancel: (args: { orderId: string; reason: string }) => Promise<void>;
     onHandover: (args: { orderId: string; reason: string }) => Promise<void>;
+    onSendProductImages?: (args: { productNameOrSku: string; imageUrl?: string; caption?: string }) => Promise<void>;
   }
 ): Promise<AgentProcessResult> {
   const text = incomingMessage.toLowerCase().trim();
@@ -843,12 +872,21 @@ async function processWithRulesFallback(
   const shouldProcessOrder = wantsToOrder || (isAwaitingOrderDetails && Boolean(detectedCity));
 
   if (shouldProcessOrder) {
-    // If we have both product and city, create the order directly!
-    const targetProduct = matchedProduct || (context.sessionState?.lastOfferedProduct ? {
-      name: context.sessionState.lastOfferedProduct,
-      nameAr: context.sessionState.lastOfferedProduct,
-      sellingPrice: context.sessionState.price || 179,
-    } : getProducts()[0]);
+    if (!matchedProduct) {
+      const available = getProducts().map((p) => `• ${p.nameAr} (${p.sellingPrice} درهم)`).join('\n');
+      return {
+        replyText: `مرحبا بك أخي! 🛍️ لتسجيل طلبك، عفاك اختار المنتج لي عجبك من قائمة المنتجات المتوفرة عندنا في المتجر:\n\n${available}\n\nشنو هو المنتج والمدينة ديالك باش نسجلوه ليك دابا؟ ✨`,
+        toolCalled: 'get_product_catalog',
+        toolDetails: {
+          name: 'get_product_catalog',
+          args: {},
+          resultDescription: 'Catalogue envoyé car aucun produit du magasin n\'a été spécifié',
+        },
+        requiresHumanHandover: false,
+      };
+    }
+
+    const targetProduct = matchedProduct;
     const targetPrice = context.sessionState?.price || targetProduct.sellingPrice;
     const customerCity = detectedCity?.ar || (context.city !== 'المغرب' && context.city !== 'غير محدد' ? context.city : '');
 
@@ -986,6 +1024,50 @@ async function processWithRulesFallback(
         name: 'get_product_catalog',
         args: {},
         resultDescription: 'Catalogue complet des produits envoyé',
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  // C.1 INTENT: PHOTO / IMAGE REQUEST (طلب صور السلعة)
+  // ─────────────────────────────────────────────────────────────
+  const imageRequestWords = ['تصويرة', 'تصاور', 'صورة', 'صور', 'photo', 'photos', 'image', 'images'];
+  if (imageRequestWords.some((w) => text.includes(w))) {
+    if (matchedProduct && matchedProduct.image) {
+      try {
+        const { sendWhatsAppImage } = await import('./whatsapp');
+        await sendWhatsAppImage(context.phoneNumber, matchedProduct.image, `ها هي صورة *${matchedProduct.nameAr}* الحقيقية أخي! 📸✨`);
+      } catch (e) {}
+
+      if (databaseHandler.onSendProductImages) {
+        await databaseHandler.onSendProductImages({
+          productNameOrSku: matchedProduct.name,
+          imageUrl: matchedProduct.image,
+          caption: `ها هي صورة *${matchedProduct.nameAr}* الحقيقية أخي! 📸✨`,
+        });
+      }
+
+      return {
+        replyText: `على الراس والعين أخي! 📸 ها هي صورة *${matchedProduct.nameAr}* الحقيقية من المتجر.\n💰 الثمن: *${matchedProduct.sellingPrice} درهم* والدفع عند الاستلام مع Sendit بعد المعاينة والفحص.\n\nواش تحب نسجلوا ليك الطلب لمدينة *${context.city}* دابا؟ 🛍️`,
+        toolCalled: 'send_product_images',
+        toolDetails: {
+          name: 'send_product_images',
+          args: { productNameOrSku: matchedProduct.name, imageUrl: matchedProduct.image },
+          resultDescription: `Photo officielle envoyée: ${matchedProduct.nameAr}`,
+        },
+        requiresHumanHandover: false,
+      };
+    }
+
+    const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+    return {
+      replyText: `سمح لينا بزاف أخي/أختي! هاد المنتج ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف الصور أو التفاصيل ديال شي منتج من هادو؟ 📸✨`,
+      toolCalled: 'get_product_catalog',
+      toolDetails: {
+        name: 'get_product_catalog',
+        args: {},
+        resultDescription: 'Produit hors catalogue demandé pour photo',
       },
       requiresHumanHandover: false,
     };
@@ -1295,8 +1377,17 @@ export async function processCustomerVoiceNote(
           case 'send_product_images': {
             const queryName = args.productNameOrSku || context.items[0]?.name || '';
             const foundProd = findProductByNameOrKeyword(queryName);
-            const imgUrl = foundProd?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=800';
-            const caption = args.caption || `ها هي صورة *${foundProd?.nameAr || queryName}* كما طلبت في الأوديو أخي! 📸✨`;
+
+            // STRICT: Never send fake images or fallback URLs if product is not in store catalog!
+            if (!foundProd || !foundProd.image) {
+              const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+              replyText = `سمعت الأوديو ديالك أخي/أختي، ولكن منتج "${queryName}" ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف الصور أو التفاصيل ديال شي منتج من هادو؟ ✨`;
+              toolDetails.resultDescription = `Produit non répertorié dans le catalogue (audio): ${queryName}`;
+              break;
+            }
+
+            const imgUrl = foundProd.image;
+            const caption = args.caption || `ها هي صورة *${foundProd.nameAr}* كما طلبت في الأوديو أخي! 📸✨`;
 
             try {
               const { sendWhatsAppImage } = await import('./whatsapp');
@@ -1305,13 +1396,40 @@ export async function processCustomerVoiceNote(
 
             if (databaseHandler.onSendProductImages) {
               await databaseHandler.onSendProductImages({
-                productNameOrSku: queryName,
+                productNameOrSku: foundProd.name,
                 imageUrl: imgUrl,
                 caption,
               });
             }
-            toolDetails.resultDescription = `Photo envoyée suite à la note vocale: ${queryName}`;
+            toolDetails.resultDescription = `Photo officielle envoyée suite à la note vocale: ${foundProd.nameAr}`;
             if (!replyText) replyText = caption;
+            break;
+          }
+
+          case 'get_product_catalog':
+            replyText = formatProductListForWhatsApp();
+            toolDetails.resultDescription = 'Catalogue complet des produits envoyé suite à la note vocale';
+            break;
+
+          case 'create_new_order': {
+            const prod = findProductByNameOrKeyword(args.productName);
+            if (!prod) {
+              const available = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+              replyText = `سمعت الأوديو ديالك أخي، ولكن منتج "${args.productName}" ما كاينش عندنا في المتجر للتسجيل.\n\nالمنتجات المتوفرة حالياً هي:\n${available}\n\nواش تحب نسجلو ليك شي منتج من هادو؟ 🛍️`;
+              toolDetails.resultDescription = `Tentative de commande audio pour produit hors-catalogue: ${args.productName}`;
+              break;
+            }
+
+            const newOrd = createDirectCustomerOrder({
+              customerName: args.customerName || context.customerName,
+              phone: args.phone || context.phoneNumber,
+              city: args.city || context.city,
+              address: args.address || context.address,
+              productName: prod.name,
+              quantity: args.quantity || 1,
+            });
+            replyText = `ألف مبروك أخي ${newOrd.customer.name}! 🎉 سمعنا الأوديو ديالك وتم تسجيل الطلب بنجاح برقم *${newOrd.orderNumber}* لمدينة *${newOrd.customer.city}*.\n📦 السلعة: ${prod.nameAr}\n💰 المبلغ المطلوب عند الاستلام: *${newOrd.payment.amount} درهم* (COD بعد الفحص والمعاينة).\nالموزع ديال Sendit غادي يتصل بيك للتسليم. نهارك مبروك! 🚚✨`;
+            toolDetails.resultDescription = `Nouvelle commande audio créée: ${newOrd.orderNumber} (${newOrd.payment.amount} درهم)`;
             break;
           }
 
@@ -1451,6 +1569,37 @@ function analyzeMoroccanVoiceFallback(
     };
   }
 
+  // Scenario: Photo inquiry via voice
+  if (lower.includes('تصويرة') || lower.includes('تصاور') || lower.includes('صورة') || lower.includes('صور') || lower.includes('photo') || lower.includes('image')) {
+    const matched = findProductByNameOrKeyword(lower);
+    if (matched && matched.image) {
+      return {
+        transcription: hintText || 'عفاك صيفط ليا تصويرة ديال السلعة نشوفها.',
+        replyText: `على الراس والعين أخي! 📸 ها هي صورة *${matched.nameAr}* الحقيقية من المتجر. واش تحب نسجلوا ليك الطلب ديالها دابا؟ ✨`,
+        toolCalled: 'send_product_images',
+        toolDetails: {
+          name: 'send_product_images',
+          args: { productNameOrSku: matched.name, imageUrl: matched.image },
+          resultDescription: `Photo officielle envoyée pour ${matched.nameAr}`,
+        },
+        requiresHumanHandover: false,
+      };
+    } else {
+      const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+      return {
+        transcription: hintText || 'عفاك صيفط ليا صور السلعة.',
+        replyText: `سمعت الأوديو ديالك أخي! ولكن هاد المنتج ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف الصور ديال شي منتج من هادو؟ 📸✨`,
+        toolCalled: 'get_product_catalog',
+        toolDetails: {
+          name: 'get_product_catalog',
+          args: {},
+          resultDescription: 'Produit non disponible en magasin demandé par audio',
+        },
+        requiresHumanHandover: false,
+      };
+    }
+  }
+
   // Scenario 4: Where is my order / tracking inquiry
   if (lower.includes('فين وصل') || lower.includes('تتبع') || lower.includes('colis') || lower.includes('suivi') || lower.includes('06')) {
     return {
@@ -1529,9 +1678,11 @@ export async function processCustomerImage(
 أنت تشاهدين الآن صورة مرسلة من الزبون عبر الواتساب.
 المطلوب منك بدقة فائقة:
 1. حللي الصورة واكتبي في السطر الأول التلخيص بالصيغة الصارمة التالية:
-[VISION_ANALYSIS]: <CATEGORY: PRODUCT_INQUIRY | DEFECT_CLAIM | PAYMENT_RECEIPT | LOCATION_MAP | GENERAL> | <DESCRIPTION: وصف مختصر لما يظهر في الصورة بالفرنسية أو الدارجة> | <MATCHED_PRODUCT: اسم المنتج إن تم التعرف عليه>
+[VISION_ANALYSIS]: <CATEGORY: PRODUCT_INQUIRY | DEFECT_CLAIM | PAYMENT_RECEIPT | LOCATION_MAP | GENERAL> | <DESCRIPTION: وصف مختصر لما يظهر في الصورة بالفرنسية أو الدارجة> | <MATCHED_PRODUCT: اسم المنتج إن كان مطابقاً لأحد منتجات المتجر المذكورة في الأعلى حصراً، أو كتابة NOT_IN_STORE إن كان منتجاً خارجياً>
 2. في السطور التالية: ردي على الزبون مباشرة بالدارجة المغربية الودودة والمهنية:
-   - إذا كانت استفساراً عن منتج: أكدي له توفره وسعره بالدرهم COD وإمكانية الفحص عند الاستلام.
+   - إذا كانت استفساراً عن منتج:
+     * إذا كان المنتج ينتمي لمنتجات المتجر المذكورة أعلاه: أكدي له توفره وسعره بالدرهم COD وإمكانية الفحص عند الاستلام.
+     * إذا كان المنتج خارج كتالوج المتجر (هاتف، ملابس أخرى، أحذية غير معروضة، إلخ): اعتذري بلباقة وأخبريه أن هذا المنتج غير متوفر حالياً في متجرنا واعرضي عليه فقط المنتجات المتوفرة في المتجر ولا تقبلي طلبيته أبداً ولا تدعي أننا نبيعه.
    - إذا كانت صورة عيب مصنعي أو شكوى: اعتذري بلباقة وطمئنيه أن التبديل مجاني وفوري عبر موزع Sendit.
    - إذا كانت لقطة شاشة لإيصال دفع أو خريطة GPS: أكدي تسجيلها واستدعي الأداة المناسبة.
 3. استدعي الأداة المناسبة إن لزم الأمر (confirm_order_and_address, update_order_details, save_gps_location, request_human_handover).`;
@@ -1670,7 +1821,14 @@ export async function processCustomerImage(
     }
 
     if (!replyText) {
-      replyText = `شكراً على الصورة أخي ${context.customerName}! 📸\nتوصلنا بها بوضوح، وبالنسبة لـ *${imageAnalysis.matchedProduct || context.items[0]?.name || 'طلبك'}*، راه متوفر حالياً وبجودة أصلية 100%. الدفع عند الاستلام مع Sendit بعد المعاينة والفحص الكامل! ✨🇲🇦`;
+      const identifiedName = (imageAnalysis.matchedProduct && imageAnalysis.matchedProduct !== 'NOT_IN_STORE') ? imageAnalysis.matchedProduct : (context.items[0]?.name || '');
+      const identifiedProd = identifiedName ? findProductByNameOrKeyword(identifiedName) : null;
+      if (identifiedProd) {
+        replyText = `شكراً على الصورة أخي ${context.customerName}! 📸\nشفنا الصورة، هادي *${identifiedProd.nameAr}* المتوفرة عندنا في المتجر بسعر خاص *${identifiedProd.sellingPrice} درهم*. التوصيل سريع والدفع عند الاستلام مع Sendit بعد الفحص والمعاينة! ✨🇲🇦`;
+      } else {
+        const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+        replyText = `شكراً على الصورة أخي ${context.customerName}! 📸\nولكن هاد المنتج لي في الصورة ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف التفاصيل ديال شي منتج من هادو؟ ✨`;
+      }
     }
 
     return {
@@ -1769,7 +1927,26 @@ function analyzeMoroccanImageFallback(
   }
 
   // Scenario 4: Product inquiry / Photo matching
-  const matchedProd = findProductByNameOrKeyword(lower) || getProducts()[0];
+  const matchedProd = findProductByNameOrKeyword(lower);
+  if (!matchedProd) {
+    const availableList = getProducts().map((p) => `• ${p.nameAr}`).join('\n');
+    return {
+      imageAnalysis: {
+        category: 'PRODUCT_INQUIRY',
+        detectedDescription: `Produit hors catalogue envoyé (${hintOrCaption || 'sans description'})`,
+        confidence: 0.9,
+      },
+      replyText: `شكراً على الصورة أخي ${context.customerName}! 📸\nولكن هاد المنتج لي في الصورة ما متوفرش عندنا حالياً في المتجر.\n\nالمنتجات المتوفرة عندنا حالياً هي:\n${availableList}\n\nواش تحب تشوف التفاصيل أو الصور ديال شي منتج من هادو؟ ✨`,
+      toolCalled: 'get_product_catalog',
+      toolDetails: {
+        name: 'get_product_catalog',
+        args: {},
+        resultDescription: 'Produit hors catalogue envoyé en photo',
+      },
+      requiresHumanHandover: false,
+    };
+  }
+
   return {
     imageAnalysis: {
       category: 'PRODUCT_INQUIRY',
@@ -1777,7 +1954,7 @@ function analyzeMoroccanImageFallback(
       matchedProduct: matchedProd.nameAr,
       confidence: 0.92,
     },
-    replyText: `على الراس والعين أخي ${context.customerName}! 📸\nشفنا الصورة، هادي ساعة/سلعة *${matchedProd.nameAr}* المتوفرة عندنا في المتجر بسعر خاص *${matchedProd.sellingPrice} درهم* فقط.\n\n✨ التوصيل مجاني وسريع مع Sendit والدفع نقداً عند الاستلام بعد ما تفتح الكولية وتفحصها بيدك.\nواش تحب نسجلوا ليك الطلب لمدينة *${context.city}* دابا؟ 🛍️`,
+    replyText: `على الراس والعين أخي ${context.customerName}! 📸\nشفنا الصورة، هادي *${matchedProd.nameAr}* المتوفرة عندنا في المتجر بسعر خاص *${matchedProd.sellingPrice} درهم* فقط.\n\n✨ التوصيل مجاني وسريع مع Sendit والدفع نقداً عند الاستلام بعد ما تفتح الكولية وتفحصها بيدك.\nواش تحب نسجلوا ليك الطلب لمدينة *${context.city}* دابا؟ 🛍️`,
     toolCalled: 'get_product_catalog',
     toolDetails: {
       name: 'get_product_catalog',
