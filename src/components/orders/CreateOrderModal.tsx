@@ -71,7 +71,7 @@ export function CreateOrderModal({
       amount: parseFloat(amount) || 299,
       currency: 'MAD',
       productName,
-      productThumbnail: productThumbnail || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+      productThumbnail: productThumbnail || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp',
       customerName,
       city,
       countryCode: 'MA',

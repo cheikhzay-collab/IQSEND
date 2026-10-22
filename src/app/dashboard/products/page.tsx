@@ -55,7 +55,7 @@ export default function ProductsPage() {
             nameAr: p.nameAr || p.name || 'Produit',
             sku: p.sku || 'SKU-UNKNOWN',
             category: p.category || 'High-Tech',
-            image: p.image || p.imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+            image: p.image || p.imageUrl || '',
             additionalImages: Array.isArray(p.additionalImages) ? p.additionalImages : [],
             sellingPrice: Number(p.sellingPrice || p.basePrice || 299),
             costPrice: Number(p.costPrice || 80),

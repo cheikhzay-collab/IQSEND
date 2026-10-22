@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     const id = rawId || `prod-${Date.now()}`;
 
     // Combine images if additional images exist
-    const primaryImg = image || imageUrl || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
+    const primaryImg = image || imageUrl || '';
     let storedImageUrl = primaryImg;
     if (Array.isArray(additionalImages) && additionalImages.length > 0) {
       storedImageUrl = JSON.stringify([primaryImg, ...additionalImages.filter((img: string) => img && img.trim().length > 0)]);
@@ -267,7 +267,20 @@ export async function DELETE(req: Request) {
       console.warn('[API Products DELETE] Note unlinking order_items:', unlinkErr);
     }
 
-    // 2. Perform TRUE MySQL DELETION from products table
+    // 2. Cascade delete variants and stock movements for complete database cleanup
+    try {
+      if (id) {
+        await pool.execute('DELETE FROM product_variants WHERE product_id = ?', [id]);
+        await pool.execute('DELETE FROM stock_movements WHERE product_id = ?', [id]);
+      }
+      if (sku) {
+        await pool.execute('DELETE FROM product_variants WHERE sku = ?', [sku]);
+      }
+    } catch (cascadeErr) {
+      console.warn('[API Products DELETE] Note cascading variant/stock deletion:', cascadeErr);
+    }
+
+    // 3. Perform TRUE MySQL DELETION from products table
     let deleteSql = 'DELETE FROM products WHERE ';
     const params: any[] = [];
     if (id && sku) {

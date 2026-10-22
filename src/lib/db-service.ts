@@ -149,7 +149,7 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
           name: it.product_name,
           sku: it.sku,
           thumbnail:
-            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80',
+            'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp',
           quantity: it.quantity,
           price: Number(it.price),
         })),
@@ -389,7 +389,7 @@ export async function getProductsFromDb(): Promise<ProductItem[]> {
         }
       } catch {}
 
-      let mainImage = r.image_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600';
+      let mainImage = r.image_url || '';
       if (mainImage.startsWith('[') && mainImage.endsWith(']')) {
         try {
           const parsedImgs = JSON.parse(mainImage);
@@ -672,9 +672,9 @@ export async function getLeadsFromDb(): Promise<any[]> {
           city: row.city,
           address: row.address,
           amount: Number(row.total_amount),
-          product: row.product_name || 'Smart Watch Ultra Pro S2',
+          product: row.product_name || 'خف جلد',
           productImage:
-            'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80',
+            'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp',
           quantity: row.item_quantity || 1,
           customerNote: row.notes || undefined,
           status: row.status,

@@ -1720,7 +1720,7 @@ export async function processCustomerImage(
         },
       },
       {
-        text: `الزبون: ${context.customerName}\nالمدينة: ${context.city}\nالمنتج الحالي بالطلب: ${context.items[0]?.name || 'Smart Watch S2 Pro'}\nالمبلغ: ${context.totalAmount} درهم.\nالتعليق المرفق مع الصورة: "${caption || imagePresetHint || 'بدون تعليق'}"\n\nقومي بتحليل الصورة وكتابة [VISION_ANALYSIS] في أول سطر ثم الرد بالدارجة المغربية واستدعاء الدالة المناسبة.`,
+        text: `الزبون: ${context.customerName}\nالمدينة: ${context.city}\nالمنتج الحالي بالطلب: ${context.items[0]?.name || 'خف جلد'}\nالمبلغ: ${context.totalAmount} درهم.\nالتعليق المرفق مع الصورة: "${caption || imagePresetHint || 'بدون تعليق'}"\n\nقومي بتحليل الصورة وكتابة [VISION_ANALYSIS] في أول سطر ثم الرد بالدارجة المغربية واستدعاء الدالة المناسبة.`,
       },
     ]);
 

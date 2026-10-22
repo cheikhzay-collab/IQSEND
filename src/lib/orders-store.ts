@@ -1,7 +1,7 @@
 // In-memory shared order store for Google Sheets & Webhook integration
 // Keeps newly ingested orders accessible to both API routes, client polling, and WhatsApp AI Agent
 
-import { findProductByNameOrKeyword } from './products-store';
+import { findProductByNameOrKeyword, getProducts } from './products-store';
 
 export type OrderStage = 
   | 'PENDING_CONFIRMATION' 
@@ -176,11 +176,11 @@ export function createDirectCustomerOrder(params: {
   const cleanP = cleanMoroccanPhone(params.phone);
   const matchedProd = params.productName ? findProductByNameOrKeyword(params.productName) : undefined;
   const qty = params.quantity && params.quantity > 0 ? params.quantity : 1;
-  const price = matchedProd ? matchedProd.sellingPrice : 299;
+  const price = matchedProd ? matchedProd.sellingPrice : 179;
   const totalAmount = price * qty;
-  const prodName = matchedProd ? matchedProd.nameAr : (params.productName || 'Smart Watch Ultra Pro S2');
-  const sku = matchedProd ? matchedProd.sku : 'PROD-WA-NEW';
-  const thumbnail = matchedProd ? matchedProd.image : 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=300&auto=format&fit=crop&q=80';
+  const prodName = matchedProd ? matchedProd.nameAr : (params.productName || 'خف جلد');
+  const sku = matchedProd ? matchedProd.sku : 'BMB-BLK-L';
+  const thumbnail = matchedProd?.image || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp';
 
   const orderNum = `#MA-${Math.floor(10000 + Math.random() * 90000)}`;
 

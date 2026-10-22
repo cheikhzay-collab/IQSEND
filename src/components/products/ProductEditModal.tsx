@@ -94,7 +94,7 @@ export function ProductEditModal({
       setTotalStock(product.totalStock || 0);
       setHubs(product.hubs || { casablanca: product.totalStock || 0, fes: 0, marrakech: 0, tanger: 0 });
       setDescriptionAr(product.descriptionAr || '');
-      setImage(product.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600');
+      setImage(product.image || '');
       setAdditionalImages(product.additionalImages || []);
       setVariants(product.variants || [
         { type: 'size', name: 'Taille', options: ['M', 'L', 'XL'] },
@@ -119,7 +119,7 @@ export function ProductEditModal({
       setTotalStock(50);
       setHubs({ casablanca: 30, fes: 10, marrakech: 10, tanger: 0 });
       setDescriptionAr('');
-      setImage('https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600');
+      setImage('');
       setAdditionalImages([]);
       setVariants([
         { type: 'size', name: 'Taille', options: ['M', 'L', 'XL'] },
@@ -535,7 +535,7 @@ export function ProductEditModal({
                     type="url"
                     value={image}
                     onChange={(e) => setImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://..."
                     className="flex-1 text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-mono"
                   />
                 </div>
@@ -544,7 +544,7 @@ export function ProductEditModal({
               {/* Main Image Preview */}
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-200 flex items-center gap-4">
                 <img
-                  src={image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600'}
+                  src={image || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp'}
                   alt="Aperçu"
                   className="w-24 h-24 rounded-xl object-cover border border-slate-200 shadow-xs shrink-0"
                 />
@@ -572,7 +572,7 @@ export function ProductEditModal({
                     type="url"
                     value={newImageUrl}
                     onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="Coller l'URL d'une nouvelle photo (Unsplash, Shopify, Imgur...)"
+                    placeholder="Coller l'URL d'une nouvelle photo (Shopify, Imgur, CDN...)"
                     className="flex-1 text-xs p-2.5 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white font-mono"
                   />
                   <button
