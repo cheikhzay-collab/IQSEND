@@ -575,7 +575,7 @@ export async function processCustomerWhatsAppMessage(
     let toolDetails: AgentToolDetails | undefined = undefined;
     let requiresHumanHandover = false;
 
-    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
 
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
@@ -1266,7 +1266,7 @@ export async function processCustomerVoiceNote(
     let toolDetails: AgentToolDetails | undefined = undefined;
     let requiresHumanHandover = false;
 
-    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
       if (call) {
@@ -1614,7 +1614,7 @@ export async function processCustomerImage(
     let toolDetails: AgentToolDetails | undefined = undefined;
     let requiresHumanHandover = false;
 
-    const functionCalls = candidate?.content?.parts?.filter((p) => p.functionCall).map((p) => p.functionCall);
+    const functionCalls = candidate?.content?.parts?.filter((p: any) => p.functionCall).map((p: any) => p.functionCall);
     if (functionCalls && functionCalls.length > 0) {
       const call = functionCalls[0];
       if (call) {
