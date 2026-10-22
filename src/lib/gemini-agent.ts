@@ -19,16 +19,18 @@ import {
  * Retrieve effective Gemini API Key from environment, runtime ai_config.json or MySQL
  */
 export function getEffectiveGeminiKey(): string {
+  // 1. Check in-memory / environment variable
   let key = process.env.GEMINI_API_KEY || '';
   if (key && key !== 'votre_cle_gemini_ici' && key.trim().length > 15 && !key.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
     return key.trim();
   }
 
+  // 2. Check local ai_config.json
   try {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15) {
+      if (data.apiKey && data.apiKey !== 'votre_cle_gemini_ici' && data.apiKey.trim().length > 15 && !data.apiKey.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
         const cleaned = data.apiKey.trim();
         process.env.GEMINI_API_KEY = cleaned;
         if (data.model) process.env.GEMINI_MODEL_NAME = data.model;
@@ -39,26 +41,27 @@ export function getEffectiveGeminiKey(): string {
     // Ignore read errors
   }
 
-  // Read key dynamically from environment
   return process.env.GEMINI_API_KEY || '';
 }
 
 export function getEffectiveGeminiModel(): string {
-  if (process.env.GEMINI_MODEL_NAME && process.env.GEMINI_MODEL_NAME !== 'gemma-4-26b-a4b-it' && process.env.GEMINI_MODEL_NAME !== 'gemini-2.5-flash') {
+  const deprecated = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemma-4-26b-a4b-it'];
+  
+  if (process.env.GEMINI_MODEL_NAME && !deprecated.includes(process.env.GEMINI_MODEL_NAME)) {
     return process.env.GEMINI_MODEL_NAME;
   }
   try {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.model && data.model !== 'gemma-4-26b-a4b-it' && data.model !== 'gemini-2.5-flash') {
+      if (data.model && !deprecated.includes(data.model)) {
         process.env.GEMINI_MODEL_NAME = data.model;
         return data.model;
       }
     }
   } catch (e) {}
 
-  return 'gemini-flash-lite-latest';
+  return 'gemini-3.8-flash';
 }
 
 /**
@@ -469,32 +472,32 @@ export async function processCustomerWhatsAppMessage(
     const genAI = new GoogleGenerativeAI(apiKey);
 
     const activeModelName = getEffectiveGeminiModel();
+    const agentTools = [
+      {
+        functionDeclarations: [
+          getProductCatalogDeclaration,
+          sendProductImagesDeclaration,
+          checkOrderStatusDeclaration,
+          createNewOrderDeclaration,
+          updateConfirmationDeclaration,
+          updateOrderDetailsDeclaration,
+          saveGpsLocationDeclaration,
+          cancelOrderDeclaration,
+          requestHumanHandoverDeclaration,
+        ],
+      },
+    ];
+
     const model = genAI.getGenerativeModel({
       model: activeModelName,
       systemInstruction: systemInstruction,
       generationConfig: {
         temperature: 0.3,
-        // @ts-ignore
-        thinkingConfig: { thinkingBudget: 0 },
       },
-      tools: [
-        {
-          functionDeclarations: [
-            getProductCatalogDeclaration,
-            sendProductImagesDeclaration,
-            checkOrderStatusDeclaration,
-            createNewOrderDeclaration,
-            updateConfirmationDeclaration,
-            updateOrderDetailsDeclaration,
-            saveGpsLocationDeclaration,
-            cancelOrderDeclaration,
-            requestHumanHandoverDeclaration,
-          ],
-        },
-      ],
+      tools: agentTools,
     });
 
-    // Gemini API requires chat history to start with a 'user' turn and alternate roles
+    // Gemini API requires chat history to start with a 'user' turn and strictly alternate roles
     const rawHistory = (context.conversationHistory || [])
       .filter((m) => m && m.body && m.body.trim().length > 0)
       .map((msg) => ({
@@ -520,11 +523,39 @@ export async function processCustomerWhatsAppMessage(
       }
     }
 
-    const chat = model.startChat({
+    // CRITICAL: Gemini requires the history to end with 'model' so that chat.sendMessage (user turn) alternates properly!
+    let promptToSend = incomingMessage;
+    if (sanitizedHistory.length > 0 && sanitizedHistory[sanitizedHistory.length - 1].role === 'user') {
+      const lastUser = sanitizedHistory.pop();
+      if (lastUser?.parts?.[0]?.text) {
+        promptToSend = `${lastUser.parts[0].text}\n${incomingMessage}`;
+      }
+    }
+
+    let chat = model.startChat({
       history: sanitizedHistory,
     });
 
-    const response = await chat.sendMessage(incomingMessage);
+    let response: any;
+    try {
+      response = await chat.sendMessage(promptToSend);
+    } catch (sendErr: any) {
+      // If error is 503 (high demand) or 404, fallback to alternate model immediately
+      const altModel = activeModelName === 'gemini-3.8-flash' ? 'gemini-flash-latest' : 'gemini-3.8-flash';
+      console.warn(`[AI Agent] Model ${activeModelName} failed (${sendErr.message}), falling back to ${altModel}...`);
+      const fallbackModel = genAI.getGenerativeModel({
+        model: altModel,
+        systemInstruction: systemInstruction,
+        generationConfig: {
+          temperature: 0.3,
+        },
+        tools: agentTools,
+      });
+      const fallbackChat = fallbackModel.startChat({
+        history: sanitizedHistory,
+      });
+      response = await fallbackChat.sendMessage(promptToSend);
+    }
     const candidate = response.response.candidates?.[0];
 
     let replyText = '';
