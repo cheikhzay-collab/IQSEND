@@ -150,26 +150,52 @@ export async function POST(req: NextRequest) {
           ]
         );
 
-        // 3. Update order status in order_leads
+        // 3. Update order status in order_leads with accurate MySQL enum values & automations
+        const {
+          recordCodRemittance,
+          restoreStockForOrder,
+          updateCustomerStatsOnOrderStatus,
+          addTimelineEventToDb,
+          invalidateOrdersCache,
+        } = await import('@/lib/db-service');
+
         if (processed.mappedStatus === 'DELIVERED_PAID') {
           await pool.execute(
-            `UPDATE order_leads SET status = 'DELIVERED', updated_at = NOW() WHERE id = ?`,
+            `UPDATE order_leads SET status = 'DELIVERED_PAID', updated_at = NOW() WHERE id = ?`,
             [orderId]
           );
-        } else if (processed.mappedStatus === 'RETURNED' || processed.mappedStatus === 'CANCELLED') {
+          await recordCodRemittance(orderId);
+          await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERED_PAID');
+        } else if (processed.mappedStatus === 'RETURNED') {
           await pool.execute(
-            `UPDATE order_leads SET status = 'CANCELLED', updated_at = NOW() WHERE id = ?`,
+            `UPDATE order_leads SET status = 'DELIVERY_FAILED', updated_at = NOW() WHERE id = ?`,
             [orderId]
           );
+          await restoreStockForOrder(orderId, `Retour colis Sendit (${trackingCode})`);
+          await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERY_FAILED');
+        } else if (processed.mappedStatus === 'CANCELED' || (processed.mappedStatus as string) === 'CANCELLED') {
+          await pool.execute(
+            `UPDATE order_leads SET status = 'CANCELED', updated_at = NOW() WHERE id = ?`,
+            [orderId]
+          );
+          await restoreStockForOrder(orderId, `Annulation via Webhook Sendit (${trackingCode})`);
+          await updateCustomerStatsOnOrderStatus(orderId, 'CANCELED');
+        } else if (processed.mappedStatus === 'DELIVERY_FAILED') {
+          await pool.execute(
+            `UPDATE order_leads SET status = 'DELIVERY_FAILED', updated_at = NOW() WHERE id = ?`,
+            [orderId]
+          );
+          await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERY_FAILED');
         } else if (processed.mappedStatus === 'OUT_FOR_DELIVERY' || processed.mappedStatus === 'IN_TRANSIT') {
           await pool.execute(
-            `UPDATE order_leads SET status = 'IN_TRANSIT', updated_at = NOW() WHERE id = ? AND status NOT IN ('DELIVERED', 'CANCELLED')`,
+            `UPDATE order_leads SET status = 'IN_TRANSIT', updated_at = NOW() WHERE id = ? AND status NOT IN ('DELIVERED_PAID', 'CANCELED')`,
             [orderId]
           );
         }
 
+        invalidateOrdersCache();
+
         // 4. Add timeline event
-        const { addTimelineEventToDb } = await import('@/lib/db-service');
         await addTimelineEventToDb({
           orderId,
           action: 'SENDIT_WEBHOOK',
@@ -190,9 +216,52 @@ export async function POST(req: NextRequest) {
 
     // ── 6. تشغيل الأتمتة الذكية (WhatsApp Notifications) ────────────
     const orders = getInboundOrders();
-    const matchingOrder = orders.find(
+    let matchingOrder = orders.find(
       (o) => o.tracking?.trackingNumber === trackingCode || o.orderNumber === trackingCode
     );
+
+    // Fallback: Reconstruct order from MySQL if memory cache was reset
+    if (!matchingOrder) {
+      try {
+        const { getMysqlPool } = await import('@/lib/db');
+        const pool = getMysqlPool();
+        const [matchedDbRows]: any = await pool.execute(
+          `SELECT l.*, s.sendit_tracking_number 
+           FROM order_leads l 
+           LEFT JOIN shipment_details s ON l.id = s.order_id 
+           WHERE s.sendit_tracking_number = ? OR l.order_number = ? OR l.id = ? 
+           LIMIT 1`,
+          [trackingCode, trackingCode, trackingCode]
+        );
+
+        if (Array.isArray(matchedDbRows) && matchedDbRows.length > 0) {
+          const l = matchedDbRows[0];
+          matchingOrder = {
+            id: l.id,
+            orderNumber: l.order_number,
+            customer: {
+              name: l.customer_name || 'Client',
+              phone: l.phone_number || '',
+              address: l.address || '',
+              city: l.city || '',
+            },
+            payment: {
+              amount: Number(l.total_amount) || 0,
+              currency: 'MAD',
+              method: 'COD',
+              status: processed.mappedStatus === 'DELIVERED_PAID' ? 'COLLECTED' : 'PENDING',
+            },
+            tracking: {
+              trackingNumber: trackingCode,
+              courier: 'Sendit.ma',
+              status: processed.mappedStatus as any,
+            },
+          } as any;
+        }
+      } catch (err: any) {
+        console.warn('[Webhook Sendit] Order reconstruction warning:', err.message);
+      }
+    }
 
     if (processed.mappedStatus === 'DELIVERY_FAILED') {
       const reason = processed.failureReason || 'Client Injoignable';

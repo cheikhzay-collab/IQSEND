@@ -60,6 +60,11 @@ export function getInboxConversations(): ChatConversation[] {
   return globalForInbox.__senditInboxConversations;
 }
 
+export function clearInboxConversations(): void {
+  globalForInbox.__senditInboxConversations = [];
+}
+
+
 export function isLidNumber(raw: string): boolean {
   if (!raw) return false;
   const digits = raw.replace(/[^\d]/g, '');

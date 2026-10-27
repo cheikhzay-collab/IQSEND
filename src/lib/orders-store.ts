@@ -109,6 +109,10 @@ export function getInboundOrders(): IngestedOrder[] {
   return global.__inboundOrders;
 }
 
+export function clearInboundOrders(): void {
+  global.__inboundOrders = [];
+}
+
 export function addInboundOrder(order: IngestedOrder) {
   if (!global.__inboundOrders) {
     global.__inboundOrders = [...INITIAL_BASE_ORDERS];

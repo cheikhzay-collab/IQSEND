@@ -1,5 +1,8 @@
 import { getMysqlPool } from './db';
 import { getProducts } from './products-store';
+import { invalidateOrdersCache } from './db-service';
+import { clearInboundOrders } from './orders-store';
+import { clearInboxConversations } from './inbox-store';
 
 /**
  * Complete and Comprehensive SQL DDL Statements for Hostinger Cloud MySQL
@@ -636,4 +639,161 @@ export async function getDatabaseStatus() {
       database: process.env.DB_NAME || 'u663560985_sendit',
     };
   }
+}
+
+export type WipeTarget = 'OPERATIONAL' | 'FULL' | 'CATALOG';
+
+export const OPERATIONAL_TABLES = [
+  'delivery_rescues',
+  'order_timelines',
+  'call_logs',
+  'packing_tasks',
+  'shipment_details',
+  'order_items',
+  'order_leads',
+  'whatsapp_messages',
+  'finance_transactions',
+  'customers',
+  'notifications',
+  'realtime_events',
+  'alerts',
+  'events',
+  'google_sheets_sync_logs',
+];
+
+export const CATALOG_TABLES = [
+  'stock_movements',
+  'product_variants',
+  'products',
+];
+
+export const ALL_DATA_TABLES = [
+  ...OPERATIONAL_TABLES,
+  ...CATALOG_TABLES,
+  'whatsapp_instances',
+  'store_settings',
+  'ai_agent_configs',
+  'users',
+];
+
+/**
+ * Returns exact row counts for critical tables to preview before wiping
+ */
+export async function getWipeSummary() {
+  const pool = getMysqlPool();
+  const counts: Record<string, number> = {};
+
+  const tablesToCheck = [
+    'order_leads',
+    'order_items',
+    'shipment_details',
+    'customers',
+    'whatsapp_messages',
+    'call_logs',
+    'packing_tasks',
+    'finance_transactions',
+    'notifications',
+    'products',
+    'users',
+  ];
+
+  for (const tbl of tablesToCheck) {
+    try {
+      const [res]: any = await pool.query(`SELECT COUNT(*) as cnt FROM \`${tbl}\``);
+      counts[tbl] = Number(res[0]?.cnt || 0);
+    } catch {
+      counts[tbl] = 0;
+    }
+  }
+
+  const operationalCount = Object.entries(counts)
+    .filter(([k]) => k !== 'products' && k !== 'users')
+    .reduce((sum, [, v]) => sum + v, 0);
+
+  const totalRecords = Object.values(counts).reduce((sum, v) => sum + v, 0);
+
+  return {
+    success: true,
+    counts,
+    operationalCount,
+    totalRecords,
+  };
+}
+
+/**
+ * Wipes tables based on selected target (OPERATIONAL, FULL, or CATALOG)
+ * Safe and handles foreign keys with SET FOREIGN_KEY_CHECKS = 0
+ */
+export async function wipeDatabase(target: WipeTarget = 'OPERATIONAL') {
+  const pool = getMysqlPool();
+  const deletedCounts: Record<string, number> = {};
+  let tablesToClear: string[] = [];
+
+  if (target === 'OPERATIONAL') {
+    tablesToClear = OPERATIONAL_TABLES;
+  } else if (target === 'CATALOG') {
+    tablesToClear = CATALOG_TABLES;
+  } else if (target === 'FULL') {
+    tablesToClear = ALL_DATA_TABLES;
+  }
+
+  // Disable Foreign Key checks
+  await pool.query('SET FOREIGN_KEY_CHECKS = 0');
+
+  try {
+    for (const table of tablesToClear) {
+      try {
+        const [cntRes]: any = await pool.query(`SELECT COUNT(*) as cnt FROM \`${table}\``);
+        const cnt = Number(cntRes[0]?.cnt || 0);
+        deletedCounts[table] = cnt;
+
+        // DELETE FROM is 100% reliable with FK checks disabled across all MySQL/MariaDB engines
+        await pool.query(`DELETE FROM \`${table}\``);
+
+        // Reset AUTO_INCREMENT if supported
+        try {
+          await pool.query(`ALTER TABLE \`${table}\` AUTO_INCREMENT = 1`);
+        } catch {
+          // ignore if table has no auto-increment
+        }
+      } catch (err: any) {
+        console.warn(`[wipeDatabase] Note for table ${table}:`, err.message);
+        deletedCounts[table] = 0;
+      }
+    }
+
+    // If FULL wipe was performed, re-seed essential baseline (Admin user, settings, AI agent)
+    if (target === 'FULL') {
+      try {
+        await initializeDatabase(false);
+      } catch (e: any) {
+        console.warn('[wipeDatabase] Re-seeding after full wipe error:', e.message);
+      }
+    }
+  } finally {
+    // Always re-enable Foreign Key checks
+    await pool.query('SET FOREIGN_KEY_CHECKS = 1');
+  }
+
+  // Clear in-memory stores and caches
+  try {
+    invalidateOrdersCache();
+  } catch {}
+
+  try {
+    clearInboundOrders();
+  } catch {}
+
+  try {
+    clearInboxConversations();
+  } catch {}
+
+  const totalDeleted = Object.values(deletedCounts).reduce((sum, c) => sum + c, 0);
+
+  return {
+    success: true,
+    target,
+    totalDeleted,
+    deletedCounts,
+  };
 }

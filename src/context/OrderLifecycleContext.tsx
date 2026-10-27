@@ -535,11 +535,13 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 12. Reintegrate Stock
   const reintegrateStock = (orderId: string) => {
+    syncStageToDb(orderId, 'RETURNED');
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
         return {
           ...order,
+          stage: 'RETURNED',
           completed: {
             ...(order.completed || {
               deliveredAt: '',
@@ -551,7 +553,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
         };
       })
     );
-    showToast(`Articles réintégrés au stock avec succès.`, 'success');
+    showToast(`Articles réintégrés au stock avec succès (mise à jour MySQL effectuée).`, 'success');
   };
 
   // 13. Add New Inbound Order (From Google Sheets or Webhook)

@@ -99,6 +99,27 @@ export async function POST(req: NextRequest) {
 
     addInboundOrder(newOrder);
 
+    // Persist to MySQL database (order_leads & order_items)
+    try {
+      const { saveOrderToDb } = await import('@/lib/db-service');
+      await saveOrderToDb(newOrder);
+    } catch (dbErr: any) {
+      console.warn('[Webhook Orders] Error persisting to MySQL:', dbErr.message);
+    }
+
+    // Broadcast real-time order creation event
+    try {
+      const { realtimeHub } = await import('@/lib/realtime-events');
+      realtimeHub.broadcast({
+        eventType: 'ORDER_CREATED',
+        entityType: 'ORDER',
+        entityId: newOrder.id,
+        title: `Nouvelle commande: ${newOrder.orderNumber} (${newOrder.customer.name})`,
+        payload: newOrder,
+        source: 'STOREFRONT_WEBHOOK',
+      }).catch(() => {});
+    } catch {}
+
     // Trigger Pillar 1 instant interactive WhatsApp confirmation + upselling
     try {
       await triggerOrderConfirmationOutreach(newOrder);

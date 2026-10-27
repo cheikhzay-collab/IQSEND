@@ -308,8 +308,236 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
 }
 
 /**
- * 3. Update order stage in DB
+ * 3. Update order stage in DB (with Stock Movement, COD Finance, Customer Stats, and Timeline logging)
  */
+export async function deductStockForOrder(orderId: string, reason: string = 'Commande confirmée / en préparation'): Promise<boolean> {
+  try {
+    const pool = getMysqlPool();
+    const [items]: any = await pool.execute(
+      `SELECT oi.product_id, oi.product_name, oi.sku, oi.quantity 
+       FROM order_items oi 
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+
+    if (!Array.isArray(items) || items.length === 0) return false;
+
+    // Prevent duplicate OUT deductions for the same order
+    const [existingMovements]: any = await pool.execute(
+      `SELECT id FROM stock_movements WHERE order_id = ? AND type = 'OUT' LIMIT 1`,
+      [orderId]
+    );
+    if (Array.isArray(existingMovements) && existingMovements.length > 0) {
+      return true;
+    }
+
+    for (const item of items) {
+      const qty = Number(item.quantity) || 1;
+      const [prodRows]: any = await pool.execute(
+        `SELECT id, sku, stock_quantity FROM products 
+         WHERE id = ? OR sku = ? OR name = ? OR name_ar = ? LIMIT 1`,
+        [item.product_id || '', item.sku || '', item.product_name || '', item.product_name || '']
+      );
+
+      if (Array.isArray(prodRows) && prodRows.length > 0) {
+        const prod = prodRows[0];
+        const prevStock = Number(prod.stock_quantity) || 0;
+        const newStock = Math.max(0, prevStock - qty);
+
+        await pool.execute(
+          `UPDATE products SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [newStock, prod.id]
+        );
+
+        const movId = `sm-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        await pool.execute(
+          `INSERT INTO stock_movements (id, product_id, sku, type, quantity, previous_stock, new_stock, reason, order_id, created_by)
+           VALUES (?, ?, ?, 'OUT', ?, ?, ?, ?, ?, 'ORDER_LIFECYCLE')`,
+          [movId, prod.id, prod.sku || item.sku || 'SKU-GEN', qty, prevStock, newStock, reason, orderId]
+        );
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.error('[DB Service] Error deducting stock for order:', err.message);
+    return false;
+  }
+}
+
+export async function restoreStockForOrder(orderId: string, reason: string = 'Commande annulée / retournée'): Promise<boolean> {
+  try {
+    const pool = getMysqlPool();
+    // Only restore if an OUT movement occurred
+    const [outMovements]: any = await pool.execute(
+      `SELECT id FROM stock_movements WHERE order_id = ? AND type = 'OUT' LIMIT 1`,
+      [orderId]
+    );
+    if (!Array.isArray(outMovements) || outMovements.length === 0) {
+      return true;
+    }
+
+    // Prevent duplicate RETURN movements
+    const [returnMovements]: any = await pool.execute(
+      `SELECT id FROM stock_movements WHERE order_id = ? AND type = 'RETURN' LIMIT 1`,
+      [orderId]
+    );
+    if (Array.isArray(returnMovements) && returnMovements.length > 0) {
+      return true;
+    }
+
+    const [items]: any = await pool.execute(
+      `SELECT oi.product_id, oi.product_name, oi.sku, oi.quantity 
+       FROM order_items oi 
+       WHERE oi.order_id = ?`,
+      [orderId]
+    );
+
+    if (!Array.isArray(items) || items.length === 0) return false;
+
+    for (const item of items) {
+      const qty = Number(item.quantity) || 1;
+      const [prodRows]: any = await pool.execute(
+        `SELECT id, sku, stock_quantity FROM products 
+         WHERE id = ? OR sku = ? OR name = ? OR name_ar = ? LIMIT 1`,
+        [item.product_id || '', item.sku || '', item.product_name || '', item.product_name || '']
+      );
+
+      if (Array.isArray(prodRows) && prodRows.length > 0) {
+        const prod = prodRows[0];
+        const prevStock = Number(prod.stock_quantity) || 0;
+        const newStock = prevStock + qty;
+
+        await pool.execute(
+          `UPDATE products SET stock_quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+          [newStock, prod.id]
+        );
+
+        const movId = `sm-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+        await pool.execute(
+          `INSERT INTO stock_movements (id, product_id, sku, type, quantity, previous_stock, new_stock, reason, order_id, created_by)
+           VALUES (?, ?, ?, 'RETURN', ?, ?, ?, ?, ?, 'ORDER_LIFECYCLE')`,
+          [movId, prod.id, prod.sku || item.sku || 'SKU-GEN', qty, prevStock, newStock, reason, orderId]
+        );
+      }
+    }
+    return true;
+  } catch (err: any) {
+    console.error('[DB Service] Error restoring stock for order:', err.message);
+    return false;
+  }
+}
+
+export async function recordCodRemittance(orderId: string): Promise<boolean> {
+  try {
+    const pool = getMysqlPool();
+    const [leadRows]: any = await pool.execute(
+      `SELECT id, order_number, total_amount, customer_name FROM order_leads WHERE id = ? OR order_number = ? LIMIT 1`,
+      [orderId, orderId]
+    );
+
+    if (!Array.isArray(leadRows) || leadRows.length === 0) return false;
+    const lead = leadRows[0];
+    const amount = Number(lead.total_amount) || 0;
+
+    await pool.execute(
+      `UPDATE shipment_details 
+       SET cod_amount_collected = ?, is_cod_reconciled = TRUE, status = 'DELIVERED_PAID', last_status_update_at = CURRENT_TIMESTAMP
+       WHERE order_id = ?`,
+      [amount, lead.id]
+    );
+
+    const ref = `COD-${lead.order_number || lead.id}`;
+    const txId = `fin-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+    await pool.execute(
+      `INSERT INTO finance_transactions (id, reference, transaction_type, amount, carrier, order_count, status, created_at)
+       VALUES (?, ?, 'COD_REMITTANCE', ?, 'Sendit.ma', 1, 'PROCESSED', CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE amount = VALUES(amount), status = 'PROCESSED'`,
+      [txId, ref, amount]
+    );
+
+    return true;
+  } catch (err: any) {
+    console.error('[DB Service] Error recording COD remittance:', err.message);
+    return false;
+  }
+}
+
+export async function updateCustomerStatsOnOrderStatus(orderId: string, dbStatus: string): Promise<boolean> {
+  try {
+    const pool = getMysqlPool();
+    const [leadRows]: any = await pool.execute(
+      `SELECT phone_number, customer_name, total_amount, city, address FROM order_leads WHERE id = ? OR order_number = ? LIMIT 1`,
+      [orderId, orderId]
+    );
+
+    if (!Array.isArray(leadRows) || leadRows.length === 0) return false;
+    const lead = leadRows[0];
+    const phone = cleanMoroccanPhone(lead.phone_number || '');
+    if (!phone) return false;
+
+    const amount = Number(lead.total_amount) || 0;
+    const isDelivered = dbStatus === 'DELIVERED_PAID';
+    const isRefused = dbStatus === 'DELIVERY_FAILED' || dbStatus === 'CANCELED';
+
+    const [custRows]: any = await pool.execute(
+      `SELECT * FROM customers WHERE phone_number = ? LIMIT 1`,
+      [phone]
+    );
+
+    if (Array.isArray(custRows) && custRows.length > 0) {
+      const c = custRows[0];
+      const prevDelivered = Number(c.delivered_orders) || 0;
+      const prevRefused = Number(c.refused_orders) || 0;
+      const prevSpent = Number(c.total_spent) || 0;
+      const totalOrders = Math.max(1, Number(c.total_orders) || 1);
+
+      const newDelivered = prevDelivered + (isDelivered ? 1 : 0);
+      const newRefused = prevRefused + (isRefused ? 1 : 0);
+      const newSpent = prevSpent + (isDelivered ? amount : 0);
+
+      let trustScore = c.trust_score || 'NOUVEAU';
+      if (newRefused >= 2 || (totalOrders >= 2 && (newRefused / totalOrders) >= 0.5)) {
+        trustScore = 'RISQUE';
+      } else if (newDelivered >= 3) {
+        trustScore = 'VIP';
+      } else if (newDelivered >= 1) {
+        trustScore = 'FIABLE';
+      }
+
+      await pool.execute(
+        `UPDATE customers 
+         SET delivered_orders = ?, refused_orders = ?, total_spent = ?, trust_score = ?, updated_at = CURRENT_TIMESTAMP
+         WHERE phone_number = ?`,
+        [newDelivered, newRefused, newSpent, trustScore, phone]
+      );
+    } else {
+      const custId = `cust-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+      const trustScore = isDelivered ? 'FIABLE' : isRefused ? 'RISQUE' : 'NOUVEAU';
+      await pool.execute(
+        `INSERT INTO customers (id, phone_number, name, city, address, total_orders, delivered_orders, refused_orders, total_spent, trust_score, created_at)
+         VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+        [
+          custId,
+          phone,
+          lead.customer_name || 'Client',
+          lead.city || 'Maroc',
+          lead.address || '',
+          isDelivered ? 1 : 0,
+          isRefused ? 1 : 0,
+          isDelivered ? amount : 0,
+          trustScore,
+        ]
+      );
+    }
+
+    return true;
+  } catch (err: any) {
+    console.error('[DB Service] Error updating customer stats:', err.message);
+    return false;
+  }
+}
+
 export async function updateOrderStageInDb(orderId: string, stage: LifecycleStage): Promise<boolean> {
   try {
     const pool = getMysqlPool();
@@ -324,7 +552,15 @@ export async function updateOrderStageInDb(orderId: string, stage: LifecycleStag
       [dbStatus, orderId, orderId]
     );
 
-    // If marked delivered, update shipment_details
+    // 1. Stock Movement Automation
+    if (stage === 'PROCESSING' || stage === 'IN_TRANSIT') {
+      await deductStockForOrder(orderId);
+    } else if (stage === 'CANCELED' || stage === 'RETURNED') {
+      await restoreStockForOrder(orderId);
+      await updateCustomerStatsOnOrderStatus(orderId, dbStatus);
+    }
+
+    // 2. COD Financial Settlement & Customer Trust Score
     if (dbStatus === 'DELIVERED_PAID') {
       await pool.execute(
         `
@@ -334,7 +570,36 @@ export async function updateOrderStageInDb(orderId: string, stage: LifecycleStag
       `,
         [orderId]
       );
+      await recordCodRemittance(orderId);
+      await updateCustomerStatsOnOrderStatus(orderId, dbStatus);
+    } else if (stage === 'RETURNED') {
+      await pool.execute(
+        `
+        UPDATE shipment_details
+        SET status = 'RETURNED', last_status_update_at = CURRENT_TIMESTAMP
+        WHERE order_id = ?
+      `,
+        [orderId]
+      );
     }
+
+    // 3. Unbroken Audit Trail in order_timelines
+    const stageTitles: Record<string, string> = {
+      PENDING_CONFIRMATION: 'Commande en attente de confirmation',
+      PROCESSING: 'Commande confirmée et transmise à la préparation',
+      IN_TRANSIT: 'Colis expédié et pris en charge par le transporteur',
+      COMPLETED: 'Livraison réussie et encaissement COD validé',
+      CANCELED: 'Commande annulée',
+      RETURNED: 'Colis refusé / retourné au stock',
+    };
+
+    await addTimelineEventToDb({
+      orderId,
+      action: `STAGE_${stage}`,
+      title: stageTitles[stage] || `Changement d'étape: ${stage}`,
+      details: `Statut passé à ${dbStatus} via le cycle de vie`,
+      actor: 'SYSTEM',
+    });
 
     invalidateOrdersCache();
     return true;

@@ -237,11 +237,11 @@ export async function PATCH(request: Request) {
 
     const pool = getMysqlPool();
 
-    // Map shipment status to order_leads status if appropriate
+    // Map shipment status to order_leads status
     let dbStatus = 'IN_TRANSIT';
     if (shipmentStatus === 'DELIVERED_PAID') dbStatus = 'DELIVERED_PAID';
     else if (shipmentStatus === 'DELIVERY_FAILED') dbStatus = 'DELIVERY_FAILED';
-    else if (shipmentStatus === 'RETURNED') dbStatus = 'CANCELED';
+    else if (shipmentStatus === 'RETURNED') dbStatus = 'DELIVERY_FAILED';
 
     // Update in-memory store
     const { updateOrderStatus } = await import('@/lib/orders-store');
@@ -266,8 +266,28 @@ export async function PATCH(request: Request) {
       [`ship-${orderId}`, orderId, shipmentStatus, failedReason || null]
     );
 
+    // Trigger automations: Stock, Finance, Customer Stats
+    const {
+      recordCodRemittance,
+      restoreStockForOrder,
+      updateCustomerStatsOnOrderStatus,
+      addTimelineEventToDb,
+      invalidateOrdersCache,
+    } = await import('@/lib/db-service');
+
+    if (shipmentStatus === 'DELIVERED_PAID') {
+      await recordCodRemittance(orderId);
+      await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERED_PAID');
+    } else if (shipmentStatus === 'RETURNED') {
+      await restoreStockForOrder(orderId, `Retour colis via module de suivi`);
+      await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERY_FAILED');
+    } else if (shipmentStatus === 'DELIVERY_FAILED') {
+      await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERY_FAILED');
+    }
+
+    invalidateOrdersCache();
+
     // Add timeline entry
-    const { addTimelineEventToDb } = await import('@/lib/db-service');
     await addTimelineEventToDb({
       orderId,
       action: 'SHIPMENT_UPDATED',

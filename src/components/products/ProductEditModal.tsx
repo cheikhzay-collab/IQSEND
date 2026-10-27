@@ -319,19 +319,17 @@ export function ProductEditModal({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as TabType)}
-                className={`flex items-center gap-2 py-2.5 px-3.5 border-b-2 text-xs font-bold whitespace-nowrap transition-all ${
-                  isActive
-                    ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
-                    : 'border-transparent text-slate-500 hover:text-slate-800'
-                }`}
+                className={`flex items-center gap-2 py-2.5 px-3.5 border-b-2 text-xs font-bold whitespace-nowrap transition-all ${isActive
+                  ? 'border-blue-600 text-blue-700 bg-white rounded-t-xl shadow-2xs'
+                  : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
                 {tab.badge && (
                   <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${
-                      isActive ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200/80 text-slate-600'
-                    }`}
+                    className={`text-[9px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-blue-100 text-blue-800 font-bold' : 'bg-slate-200/80 text-slate-600'
+                      }`}
                   >
                     {tab.badge}
                   </span>

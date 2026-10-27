@@ -25,7 +25,11 @@ import {
   Layers,
   Radio,
   RefreshCw,
-  Send
+  Send,
+  Trash2,
+  AlertOctagon,
+  ShieldAlert,
+  X
 } from 'lucide-react';
 
 export default function SettingsPage() {
@@ -98,6 +102,60 @@ export default function SettingsPage() {
       setDbMessage({ type: 'error', text: 'Erreur réseau lors de l initialisation de la base' });
     } finally {
       setIsInitializingDb(false);
+    }
+  };
+
+  // Database Wipe State & Handlers
+  const [wipeModalOpen, setWipeModalOpen] = useState(false);
+  const [wipeTarget, setWipeTarget] = useState<'OPERATIONAL' | 'FULL' | 'CATALOG'>('OPERATIONAL');
+  const [wipeConfirmationInput, setWipeConfirmationInput] = useState('');
+  const [isWipingDb, setIsWipingDb] = useState(false);
+  const [wipeSummary, setWipeSummary] = useState<any>(null);
+  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
+
+  const openWipeModal = (target: 'OPERATIONAL' | 'FULL' | 'CATALOG') => {
+    setWipeTarget(target);
+    setWipeConfirmationInput('');
+    setWipeModalOpen(true);
+    setIsLoadingSummary(true);
+    fetch('/api/database/wipe')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success) {
+          setWipeSummary(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoadingSummary(false));
+  };
+
+  const handleExecuteWipe = async () => {
+    setIsWipingDb(true);
+    try {
+      const res = await fetch('/api/database/wipe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          target: wipeTarget,
+          confirmation: wipeConfirmationInput.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(data.message || '✅ تم مسح وتفريغ قاعدة البيانات بنجاح!');
+        setDbMessage({
+          type: 'success',
+          text: data.message,
+        });
+        setWipeModalOpen(false);
+        fetchDbStatus();
+      } else {
+        alert(data.error || 'Erreur lors de la suppression');
+      }
+    } catch {
+      alert('Erreur réseau lors de la suppression de la base');
+    } finally {
+      setIsWipingDb(false);
     }
   };
 
@@ -666,11 +724,11 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => handleInitDb(false)}
               disabled={isInitializingDb}
-              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors"
+              className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
             >
               <Layers className="w-3.5 h-3.5 text-slate-500" />
               Vérifier Schéma
@@ -678,7 +736,7 @@ export default function SettingsPage() {
             <button
               onClick={() => handleInitDb(true)}
               disabled={isInitializingDb}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors shadow-xs"
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
             >
               {isInitializingDb ? (
                 <>
@@ -688,9 +746,17 @@ export default function SettingsPage() {
               ) : (
                 <>
                   <RotateCcw className="w-3.5 h-3.5" />
-                  Recharger les 4 Étapes COD (15 Commandes)
+                  Recharger les 4 Étapes
                 </>
               )}
+            </button>
+            <button
+              onClick={() => openWipeModal('OPERATIONAL')}
+              className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+              title="مسح وتفريغ قاعدة البيانات"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+              <span>مسح قاعدة البيانات</span>
             </button>
           </div>
         </div>
@@ -775,7 +841,93 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+
+        {/* DANGER ZONE : PURGE & RÉINITIALISATION DE LA BASE DE DONNÉES */}
+        <div className="mt-4 pt-4 border-t border-rose-100 bg-gradient-to-br from-rose-50/50 via-white to-rose-50/20 p-4 rounded-xl border border-rose-200">
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                <AlertOctagon className="w-4 h-4 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-rose-950 flex items-center gap-1.5">
+                  <span>منطقة الخطر : مسح وتفريغ قاعدة البيانات</span>
+                  <span className="text-[10px] font-normal text-rose-600">(Zone de Danger : Purge MySQL)</span>
+                </h3>
+                <p className="text-[10px] text-slate-500">
+                  إمكانية مسح سجلات قاعدة البيانات لتنظيف المنصة، إزالة البيانات التجريبية، أو البدء من الصفر.
+                </p>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
+              عمليات لا رجعة فيها
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+            {/* Option 1: Operational wipe */}
+            <div className="p-3 bg-white rounded-xl border border-rose-200/80 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                  <span>مسح الطلبات والعمليات</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  يمسح كافة الطلبات، الزبائن، الشحنات، سجلات المكالمات، الرسائل، والتنبيهات (15 جدول). مع الحفاظ الكامل على المنتجات والمستخدمين والإعدادات.
+                </p>
+              </div>
+              <button
+                onClick={() => openWipeModal('OPERATIONAL')}
+                className="mt-3 w-full py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>مسح سجلات الطلبات</span>
+              </button>
+            </div>
+
+            {/* Option 2: Catalog wipe */}
+            <div className="p-3 bg-white rounded-xl border border-amber-200/80 shadow-2xs flex flex-col justify-between">
+              <div>
+                <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-amber-600" />
+                  <span>مسح كتالوج المنتجات</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  يمسح كافة المنتجات في الكتالوج، تفرعاتها (Variants)، وأرصدة حركات المخزون، مع بقاء الطلبات السابقة كما هي.
+                </p>
+              </div>
+              <button
+                onClick={() => openWipeModal('CATALOG')}
+                className="mt-3 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <Trash2 className="w-3 h-3" />
+                <span>مسح المنتجات والمخزون</span>
+              </button>
+            </div>
+
+            {/* Option 3: Full wipe */}
+            <div className="p-3 bg-white rounded-xl border border-red-300 shadow-2xs flex flex-col justify-between bg-gradient-to-b from-white to-red-50/30">
+              <div>
+                <div className="font-bold text-red-950 text-xs flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
+                  <span>إعادة ضبط المصنع الكاملة</span>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
+                  مسح شامل وتفريغ كامل لجميع جداول قاعدة البيانات وإعادة تهيئتها نظيفة مع الحفاظ على حساب المدير الافتراضي (admin@sendit.ma).
+                </p>
+              </div>
+              <button
+                onClick={() => openWipeModal('FULL')}
+                className="mt-3 w-full py-1.5 px-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+              >
+                <AlertOctagon className="w-3 h-3" />
+                <span>مسح شامل (Reset Factory)</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
+
 
       {/* 4. WHATSAPP ROTATION & ANTI-BAN */}
       <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-4 shadow-2xs">
@@ -818,6 +970,166 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* MODAL DE CONFIRMATION DE PURGE DE LA BASE DE DONNÉES */}
+      {wipeModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full border border-rose-200 shadow-2xl overflow-hidden animate-in zoom-in-95 text-slate-800">
+            {/* Modal Header */}
+            <div className="p-4 bg-gradient-to-r from-rose-600 via-rose-700 to-red-800 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-bold">
+                  <AlertOctagon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-sm">
+                    {wipeTarget === 'OPERATIONAL'
+                      ? 'تأكيد مسح الطلبات والبيانات التشغيلية'
+                      : wipeTarget === 'CATALOG'
+                      ? 'تأكيد مسح كتالوج المنتجات والمخزون'
+                      : 'تأكيد المسح الشامل وإعادة ضبط المصنع'}
+                  </h3>
+                  <p className="text-[10px] text-white/80">
+                    Hostinger Cloud MySQL • {dbStatus?.database || 'u663560985_sendit'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setWipeModalOpen(false)}
+                className="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-5 space-y-4 text-xs">
+              {/* Alert Warning */}
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 flex items-start gap-2.5">
+                <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  <strong className="block font-bold">⚠️ تنبيه خطير ولا يمكن التراجع عنه :</strong>
+                  <span>
+                    هذه العملية ستقوم بحذف السجلات المحددة نهائياً من قاعدة بيانات MySQL. لا يمكن استرجاع هذه البيانات بعد الضغط على تأكيد المسح.
+                  </span>
+                </div>
+              </div>
+
+              {/* Scope & Counts Preview */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-700 text-[11px]">
+                    {isLoadingSummary ? 'جارٍ احتساب السجلات...' : 'ملخص السجلات الحالية في قاعدة البيانات :'}
+                  </span>
+                  {isLoadingSummary && <RotateCcw className="w-3.5 h-3.5 animate-spin text-slate-400" />}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px]">
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">📋 الطلبات (order_leads)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.order_leads ?? '...'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">📦 عناصر الطلب (items)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.order_items ?? '...'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">🚚 الشحنات (shipments)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.shipment_details ?? '...'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">👥 الزبائن (customers)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.customers ?? '...'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">💬 الرسائل (messages)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.whatsapp_messages ?? '...'}
+                    </strong>
+                  </div>
+                  <div className="p-2 bg-white rounded-lg border border-slate-200">
+                    <span className="text-slate-400 block">📞 المكالمات (call_logs)</span>
+                    <strong className="text-slate-800 text-xs font-mono">
+                      {wipeSummary?.counts?.call_logs ?? '...'}
+                    </strong>
+                  </div>
+                </div>
+
+                {wipeTarget === 'OPERATIONAL' && (
+                  <div className="pt-1 text-[11px] text-emerald-700 flex items-center gap-1.5 font-medium">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span>سيتم الحفاظ على: كتالوج المنتجات، حسابات المستخدمين، وإعدادات الربط.</span>
+                  </div>
+                )}
+                {wipeTarget === 'FULL' && (
+                  <div className="pt-1 text-[11px] text-amber-700 flex items-center gap-1.5 font-medium">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>سيتم إعادة إنشاء حساب المدير الافتراضي (admin@sendit.ma) والإعدادات فوراً.</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Confirmation Input Verification */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">
+                  للتأكيد، اكتب كلمة <span className="text-rose-600 font-mono font-black">مسح</span> أو <span className="text-rose-600 font-mono font-black">DELETE</span> في المربع أسفله :
+                </label>
+                <input
+                  type="text"
+                  placeholder="اكتب مسح أو DELETE للتأكيد"
+                  value={wipeConfirmationInput}
+                  onChange={(e) => setWipeConfirmationInput(e.target.value)}
+                  className="w-full p-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-mono text-center text-xs font-bold text-slate-800 focus:bg-white focus:border-rose-500 focus:outline-hidden"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2.5">
+              <button
+                onClick={() => setWipeModalOpen(false)}
+                disabled={isWipingDb}
+                className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                إلغاء / Annuler
+              </button>
+
+              <button
+                onClick={handleExecuteWipe}
+                disabled={
+                  isWipingDb ||
+                  (wipeConfirmationInput.trim() !== 'مسح' &&
+                    wipeConfirmationInput.trim().toUpperCase() !== 'DELETE' &&
+                    wipeConfirmationInput.trim().toUpperCase() !== 'CONFIRM')
+                }
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
+              >
+                {isWipingDb ? (
+                  <>
+                    <RotateCcw className="w-3.5 h-3.5 animate-spin" />
+                    <span>جارٍ مسح وتفريغ الجداول...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>تأكيد المسح النهائي للبيانات</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

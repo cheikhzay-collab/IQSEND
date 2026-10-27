@@ -226,6 +226,11 @@ export async function PATCH(request: Request) {
         [orderId]
       );
 
+      // Deduct stock for order
+      const { deductStockForOrder, invalidateOrdersCache } = await import('@/lib/db-service');
+      await deductStockForOrder(orderId, `Expédition Sendit Express (${tracking})`);
+      invalidateOrdersCache();
+
       // Add timeline
       await addTimelineEventToDb({
         orderId,
