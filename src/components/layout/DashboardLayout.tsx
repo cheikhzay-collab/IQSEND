@@ -805,6 +805,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </Link>
             )}
 
+            {/* Sara Live Agent — Multimodal Voice+Vision */}
+            {hasPermission('canAccessAiAgents') && (
+              <Link
+                href="/dashboard/sara-live"
+                className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                  pathname === '/dashboard/sara-live'
+                    ? 'bg-violet-50 text-violet-950 font-bold border border-violet-200'
+                    : 'text-slate-600 hover:bg-violet-50 hover:text-violet-900'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-violet-600" />
+                <span>🤖 سارة لايف — صوت + صورة</span>
+              </Link>
+            )}
+
+
             {/* SECTION 3: FULFILLMENT & LOGISTIQUE SENDIT */}
             {(hasPermission('canAccessPacking') || hasPermission('canAccessTracking')) && (
               <div className="pt-3 pb-1 px-3">
