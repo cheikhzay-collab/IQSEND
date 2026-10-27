@@ -64,6 +64,84 @@ export default function SaraLivePage() {
   const [customerName, setCustomerName] = useState('');
   const [showSettings, setShowSettings] = useState(false);
 
+  // ── WhatsApp Integration State ──
+  const [waConfig, setWaConfig] = useState<{
+    enabled: boolean;
+    mode: 'sara_live' | 'classic_agent' | 'disabled';
+    voiceEnabled: boolean;
+    visionEnabled: boolean;
+    autoConfirmOrders: boolean;
+    autoSendProductImages: boolean;
+    geminiModel: string;
+  }>({
+    enabled: true,
+    mode: 'sara_live',
+    voiceEnabled: true,
+    visionEnabled: true,
+    autoConfirmOrders: true,
+    autoSendProductImages: true,
+    geminiModel: 'gemini-2.0-flash',
+  });
+  const [isUpdatingWa, setIsUpdatingWa] = useState(false);
+  const [waSaveStatus, setWaSaveStatus] = useState<string | null>(null);
+
+  const fetchWaConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sara-live/settings');
+      const data = await res.json();
+      if (data.success && data.config) {
+        setWaConfig(data.config);
+      }
+    } catch (e) {}
+  }, []);
+
+  useEffect(() => {
+    fetchWaConfig();
+  }, [fetchWaConfig]);
+
+  const toggleWhatsAppEnabled = async () => {
+    const nextEnabled = !waConfig.enabled;
+    setIsUpdatingWa(true);
+    try {
+      const res = await fetch('/api/sara-live/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: nextEnabled }),
+      });
+      const data = await res.json();
+      if (data.success && data.config) {
+        setWaConfig(data.config);
+        setWaSaveStatus(nextEnabled ? 'تم تفعيل سارة على الواتساب بنجاح ✅' : 'تم إيقاف الردود الآلية على الواتساب ⏸️');
+        setTimeout(() => setWaSaveStatus(null), 3000);
+      }
+    } catch (e) {
+      alert('تعذّر تحديث حالة الواتساب');
+    } finally {
+      setIsUpdatingWa(false);
+    }
+  };
+
+  const updateWaOption = async (patch: Partial<typeof waConfig>) => {
+    setIsUpdatingWa(true);
+    try {
+      const res = await fetch('/api/sara-live/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      const data = await res.json();
+      if (data.success && data.config) {
+        setWaConfig(data.config);
+        setWaSaveStatus('تم حفظ الإعدادات بنجاح ✅');
+        setTimeout(() => setWaSaveStatus(null), 2500);
+      }
+    } catch (e) {
+      alert('خطأ أثناء حفظ الإعدادات');
+    } finally {
+      setIsUpdatingWa(false);
+    }
+  };
+
   const chatEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -257,23 +335,136 @@ export default function SaraLivePage() {
         </div>
       </header>
 
+      {/* ── WhatsApp Integration Banner ── */}
+      <div className={`sara-wa-banner ${!waConfig.enabled || waConfig.mode === 'disabled' ? 'disabled' : ''}`}>
+        <div className="sara-wa-info">
+          <span className="sara-wa-pulse-dot" />
+          <span>
+            {waConfig.enabled && waConfig.mode === 'sara_live'
+              ? '🟢 سارة لايف مربوطة بالواتساب ومفعّلة (تستجيب للصوت، الصور، وتبيع وتتبع الطلبيات بالدارجة)'
+              : waConfig.enabled && waConfig.mode === 'classic_agent'
+              ? '🤖 الوكيل الكلاسيكي مفعل على الواتساب (تأكيد الطلبيات فقط)'
+              : '🔴 الرد الآلي على الواتساب متوقف (وضع التدخل البشري اليدوي)'}
+          </span>
+          <span className="sara-wa-mode-badge">
+            {waConfig.mode === 'sara_live' ? 'سارة لايف' : waConfig.mode === 'classic_agent' ? 'الوكيل الكلاسيكي' : 'معطل'}
+          </span>
+        </div>
+        <div className="sara-wa-actions">
+          {waSaveStatus && <span style={{ fontSize: 11, color: '#34d399', fontWeight: 600 }}>{waSaveStatus}</span>}
+          <button
+            className="sara-wa-toggle-btn"
+            onClick={toggleWhatsAppEnabled}
+            disabled={isUpdatingWa}
+            title="تبديل التشغيل والإيقاف"
+          >
+            {isUpdatingWa ? '⏳ جاري الحفظ...' : waConfig.enabled ? '⏸️ إيقاف الربط' : '▶️ تشغيل سارة على الواتساب'}
+          </button>
+        </div>
+      </div>
+
       {/* ── Settings Panel ── */}
       {showSettings && (
         <div className="sara-settings">
-          <h3>⚙️ إعدادات الجلسة</h3>
+          {/* WhatsApp Control Card */}
+          <div className="sara-wa-settings-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 18 }}>📱</span>
+                <strong style={{ fontSize: 15, color: '#f8fafc' }}>إعدادات ربط سارة بالواتساب (WhatsApp Bot)</strong>
+              </div>
+              <button
+                className="sara-wa-toggle-btn"
+                onClick={toggleWhatsAppEnabled}
+                disabled={isUpdatingWa}
+              >
+                {waConfig.enabled ? '⏸️ إيقاف مؤقت' : '▶️ تشغيل الآن'}
+              </button>
+            </div>
+
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', margin: '0 0 10px 0' }}>
+              اختر وضع الذكاء الاصطناعي النشط عند استقبال رسائل من الزبناء عبر WhatsApp:
+            </p>
+
+            <div className="sara-wa-modes-grid">
+              <div
+                className={`sara-wa-mode-option ${waConfig.mode === 'sara_live' ? 'active' : ''}`}
+                onClick={() => updateWaOption({ mode: 'sara_live', enabled: true })}
+              >
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#c4b5fd' }}>⚡ سارة لايف المتكاملة (موصى به)</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                  بيع بالدارجة + فهم الصوت والصور + عرض الكتالوج وتتبع الطلبيات
+                </div>
+              </div>
+
+              <div
+                className={`sara-wa-mode-option ${waConfig.mode === 'classic_agent' ? 'active' : ''}`}
+                onClick={() => updateWaOption({ mode: 'classic_agent', enabled: true })}
+              >
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#93c5fd' }}>🤖 الوكيل الكلاسيكي</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                  تأكيد الطلبات والعناوين السابقة فقط
+                </div>
+              </div>
+
+              <div
+                className={`sara-wa-mode-option ${waConfig.mode === 'disabled' ? 'active' : ''}`}
+                onClick={() => updateWaOption({ mode: 'disabled', enabled: false })}
+              >
+                <div style={{ fontWeight: 700, fontSize: 13, color: '#fca5a5' }}>⏸️ إيقاف الرد الآلي</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 4 }}>
+                  استقبال الرسائل في صندوق الوارد دون أي رد آلي (تدخل بشري فقط)
+                </div>
+              </div>
+            </div>
+
+            <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: 10 }}>
+              <label className="sara-wa-checkbox-row">
+                <span>🎙️ الرد التفاعلي على الملاحظات الصوتية (Voice Notes)</span>
+                <input
+                  type="checkbox"
+                  checked={waConfig.voiceEnabled}
+                  onChange={e => updateWaOption({ voiceEnabled: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }}
+                />
+              </label>
+
+              <label className="sara-wa-checkbox-row">
+                <span>📷 تحليل الصور المرئية للمنتجات (Vision AI)</span>
+                <input
+                  type="checkbox"
+                  checked={waConfig.visionEnabled}
+                  onChange={e => updateWaOption({ visionEnabled: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }}
+                />
+              </label>
+
+              <label className="sara-wa-checkbox-row">
+                <span>🖼️ إرسال صور المنتجات للزبون تلقائياً عبر الواتساب</span>
+                <input
+                  type="checkbox"
+                  checked={waConfig.autoSendProductImages}
+                  onChange={e => updateWaOption({ autoSendProductImages: e.target.checked })}
+                  style={{ width: 18, height: 18, accentColor: '#8b5cf6', cursor: 'pointer' }}
+                />
+              </label>
+            </div>
+          </div>
+
+          <h3 style={{ marginTop: 12 }}>⚙️ محاكاة جلسة التجربة المحلية</h3>
           <div className="sara-settings-grid">
             <div className="sara-field">
-              <label>👤 اسم الزبون</label>
+              <label>👤 اسم الزبون التجريبي</label>
               <input
                 type="text"
-                placeholder="أدخل اسمك..."
+                placeholder="أدخل اسماً للتجربة..."
                 value={customerName}
                 onChange={e => setCustomerName(e.target.value)}
                 className="sara-input-field"
               />
             </div>
             <div className="sara-field">
-              <label>📞 رقم الهاتف</label>
+              <label>📞 رقم الهاتف للتجربة</label>
               <input
                 type="tel"
                 placeholder="06XXXXXXXX"
