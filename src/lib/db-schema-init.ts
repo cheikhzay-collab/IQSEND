@@ -18,6 +18,11 @@ export const CREATE_TABLES_SQL = [
     role ENUM('ADMIN', 'CONFIRMATION_AGENT', 'PACKER', 'TRACKING_AGENT', 'CALL_AGENT') DEFAULT 'CONFIRMATION_AGENT',
     phone VARCHAR(50),
     avatar_url TEXT,
+    job_title VARCHAR(150) DEFAULT 'Agent SENDIT COD',
+    avatar_preset VARCHAR(50) DEFAULT 'avatar-1',
+    permissions JSON,
+    is_online BOOLEAN DEFAULT FALSE,
+    last_active_at TIMESTAMP NULL,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -31,12 +36,15 @@ export const CREATE_TABLES_SQL = [
     alt_phone_number VARCHAR(50),
     city VARCHAR(100) NOT NULL,
     address TEXT NOT NULL,
+    whatsapp_caller_name VARCHAR(255),
     total_orders INT DEFAULT 1,
     delivered_orders INT DEFAULT 0,
     refused_orders INT DEFAULT 0,
+    canceled_orders INT DEFAULT 0,
     total_spent DECIMAL(10, 2) DEFAULT 0.00,
     trust_score ENUM('VIP', 'FIABLE', 'NOUVEAU', 'RISQUE', 'BLACKLIST') DEFAULT 'NOUVEAU',
     notes TEXT,
+    last_contact_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_cust_phone (phone_number),
@@ -53,6 +61,14 @@ export const CREATE_TABLES_SQL = [
     base_price DECIMAL(10, 2) NOT NULL,
     cost_price DECIMAL(10, 2) NOT NULL,
     stock_quantity INT DEFAULT 0,
+    stock_casablanca INT DEFAULT 0,
+    stock_fes INT DEFAULT 0,
+    stock_marrakech INT DEFAULT 0,
+    total_stock INT DEFAULT 0,
+    confirmation_cancel_count INT DEFAULT 0,
+    courier_return_count INT DEFAULT 0,
+    delivered_count INT DEFAULT 0,
+    in_transit_count INT DEFAULT 0,
     category VARCHAR(100) DEFAULT 'General',
     image_url TEXT,
     attributes JSON,
@@ -112,13 +128,35 @@ export const CREATE_TABLES_SQL = [
     customer_name VARCHAR(255) NOT NULL,
     phone_number VARCHAR(50) NOT NULL,
     alt_phone_number VARCHAR(50),
+    whatsapp_caller_name VARCHAR(255),
     city VARCHAR(100) NOT NULL,
+    district_id VARCHAR(100),
+    district_name VARCHAR(100),
     address TEXT NOT NULL,
     gps_location_url TEXT,
     preferred_delivery_time VARCHAR(100),
+    sku VARCHAR(100),
+    product_name VARCHAR(255),
+    quantity INT DEFAULT 1,
     total_amount DECIMAL(10, 2) NOT NULL,
     discount_amount DECIMAL(10, 2) DEFAULT 0.00,
+    sendit_delivery_fee DECIMAL(10, 2) DEFAULT 35.00,
     status ENUM('NEW', 'AI_CHATTING', 'CONFIRMED', 'PACKING', 'READY_FOR_PICKUP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED_PAID', 'DELIVERY_FAILED', 'RETURNED', 'CANCELED', 'DUPLICATE') DEFAULT 'NEW',
+    cancellation_stage ENUM('CONFIRMATION', 'DELIVERY', 'WAREHOUSE'),
+    cancellation_reason VARCHAR(255),
+    canceled_at TIMESTAMP NULL,
+    canceled_by VARCHAR(100),
+    return_reason VARCHAR(255),
+    returned_at TIMESTAMP NULL,
+    returned_by VARCHAR(100),
+    stock_reintegrated BOOLEAN DEFAULT FALSE,
+    return_fee_amount DECIMAL(10, 2) DEFAULT 0.00,
+    confirmed_by VARCHAR(100),
+    confirmed_at TIMESTAMP NULL,
+    awb_code VARCHAR(100),
+    tracking_number VARCHAR(100),
+    sheet_row_id VARCHAR(100),
+    external_order_id VARCHAR(100),
     risk_score INT DEFAULT 0,
     risk_level ENUM('LOW', 'MEDIUM', 'HIGH', 'BLACK_LISTED') DEFAULT 'LOW',
     ai_confirmation_status VARCHAR(50) DEFAULT 'PENDING',
@@ -142,7 +180,10 @@ export const CREATE_TABLES_SQL = [
     INDEX idx_status (status),
     INDEX idx_city (city),
     INDEX idx_rescue (rescue_status),
-    INDEX idx_created_at (created_at)
+    INDEX idx_created_at (created_at),
+    INDEX idx_cancellation_stage (cancellation_stage),
+    INDEX idx_sheet_row (sheet_row_id),
+    INDEX idx_awb (awb_code)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
   // 7. Order Items table
@@ -166,9 +207,14 @@ export const CREATE_TABLES_SQL = [
     order_id VARCHAR(36) UNIQUE NOT NULL,
     carrier VARCHAR(100) DEFAULT 'Sendit.ma',
     sendit_tracking_number VARCHAR(100) UNIQUE,
+    awb_code VARCHAR(100),
+    district_id VARCHAR(100),
+    district_name VARCHAR(100),
+    hub_city VARCHAR(100) DEFAULT 'Casablanca',
     sendit_pickup_id VARCHAR(100),
     status ENUM('READY_FOR_PICKUP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED_PAID', 'DELIVERY_FAILED', 'RETURNED', 'CANCELED') DEFAULT 'READY_FOR_PICKUP',
     waybill_url TEXT,
+    carrier_notes TEXT,
     shipping_fee DECIMAL(10, 2) DEFAULT 35.00,
     cod_amount_collected DECIMAL(10, 2) DEFAULT 0.00,
     is_cod_reconciled BOOLEAN DEFAULT FALSE,
@@ -179,6 +225,8 @@ export const CREATE_TABLES_SQL = [
     rescue_attempt_count INT DEFAULT 0,
     last_rescue_outreach_at TIMESTAMP NULL,
     last_status_update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    returned_warehouse_at TIMESTAMP NULL,
+    recipient_alt_phone VARCHAR(50),
     dispatch_notice_sent BOOLEAN DEFAULT FALSE,
     dispatch_notice_sent_at TIMESTAMP NULL,
     morning_reminder_sent BOOLEAN DEFAULT FALSE,
@@ -190,6 +238,7 @@ export const CREATE_TABLES_SQL = [
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_tracking (sendit_tracking_number),
     INDEX idx_ship_status (status),
+    INDEX idx_ship_awb (awb_code),
     CONSTRAINT fk_shipment_order FOREIGN KEY (order_id) REFERENCES order_leads(id) ON DELETE CASCADE
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
@@ -216,6 +265,9 @@ export const CREATE_TABLES_SQL = [
     id VARCHAR(36) PRIMARY KEY,
     order_id VARCHAR(36) NOT NULL,
     user_id VARCHAR(36),
+    agent_name VARCHAR(255),
+    caller_phone VARCHAR(50),
+    recording_url TEXT,
     result ENUM('NO_ANSWER_1', 'NO_ANSWER_2', 'OUT_OF_COVERAGE', 'CALLBACK_REQUESTED', 'BUSY', 'CONFIRMED_MANUALLY', 'CANCELED_BY_CLIENT') NOT NULL,
     call_duration_sec INT DEFAULT 0,
     notes TEXT,
@@ -245,9 +297,14 @@ export const CREATE_TABLES_SQL = [
     order_id VARCHAR(36),
     phone VARCHAR(50) NOT NULL,
     sender ENUM('CUSTOMER', 'AI_BOT', 'AGENT') NOT NULL,
+    sender_name VARCHAR(255),
+    message_direction ENUM('INBOUND', 'OUTBOUND') DEFAULT 'INBOUND',
     body TEXT NOT NULL,
     audio_transcribed_text TEXT,
+    transcription TEXT,
     audio_url TEXT,
+    ai_intent VARCHAR(100),
+    ai_confidence INT,
     message_type VARCHAR(50) DEFAULT 'text',
     interactive_type VARCHAR(50) DEFAULT 'TEXT',
     button_payload VARCHAR(100),
@@ -258,6 +315,7 @@ export const CREATE_TABLES_SQL = [
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     INDEX idx_msg_order (order_id),
     INDEX idx_msg_phone (phone),
+    INDEX idx_msg_direction (message_direction),
     INDEX idx_msg_created (created_at)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 
@@ -311,6 +369,9 @@ export const CREATE_TABLES_SQL = [
     tracking_number VARCHAR(100),
     failure_reason VARCHAR(255) NOT NULL,
     attempt_number INT DEFAULT 1,
+    assigned_agent_id VARCHAR(36),
+    assigned_agent_name VARCHAR(100),
+    carrier_status VARCHAR(100),
     outreach_channel ENUM('WHATSAPP', 'CALL', 'SMS') DEFAULT 'WHATSAPP',
     outreach_status ENUM('PENDING', 'SENT', 'RESPONDED', 'RESOLVED', 'ABANDONED') DEFAULT 'PENDING',
     new_delivery_date DATE,
@@ -401,7 +462,411 @@ export const CREATE_TABLES_SQL = [
     note TEXT,
     timestamp VARCHAR(50)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 23. Google Sheets Configurations table
+  `CREATE TABLE IF NOT EXISTS google_sheets_configs (
+    id VARCHAR(36) PRIMARY KEY,
+    sheet_name VARCHAR(255) NOT NULL,
+    spreadsheet_id VARCHAR(255) NOT NULL,
+    sheet_url TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    column_mapping JSON,
+    auto_sync_interval_mins INT DEFAULT 5,
+    last_synced_at TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 24. WhatsApp Live Sessions table
+  `CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+    id VARCHAR(100) PRIMARY KEY,
+    phone_number VARCHAR(50) NOT NULL,
+    caller_name VARCHAR(255),
+    last_message_text TEXT,
+    last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    unread_count INT DEFAULT 0,
+    assigned_to_agent_id VARCHAR(36),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_session_phone (phone_number),
+    INDEX idx_session_active (is_active)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
+
+/**
+ * Safe, idempotent migration statements covering all latest platform features:
+ * - Separation of Cancel vs Return (stages, reasons, timestamps, fee, actor)
+ * - WhatsApp Caller Name & Audio Transcriptions & Messages Direction
+ * - Multi-Hub Inventory (Casablanca, Fès, Marrakech, Cancel/Return counts)
+ * - Sendit Logistics (AWB, Districts, Delivery Fees, Notes)
+ * - User Profiles (Job Title, Permissions, Online Presence, Preset Avatars)
+ * - Google Sheets Configurations & Realtime sync table
+ */
+export const MIGRATION_STATEMENTS_SQL: { id: string; sql: string }[] = [
+  // 1. Users table migrations
+  {
+    id: 'users_add_job_title',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS job_title VARCHAR(150) DEFAULT 'Agent SENDIT COD';`,
+  },
+  {
+    id: 'users_add_avatar_preset',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_preset VARCHAR(50) DEFAULT 'avatar-1';`,
+  },
+  {
+    id: 'users_add_permissions',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSON NULL;`,
+  },
+  {
+    id: 'users_add_is_online',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT FALSE;`,
+  },
+  {
+    id: 'users_add_last_active_at',
+    sql: `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMP NULL;`,
+  },
+
+  // 2. Customers table migrations
+  {
+    id: 'customers_add_whatsapp_caller_name',
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS whatsapp_caller_name VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'customers_add_canceled_orders',
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS canceled_orders INT DEFAULT 0;`,
+  },
+  {
+    id: 'customers_add_last_contact_at',
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS last_contact_at TIMESTAMP NULL;`,
+  },
+
+  // 3. Products table migrations
+  {
+    id: 'products_add_stock_casablanca',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_casablanca INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_stock_fes',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_fes INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_stock_marrakech',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS stock_marrakech INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_total_stock',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS total_stock INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_confirmation_cancel_count',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS confirmation_cancel_count INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_courier_return_count',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS courier_return_count INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_delivered_count',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS delivered_count INT DEFAULT 0;`,
+  },
+  {
+    id: 'products_add_in_transit_count',
+    sql: `ALTER TABLE products ADD COLUMN IF NOT EXISTS in_transit_count INT DEFAULT 0;`,
+  },
+
+  // 4. Order Leads table migrations (Cancel vs Return separation, Sendit, WhatsApp Caller, etc.)
+  {
+    id: 'order_leads_add_cancellation_stage',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS cancellation_stage ENUM('CONFIRMATION', 'DELIVERY', 'WAREHOUSE') NULL;`,
+  },
+  {
+    id: 'order_leads_add_cancellation_reason',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS cancellation_reason VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'order_leads_add_canceled_at',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS canceled_at TIMESTAMP NULL;`,
+  },
+  {
+    id: 'order_leads_add_canceled_by',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS canceled_by VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_return_reason',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS return_reason VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'order_leads_add_returned_at',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS returned_at TIMESTAMP NULL;`,
+  },
+  {
+    id: 'order_leads_add_returned_by',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS returned_by VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_stock_reintegrated',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS stock_reintegrated BOOLEAN DEFAULT FALSE;`,
+  },
+  {
+    id: 'order_leads_add_return_fee_amount',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS return_fee_amount DECIMAL(10, 2) DEFAULT 0.00;`,
+  },
+  {
+    id: 'order_leads_add_confirmed_by',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS confirmed_by VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_confirmed_at',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMP NULL;`,
+  },
+  {
+    id: 'order_leads_add_whatsapp_caller_name',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS whatsapp_caller_name VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'order_leads_add_district_id',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS district_id VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_district_name',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS district_name VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_sku',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS sku VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_product_name',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS product_name VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'order_leads_add_quantity',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS quantity INT DEFAULT 1;`,
+  },
+  {
+    id: 'order_leads_add_sendit_delivery_fee',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS sendit_delivery_fee DECIMAL(10, 2) DEFAULT 35.00;`,
+  },
+  {
+    id: 'order_leads_add_awb_code',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS awb_code VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_tracking_number',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_sheet_row_id',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS sheet_row_id VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'order_leads_add_external_order_id',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS external_order_id VARCHAR(100) NULL;`,
+  },
+
+  // 5. Shipment Details migrations
+  {
+    id: 'shipment_details_add_awb_code',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS awb_code VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'shipment_details_add_district_id',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS district_id VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'shipment_details_add_district_name',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS district_name VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'shipment_details_add_hub_city',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS hub_city VARCHAR(100) DEFAULT 'Casablanca';`,
+  },
+  {
+    id: 'shipment_details_add_carrier_notes',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS carrier_notes TEXT NULL;`,
+  },
+  {
+    id: 'shipment_details_add_returned_warehouse_at',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS returned_warehouse_at TIMESTAMP NULL;`,
+  },
+  {
+    id: 'shipment_details_add_recipient_alt_phone',
+    sql: `ALTER TABLE shipment_details ADD COLUMN IF NOT EXISTS recipient_alt_phone VARCHAR(50) NULL;`,
+  },
+
+  // 6. WhatsApp Messages migrations
+  {
+    id: 'whatsapp_messages_add_sender_name',
+    sql: `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sender_name VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'whatsapp_messages_add_message_direction',
+    sql: `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS message_direction ENUM('INBOUND', 'OUTBOUND') DEFAULT 'INBOUND';`,
+  },
+  {
+    id: 'whatsapp_messages_add_transcription',
+    sql: `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS transcription TEXT NULL;`,
+  },
+  {
+    id: 'whatsapp_messages_add_ai_intent',
+    sql: `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS ai_intent VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'whatsapp_messages_add_ai_confidence',
+    sql: `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS ai_confidence INT NULL;`,
+  },
+
+  // 7. Call Logs migrations
+  {
+    id: 'call_logs_add_agent_name',
+    sql: `ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS agent_name VARCHAR(255) NULL;`,
+  },
+  {
+    id: 'call_logs_add_recording_url',
+    sql: `ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS recording_url TEXT NULL;`,
+  },
+  {
+    id: 'call_logs_add_caller_phone',
+    sql: `ALTER TABLE call_logs ADD COLUMN IF NOT EXISTS caller_phone VARCHAR(50) NULL;`,
+  },
+
+  // 8. Delivery Rescues migrations
+  {
+    id: 'delivery_rescues_add_assigned_agent_id',
+    sql: `ALTER TABLE delivery_rescues ADD COLUMN IF NOT EXISTS assigned_agent_id VARCHAR(36) NULL;`,
+  },
+  {
+    id: 'delivery_rescues_add_assigned_agent_name',
+    sql: `ALTER TABLE delivery_rescues ADD COLUMN IF NOT EXISTS assigned_agent_name VARCHAR(100) NULL;`,
+  },
+  {
+    id: 'delivery_rescues_add_carrier_status',
+    sql: `ALTER TABLE delivery_rescues ADD COLUMN IF NOT EXISTS carrier_status VARCHAR(100) NULL;`,
+  },
+
+  // 9. Table creations if missing
+  {
+    id: 'create_google_sheets_configs_table',
+    sql: `CREATE TABLE IF NOT EXISTS google_sheets_configs (
+      id VARCHAR(36) PRIMARY KEY,
+      sheet_name VARCHAR(255) NOT NULL,
+      spreadsheet_id VARCHAR(255) NOT NULL,
+      sheet_url TEXT,
+      is_active BOOLEAN DEFAULT TRUE,
+      column_mapping JSON,
+      auto_sync_interval_mins INT DEFAULT 5,
+      last_synced_at TIMESTAMP NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+  },
+  {
+    id: 'create_whatsapp_sessions_table',
+    sql: `CREATE TABLE IF NOT EXISTS whatsapp_sessions (
+      id VARCHAR(100) PRIMARY KEY,
+      phone_number VARCHAR(50) NOT NULL,
+      caller_name VARCHAR(255),
+      last_message_text TEXT,
+      last_message_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      unread_count INT DEFAULT 0,
+      assigned_to_agent_id VARCHAR(36),
+      is_active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_session_phone (phone_number),
+      INDEX idx_session_active (is_active)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+  },
+];
+
+/**
+ * Executes all database schema migrations non-destructively.
+ * Safe to run against live production databases with 0 downtime and 0 data loss.
+ */
+export async function migrateDatabaseSchema() {
+  const pool = getMysqlPool();
+  const results: { id: string; status: 'applied' | 'already_present' | 'error'; error?: string }[] = [];
+
+  for (const m of MIGRATION_STATEMENTS_SQL) {
+    try {
+      await pool.query(m.sql);
+      results.push({ id: m.id, status: 'applied' });
+    } catch (err: any) {
+      if (err.message && (err.message.includes('Duplicate column') || err.message.includes('already exists'))) {
+        results.push({ id: m.id, status: 'already_present' });
+      } else {
+        console.warn(`[DB Migration] Warning on ${m.id}:`, err.message);
+        results.push({ id: m.id, status: 'error', error: err.message });
+      }
+    }
+  }
+
+  // Backfill smart defaults on newly created columns for consistency
+  try {
+    // 1. Backfill cancellation stage on existing canceled/returned orders
+    await pool.query(`
+      UPDATE order_leads 
+      SET cancellation_stage = CASE 
+        WHEN status = 'RETURNED' THEN 'DELIVERY'
+        WHEN status = 'CANCELED' AND (store_source = 'SENDIT_SYNC' OR id LIKE 'snd-%') THEN 'DELIVERY'
+        WHEN status = 'CANCELED' THEN 'CONFIRMATION'
+        ELSE cancellation_stage
+      END
+      WHERE cancellation_stage IS NULL AND status IN ('CANCELED', 'RETURNED');
+    `);
+
+    // 2. Backfill user profiles with realistic job titles and permissions
+    await pool.query(`
+      UPDATE users 
+      SET 
+        job_title = CASE 
+          WHEN role = 'ADMIN' AND (job_title IS NULL OR job_title = '') THEN 'Directeur des Opérations & Admin'
+          WHEN role = 'CONFIRMATION_AGENT' AND (job_title IS NULL OR job_title = '') THEN 'Superviseur Confirmation COD'
+          WHEN role = 'PACKER' AND (job_title IS NULL OR job_title = '') THEN 'Responsable Logistique & Colisage'
+          WHEN role = 'TRACKING_AGENT' AND (job_title IS NULL OR job_title = '') THEN 'Spécialiste Sauvetage & Réclamation'
+          ELSE job_title
+        END,
+        avatar_preset = CASE 
+          WHEN role = 'ADMIN' AND (avatar_preset IS NULL OR avatar_preset = '') THEN 'avatar-1'
+          WHEN role = 'CONFIRMATION_AGENT' AND (avatar_preset IS NULL OR avatar_preset = '') THEN 'avatar-2'
+          WHEN role = 'PACKER' AND (avatar_preset IS NULL OR avatar_preset = '') THEN 'avatar-3'
+          WHEN role = 'TRACKING_AGENT' AND (avatar_preset IS NULL OR avatar_preset = '') THEN 'avatar-4'
+          ELSE avatar_preset
+        END,
+        permissions = CASE 
+          WHEN role = 'ADMIN' AND permissions IS NULL THEN JSON_ARRAY('*')
+          WHEN role = 'CONFIRMATION_AGENT' AND permissions IS NULL THEN JSON_ARRAY('CONFIRMATION', 'CALLS', 'WHATSAPP')
+          WHEN role = 'PACKER' AND permissions IS NULL THEN JSON_ARRAY('PACKING', 'LOGISTICS', 'INVENTORY')
+          WHEN role = 'TRACKING_AGENT' AND permissions IS NULL THEN JSON_ARRAY('RESCUE', 'TRACKING', 'CALLS')
+          ELSE permissions
+        END;
+    `);
+
+    // 3. Backfill products total stock & multi-hub allocation if total_stock = 0
+    await pool.query(`
+      UPDATE products 
+      SET 
+        total_stock = stock_quantity,
+        stock_casablanca = FLOOR(stock_quantity * 0.6),
+        stock_fes = FLOOR(stock_quantity * 0.2),
+        stock_marrakech = FLOOR(stock_quantity * 0.2)
+      WHERE total_stock = 0 AND stock_quantity > 0;
+    `);
+  } catch (err: any) {
+    console.warn('[DB Migration] Backfill defaults warning:', err.message);
+  }
+
+  const successCount = results.filter((r) => r.status === 'applied' || r.status === 'already_present').length;
+  const errorCount = results.filter((r) => r.status === 'error').length;
+
+  return {
+    success: errorCount === 0,
+    totalStatements: MIGRATION_STATEMENTS_SQL.length,
+    successCount,
+    errorCount,
+    results,
+  };
+}
 
 /**
  * Initializes and executes schema creation and seeding on Hostinger MySQL database
@@ -433,6 +898,8 @@ export async function initializeDatabase(forceReset: boolean = false) {
     'google_sheets_sync_logs',
     'alerts',
     'events',
+    'google_sheets_configs',
+    'whatsapp_sessions',
   ];
 
   // 1. Create all tables sequentially
@@ -447,7 +914,10 @@ export async function initializeDatabase(forceReset: boolean = false) {
     }
   }
 
-  // 2. Seed default users
+  // 2. Run all schema migrations to ensure columns exist on pre-existing tables
+  await migrateDatabaseSchema();
+
+  // 3. Seed default users
   try {
     const users = [
       {
@@ -456,6 +926,9 @@ export async function initializeDatabase(forceReset: boolean = false) {
         email: 'admin@sendit.ma',
         role: 'ADMIN',
         phone: '0661000000',
+        job_title: 'Directeur des Opérations & Admin',
+        avatar_preset: 'avatar-1',
+        permissions: JSON.stringify(['*']),
       },
       {
         id: 'usr-agent-01',
@@ -463,6 +936,9 @@ export async function initializeDatabase(forceReset: boolean = false) {
         email: 'sarah@sendit.ma',
         role: 'CONFIRMATION_AGENT',
         phone: '0661000001',
+        job_title: 'Superviseur Confirmation COD',
+        avatar_preset: 'avatar-2',
+        permissions: JSON.stringify(['CONFIRMATION', 'CALLS', 'WHATSAPP']),
       },
       {
         id: 'usr-packer-01',
@@ -470,6 +946,9 @@ export async function initializeDatabase(forceReset: boolean = false) {
         email: 'mohamed@sendit.ma',
         role: 'PACKER',
         phone: '0661000002',
+        job_title: 'Responsable Logistique & Colisage',
+        avatar_preset: 'avatar-3',
+        permissions: JSON.stringify(['PACKING', 'LOGISTICS', 'INVENTORY']),
       },
       {
         id: 'usr-track-01',
@@ -477,14 +956,23 @@ export async function initializeDatabase(forceReset: boolean = false) {
         email: 'yassine@sendit.ma',
         role: 'TRACKING_AGENT',
         phone: '0661000003',
+        job_title: 'Spécialiste Sauvetage & Réclamation',
+        avatar_preset: 'avatar-4',
+        permissions: JSON.stringify(['RESCUE', 'TRACKING', 'CALLS']),
       },
     ];
 
     for (const u of users) {
       await pool.query(
-        `INSERT INTO users (id, name, email, password_hash, role, phone, is_active) 
-         VALUES (?, ?, ?, ?, ?, ?, ?)
-         ON DUPLICATE KEY UPDATE name = VALUES(name), role = VALUES(role), phone = VALUES(phone)`,
+        `INSERT INTO users (id, name, email, password_hash, role, phone, job_title, avatar_preset, permissions, is_active) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE 
+           name = VALUES(name), 
+           role = VALUES(role), 
+           phone = VALUES(phone),
+           job_title = IFNULL(users.job_title, VALUES(job_title)),
+           avatar_preset = IFNULL(users.avatar_preset, VALUES(avatar_preset)),
+           permissions = IFNULL(users.permissions, VALUES(permissions))`,
         [
           u.id,
           u.name,
@@ -492,6 +980,9 @@ export async function initializeDatabase(forceReset: boolean = false) {
           '$2a$12$K8j7m9v9zX1Qp4u2w8e7Y.SenditCODHashSecure2026',
           u.role,
           u.phone,
+          u.job_title,
+          u.avatar_preset,
+          u.permissions,
           true,
         ]
       );
@@ -500,20 +991,21 @@ export async function initializeDatabase(forceReset: boolean = false) {
     console.warn('[DB Init] User seed note:', e.message);
   }
 
-  // 3. Seed Product Catalog & Variants
+  // 4. Seed Product Catalog & Variants
   try {
     const products = getProducts();
     for (const p of products) {
       await pool.query(
         `INSERT INTO products 
-         (id, name, name_ar, sku, base_price, cost_price, stock_quantity, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         (id, name, name_ar, sku, base_price, cost_price, stock_quantity, stock_casablanca, stock_fes, stock_marrakech, total_stock, category, description_ar, knowledge_base, selling_points, objection_faqs, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE 
            name = VALUES(name),
            name_ar = VALUES(name_ar),
            base_price = VALUES(base_price),
            cost_price = VALUES(cost_price),
-           stock_quantity = VALUES(stock_quantity)`,
+           stock_quantity = VALUES(stock_quantity),
+           total_stock = VALUES(total_stock)`,
         [
           p.id,
           p.name,
@@ -521,6 +1013,10 @@ export async function initializeDatabase(forceReset: boolean = false) {
           p.sku,
           p.sellingPrice,
           p.costPrice,
+          p.totalStock,
+          Math.floor(p.totalStock * 0.6),
+          Math.floor(p.totalStock * 0.2),
+          Math.floor(p.totalStock * 0.2),
           p.totalStock,
           p.category,
           p.descriptionAr,
@@ -652,6 +1148,7 @@ export const OPERATIONAL_TABLES = [
   'order_items',
   'order_leads',
   'whatsapp_messages',
+  'whatsapp_sessions',
   'finance_transactions',
   'customers',
   'notifications',
@@ -670,6 +1167,7 @@ export const CATALOG_TABLES = [
 export const ALL_DATA_TABLES = [
   ...OPERATIONAL_TABLES,
   ...CATALOG_TABLES,
+  'google_sheets_configs',
   'whatsapp_instances',
   'store_settings',
   'ai_agent_configs',
