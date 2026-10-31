@@ -18,7 +18,10 @@ import {
   RotateCcw,
   Download,
   AlertCircle,
-  Headphones
+  Headphones,
+  Edit3,
+  Calendar,
+  Trash2
 } from 'lucide-react';
 import { TrackingOrder } from '@/types';
 
@@ -28,6 +31,7 @@ interface OrderDrawerProps {
   onClose: () => void;
   onToggleAi: (orderId: string, enabled: boolean) => void;
   onSendMessage: (orderId: string, text: string) => void;
+  onOpenEdit?: (order: TrackingOrder) => void;
 }
 
 export function OrderDrawer({
@@ -36,6 +40,7 @@ export function OrderDrawer({
   onClose,
   onToggleAi,
   onSendMessage,
+  onOpenEdit,
 }: OrderDrawerProps) {
   const [activeTab, setActiveTab] = useState<'timeline' | 'chat' | 'details'>('chat');
   const [replyInput, setReplyInput] = useState('');
@@ -86,13 +91,30 @@ export function OrderDrawer({
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Sendit Tracking: <span className="font-mono font-medium text-slate-700">{order.trackingNumber}</span> • {order.city}
-                </p>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500 mt-1">
+                  <span className="flex items-center gap-1 font-medium text-slate-700">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    <span>Créée le : {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Date récente'}</span>
+                  </span>
+                  <span>•</span>
+                  <span>Sendit AWB: <span className="font-mono font-bold text-slate-800">{order.trackingNumber}</span></span>
+                  <span>•</span>
+                  <span>{order.city}</span>
+                </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
+              {order.shipmentStatus === 'READY_FOR_PICKUP' && (
+                <button
+                  onClick={() => onOpenEdit?.(order)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                  title="Modifier les coordonnées du client ou annuler avant ramassage"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Modifier / Annuler</span>
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/50 transition-colors"
@@ -241,15 +263,33 @@ export function OrderDrawer({
                       <div className="absolute -left-6 mt-1 w-4 h-4 rounded-full bg-white border-2 border-blue-500 flex items-center justify-center">
                         <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
                       </div>
-                      <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-xs">
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="font-semibold text-slate-800">{event.title}</span>
-                          <span className="text-[11px] text-slate-400">{event.timestamp}</span>
+                      <div className={`border rounded-xl p-3.5 shadow-2xs transition-all ${
+                        event.actor === 'SENDIT'
+                          ? 'bg-blue-50/40 border-blue-200 ring-1 ring-blue-100'
+                          : event.actor === 'AI_BOT'
+                          ? 'bg-purple-50/40 border-purple-200'
+                          : 'bg-white border-slate-200/90'
+                      }`}>
+                        <div className="flex items-center justify-between text-xs mb-1.5">
+                          <span className="font-bold text-slate-900 flex items-center gap-1.5">
+                            {event.actor === 'SENDIT' && <Truck className="w-3.5 h-3.5 text-blue-600" />}
+                            {event.actor === 'AI_BOT' && <Bot className="w-3.5 h-3.5 text-purple-600" />}
+                            {event.title}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-mono">{event.timestamp}</span>
                         </div>
-                        <p className="text-xs text-slate-600">{event.description}</p>
-                        <span className="inline-block mt-2 text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
-                          Source: {event.actor}
-                        </span>
+                        <p className="text-xs text-slate-700 leading-relaxed">{event.description}</p>
+                        <div className="mt-2 flex items-center justify-between">
+                          <span className={`inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-md font-mono font-semibold ${
+                            event.actor === 'SENDIT'
+                              ? 'bg-blue-100 text-blue-800'
+                              : event.actor === 'AI_BOT'
+                              ? 'bg-purple-100 text-purple-800'
+                              : 'bg-slate-100 text-slate-700'
+                          }`}>
+                            {event.actor === 'SENDIT' ? '🚚 Événement Sendit.ma' : `Source: ${event.actor}`}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -308,6 +348,16 @@ export function OrderDrawer({
                     Destinataire & Adresse
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Date de Commande</span>
+                      <p className="font-bold text-slate-800">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Non renseignée'}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-slate-400 text-[11px]">Statut Actuel</span>
+                      <p className="font-bold text-indigo-700">{order.shipmentStatus}</p>
+                    </div>
                     <div>
                       <span className="text-slate-400 text-[11px]">Client</span>
                       <p className="font-medium text-slate-800">{order.customerName}</p>

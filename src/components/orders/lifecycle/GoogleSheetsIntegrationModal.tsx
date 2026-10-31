@@ -517,52 +517,6 @@ function testConnection() {
     }
   };
 
-  // Live Simulation Test
-  const handleSimulateOrder = async () => {
-    setIsSimulating(true);
-    setSimulationResult(null);
-
-    const testClients = [
-      { name: 'Youssef El Amrani', phone: '0661998877', city: 'Marrakech', address: 'Guéliz, Immeuble Atlas, Appt 6', product: 'Montre Luxe Or Noir', price: 349 },
-      { name: 'Amina Benjelloun', phone: '0672112233', city: 'Fès', address: 'Route Ain Chkef, Résidence Narjiss', product: 'Pack Robe Caftan Moderne', price: 490 },
-      { name: 'Tariq Alami', phone: '0654334455', city: 'Casablanca', address: 'Bd Zerktouni, Quartier Maârif', product: 'Sneakers Sport Élite', price: 299 },
-      { name: 'Houda Tazi', phone: '0663778899', city: 'Tanger', address: 'Tanger Balia, Complexe Ennasr n°18', product: 'Sac Cuir Artisanal', price: 380 },
-    ];
-
-    const randomClient = testClients[Math.floor(Math.random() * testClients.length)];
-
-    try {
-      const res = await fetch('/api/webhooks/google-sheets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(randomClient),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setSimulationResult({
-          success: true,
-          orderNumber: data.orderNumber,
-          message: `Commande injectée en direct ! N° : ${data.orderNumber} (${randomClient.name} — ${randomClient.city})`,
-        });
-        await refreshInboundOrders();
-        showToast(`Commande ${data.orderNumber} injectée avec succès !`, 'success');
-      } else {
-        setSimulationResult({
-          success: false,
-          message: data.error || 'Une erreur est survenue lors de l\'injection.',
-        });
-      }
-    } catch (err: any) {
-      setSimulationResult({
-        success: false,
-        message: err.message || 'Impossible de joindre le serveur.',
-      });
-    } finally {
-      setIsSimulating(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-4 animate-in fade-in duration-150">
       <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
@@ -1148,45 +1102,6 @@ function testConnection() {
                 </div>
               </div>
 
-              {/* Live Test Simulator */}
-              <div className="p-4 bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-emerald-500/10 rounded-2xl border border-teal-200 space-y-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h4 className="font-black text-xs text-slate-900 flex items-center gap-1.5">
-                      <Play className="w-3.5 h-3.5 text-teal-600 fill-teal-600" />
-                      <span>3. Tester l'injection directe dans le tableau de bord (Live Simulation) :</span>
-                    </h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">
-                      Cliquez pour simuler une commande test et vérifier son apparition immédiate en Confirmation sans rechargement.
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleSimulateOrder}
-                    disabled={isSimulating}
-                    className="flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 active:scale-95 text-white font-bold text-xs shadow-sm transition-all disabled:opacity-50 shrink-0 cursor-pointer"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isSimulating ? 'Envoi en cours...' : 'Injecter une commande test'}</span>
-                  </button>
-                </div>
-
-                {simulationResult && (
-                  <div
-                    className={`p-3 rounded-xl border flex items-center gap-2 text-xs font-bold animate-in fade-in ${
-                      simulationResult.success
-                        ? 'bg-emerald-50 text-emerald-900 border-emerald-300'
-                        : 'bg-rose-50 text-rose-900 border-rose-300'
-                    }`}
-                  >
-                    {simulationResult.success ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                    )}
-                    <span>{simulationResult.message}</span>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 

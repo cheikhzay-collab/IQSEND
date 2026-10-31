@@ -16,7 +16,8 @@ import {
   ExternalLink,
   Truck,
   Bot,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { OrderItem, OrderStatus } from '@/types/orders';
 import { getStageMessageConfig } from '@/lib/order-stage-messages';
@@ -41,6 +42,48 @@ export function OrderDetailsModal({
   const [customMsg, setCustomMsg] = useState('');
   const [activeLang, setActiveLang] = useState<'french' | 'darija' | 'arabic'>('french');
   const [copied, setCopied] = useState(false);
+  const [isPushing, setIsPushing] = useState(false);
+  const [pushSuccess, setPushSuccess] = useState<string | null>(order?.trackingCode || null);
+  const [waybillLink, setWaybillLink] = useState<string | null>(order?.waybillUrl || null);
+
+  useEffect(() => {
+    setPushSuccess(order?.trackingCode || null);
+    setWaybillLink(order?.waybillUrl || null);
+  }, [order]);
+
+  const handlePushToSendit = async () => {
+    if (!order || isPushing) return;
+    setIsPushing(true);
+    try {
+      const res = await fetch('/api/logistics/sendit/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          name: order.customerName,
+          phone: order.phone,
+          city: order.city,
+          address: order.address || `Ville: ${order.city}`,
+          amount: order.amount,
+          reference: order.orderNumber,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        alert(data.error || 'Échec de transmission du colis à Sendit.ma');
+        return;
+      }
+      setPushSuccess(data.trackingCode);
+      if (data.waybillPdfUrl || data.waybillUrl) {
+        setWaybillLink(data.waybillPdfUrl || data.waybillUrl);
+      }
+      onStatusChange(order.id, 'IN_TRANSIT');
+    } catch (err: any) {
+      alert('Erreur: ' + err.message);
+    } finally {
+      setIsPushing(false);
+    }
+  };
 
   useEffect(() => {
     if (order) {
@@ -256,14 +299,39 @@ export function OrderDetailsModal({
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 px-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Imprimer Bon de Commande
-          </button>
+        <div className="p-4 px-6 border-t border-slate-100 bg-slate-50 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              Imprimer Bon
+            </button>
+
+            {waybillLink && (
+              <a
+                href={waybillLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors shadow-2xs"
+              >
+                <FileText className="w-3.5 h-3.5 text-blue-600" />
+                Bordereau Sendit ({pushSuccess})
+              </a>
+            )}
+
+            {!pushSuccess && (
+              <button
+                onClick={handlePushToSendit}
+                disabled={isPushing}
+                className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded-xl shadow-xs transition-colors disabled:opacity-50"
+              >
+                <Truck className="w-3.5 h-3.5" />
+                {isPushing ? 'Génération AWB...' : 'Pousser vers Sendit (AWB)'}
+              </button>
+            )}
+          </div>
 
           <button
             onClick={onClose}

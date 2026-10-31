@@ -95,7 +95,6 @@ export default function LeadsConfirmationPage() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoPiloting, setIsAutoPiloting] = useState(false);
-  const [isCreatingTest, setIsCreatingTest] = useState(false);
   const [dbConnected, setDbConnected] = useState(true);
 
   // Modal states
@@ -188,27 +187,6 @@ export default function LeadsConfirmationPage() {
     }
   };
 
-  // Live test lead creation & AI confirmation demo
-  const handleCreateTestLead = async () => {
-    setIsCreatingTest(true);
-    showToast("🧪 Génération d'une commande test et confirmation par Sara...");
-    try {
-      const res = await fetch('/api/ai/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'create_test_lead' }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        showToast(`✨ Commande ${data.orderNumber} créée pour ${data.customerName} et confirmée par l'IA !`);
-        fetchLeads();
-      }
-    } catch (e: any) {
-      showToast(`Erreur : ${e.message}`);
-    } finally {
-      setIsCreatingTest(false);
-    }
-  };
 
   // Push to Sendit
   const handlePushToSendit = async (leadId: string) => {
@@ -282,9 +260,9 @@ export default function LeadsConfirmationPage() {
       prev.map((l) =>
         l.id === customWhatsAppLead.id
           ? {
-              ...l,
-              aiStageText: 'Message WhatsApp personnalisé envoyé par l’opérateur',
-            }
+            ...l,
+            aiStageText: 'Message WhatsApp personnalisé envoyé par l’opérateur',
+          }
           : l
       )
     );
@@ -397,16 +375,6 @@ export default function LeadsConfirmationPage() {
           </button>
 
           <button
-            onClick={handleCreateTestLead}
-            disabled={isCreatingTest}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold text-xs transition-colors active:scale-95 disabled:opacity-50"
-            title="Générer une commande test et la confirmer en direct pour tester l'Agent"
-          >
-            <Package className="w-3.5 h-3.5 text-blue-300" />
-            <span>{isCreatingTest ? 'Génération en cours...' : 'Tester commande en direct (Démo)'}</span>
-          </button>
-
-          <button
             onClick={fetchLeads}
             disabled={isLoading}
             className="p-2 rounded-xl bg-white/5 hover:bg-white/15 border border-white/10 text-slate-300 hover:text-white transition-colors"
@@ -445,253 +413,253 @@ export default function LeadsConfirmationPage() {
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-6 items-start min-h-[calc(100vh-280px)] select-none">
-        {COLUMNS.map((column) => {
-          const colLeads = leads.filter(
-            (l) =>
-              l.status === column.id &&
-              (l.customerName.toLowerCase().includes(search.toLowerCase()) ||
-                l.phone.includes(search) ||
-                l.city.toLowerCase().includes(search.toLowerCase()) ||
-                l.product.toLowerCase().includes(search.toLowerCase()) ||
-                l.orderNumber.toLowerCase().includes(search.toLowerCase()))
-          );
+          {COLUMNS.map((column) => {
+            const colLeads = leads.filter(
+              (l) =>
+                l.status === column.id &&
+                (l.customerName.toLowerCase().includes(search.toLowerCase()) ||
+                  l.phone.includes(search) ||
+                  l.city.toLowerCase().includes(search.toLowerCase()) ||
+                  l.product.toLowerCase().includes(search.toLowerCase()) ||
+                  l.orderNumber.toLowerCase().includes(search.toLowerCase()))
+            );
 
-          return (
-            <div
-              key={column.id}
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => handleDrop(e, column.id as LeadCard['status'])}
-              className={`w-80 shrink-0 bg-slate-50/80 border rounded-2xl flex flex-col max-h-[82vh] ${column.color}`}
-            >
-              {/* Header */}
-              <div className="p-3 bg-white border-b border-slate-200/80 rounded-t-2xl flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-600"></span>
-                  <h3 className="font-bold text-xs text-slate-800">{column.title}</h3>
-                </div>
-                <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">
-                  {colLeads.length}
-                </span>
-              </div>
-
-              {/* Cards List */}
-              <div className="p-3 space-y-3.5 overflow-y-auto flex-1">
-                {colLeads.length === 0 ? (
-                  <div className="border border-dashed border-slate-200 p-6 rounded-xl text-center text-xs text-slate-400 bg-white/50">
-                    Aucun lead dans cette colonne
+            return (
+              <div
+                key={column.id}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => handleDrop(e, column.id as LeadCard['status'])}
+                className={`w-80 shrink-0 bg-slate-50/80 border rounded-2xl flex flex-col max-h-[82vh] ${column.color}`}
+              >
+                {/* Header */}
+                <div className="p-3 bg-white border-b border-slate-200/80 rounded-t-2xl flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                    <h3 className="font-bold text-xs text-slate-800">{column.title}</h3>
                   </div>
-                ) : (
-                  colLeads.map((lead) => (
-                    <div
-                      key={lead.id}
-                      className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col group"
-                      draggable="true"
-                      onDragStart={(e) => handleDragStart(e, lead.id)}
-                    >
-                      {/* 1. TOP: Product Image & Badges */}
-                      <div className="relative h-32 w-full bg-slate-100 overflow-hidden">
-                        {lead.productImage ? (
-                          <img
-                            src={lead.productImage}
-                            alt={lead.product}
-                            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-50 to-slate-100">
-                            <ShoppingBag className="w-8 h-8 stroke-1 text-slate-300" />
-                            <span className="text-[10px] mt-1">Image produit</span>
-                          </div>
-                        )}
+                  <span className="text-xs font-bold bg-slate-100 text-slate-700 px-2.5 py-0.5 rounded-full border border-slate-200">
+                    {colLeads.length}
+                  </span>
+                </div>
 
-                        {/* Top Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
+                {/* Cards List */}
+                <div className="p-3 space-y-3.5 overflow-y-auto flex-1">
+                  {colLeads.length === 0 ? (
+                    <div className="border border-dashed border-slate-200 p-6 rounded-xl text-center text-xs text-slate-400 bg-white/50">
+                      Aucun lead dans cette colonne
+                    </div>
+                  ) : (
+                    colLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs hover:shadow-md transition-all duration-200 flex flex-col group"
+                        draggable="true"
+                        onDragStart={(e) => handleDragStart(e, lead.id)}
+                      >
+                        {/* 1. TOP: Product Image & Badges */}
+                        <div className="relative h-32 w-full bg-slate-100 overflow-hidden">
+                          {lead.productImage ? (
+                            <img
+                              src={lead.productImage}
+                              alt={lead.product}
+                              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-slate-400 bg-gradient-to-br from-slate-50 to-slate-100">
+                              <ShoppingBag className="w-8 h-8 stroke-1 text-slate-300" />
+                              <span className="text-[10px] mt-1">Image produit</span>
+                            </div>
+                          )}
 
-                        {/* Top Bar on Image: Order ID & Edit button */}
-                        <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                          <span className="font-mono text-[11px] font-bold bg-black/60 backdrop-blur-xs text-white px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
-                            <Tag className="w-3 h-3 text-blue-400" />
-                            {lead.orderNumber}
-                          </span>
+                          {/* Top Gradient Overlay */}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-black/30 pointer-events-none" />
 
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-medium bg-black/50 backdrop-blur-xs text-white/90 px-1.5 py-0.5 rounded-md">
-                              {lead.timeAgo}
+                          {/* Top Bar on Image: Order ID & Edit button */}
+                          <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
+                            <span className="font-mono text-[11px] font-bold bg-black/60 backdrop-blur-xs text-white px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
+                              <Tag className="w-3 h-3 text-blue-400" />
+                              {lead.orderNumber}
                             </span>
-                            {/* Form Edit Button */}
-                            <button
-                              onClick={() => setEditingLead({ ...lead })}
-                              title="Modifier la commande"
-                              className="bg-white text-slate-700 hover:text-blue-600 p-1.5 rounded-md shadow-md hover:bg-slate-50 transition-colors"
-                            >
-                              <Edit3 className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
 
-                        {/* Bottom Overlay on Image: Product Name & Price */}
-                        <div className="absolute bottom-2 left-2.5 right-2.5 flex items-end justify-between text-white">
-                          <div className="max-w-[70%]">
-                            <p className="text-xs font-bold leading-tight drop-shadow-md truncate">
-                              {lead.product}
-                            </p>
-                            <p className="text-[10px] text-white/80 drop-shadow-xs">
-                              {lead.size ? `Taille: ${lead.size}` : ''}
-                              {lead.color ? ` • ${lead.color}` : ''}
-                            </p>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] font-medium bg-black/50 backdrop-blur-xs text-white/90 px-1.5 py-0.5 rounded-md">
+                                {lead.timeAgo}
+                              </span>
+                              {/* Form Edit Button */}
+                              <button
+                                onClick={() => setEditingLead({ ...lead })}
+                                title="Modifier la commande"
+                                className="bg-white text-slate-700 hover:text-blue-600 p-1.5 rounded-md shadow-md hover:bg-slate-50 transition-colors"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <span className="font-mono text-sm font-extrabold text-white bg-blue-600/90 backdrop-blur-xs px-2 py-0.5 rounded-md shadow-xs">
-                              {lead.amount} MAD
-                            </span>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* 2. MIDDLE: Customer & Order Details */}
-                      <div className="p-3 space-y-2 flex-1">
-                        {/* Customer Information */}
-                        <div className="flex items-start justify-between gap-1">
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span className="text-xs font-bold text-slate-800">
-                                {lead.customerName}
+                          {/* Bottom Overlay on Image: Product Name & Price */}
+                          <div className="absolute bottom-2 left-2.5 right-2.5 flex items-end justify-between text-white">
+                            <div className="max-w-[70%]">
+                              <p className="text-xs font-bold leading-tight drop-shadow-md truncate">
+                                {lead.product}
+                              </p>
+                              <p className="text-[10px] text-white/80 drop-shadow-xs">
+                                {lead.size ? `Taille: ${lead.size}` : ''}
+                                {lead.color ? ` • ${lead.color}` : ''}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <span className="font-mono text-sm font-extrabold text-white bg-blue-600/90 backdrop-blur-xs px-2 py-0.5 rounded-md shadow-xs">
+                                {lead.amount} MAD
                               </span>
                             </div>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1 pl-5">
-                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                              <span className="font-medium text-slate-700">{lead.city}</span>
-                              {lead.address && (
-                                <span className="text-slate-400 truncate max-w-[130px]">
-                                  • {lead.address}
+                          </div>
+                        </div>
+
+                        {/* 2. MIDDLE: Customer & Order Details */}
+                        <div className="p-3 space-y-2 flex-1">
+                          {/* Customer Information */}
+                          <div className="flex items-start justify-between gap-1">
+                            <div>
+                              <div className="flex items-center gap-1.5">
+                                <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                <span className="text-xs font-bold text-slate-800">
+                                  {lead.customerName}
                                 </span>
-                              )}
+                              </div>
+                              <div className="flex items-center gap-1 text-[11px] text-slate-500 mt-1 pl-5">
+                                <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                                <span className="font-medium text-slate-700">{lead.city}</span>
+                                {lead.address && (
+                                  <span className="text-slate-400 truncate max-w-[130px]">
+                                    • {lead.address}
+                                  </span>
+                                )}
+                              </div>
                             </div>
+                            <span className="font-mono text-[11px] text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
+                              {lead.phone}
+                            </span>
                           </div>
-                          <span className="font-mono text-[11px] text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded-md shrink-0">
-                            {lead.phone}
-                          </span>
+
+                          {/* Customer Note if exists */}
+                          {lead.customerNote && (
+                            <div className="text-[10px] bg-amber-50/80 border border-amber-200/60 text-amber-800 p-1.5 rounded-md flex items-start gap-1">
+                              <FileText className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
+                              <span className="truncate">{lead.customerNote}</span>
+                            </div>
+                          )}
+
+                          {/* AI Qualification Stage Note */}
+                          <div className="bg-blue-50/80 border border-blue-100 text-blue-900 p-2 rounded-lg text-[10px] flex items-start gap-1.5 leading-snug">
+                            <Bot className="w-3.5 h-3.5 shrink-0 text-blue-600 mt-0.5" />
+                            <span>{lead.aiStageText}</span>
+                          </div>
+
+                          {/* Status Badges: Upsell, Voice note, GPS, Duplicate */}
+                          <div className="flex items-center gap-1 flex-wrap text-[10px] pt-0.5">
+                            {lead.hasVoiceNote && (
+                              <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
+                                🎤 Note Vocale
+                              </span>
+                            )}
+                            {lead.isUpsold && (
+                              <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5">
+                                + {lead.upsellAmount} MAD Upsell
+                              </span>
+                            )}
+                            {lead.gpsReceived && (
+                              <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-0.5">
+                                📍 GPS Reçu
+                              </span>
+                            )}
+                            {lead.duplicateCount && (
+                              <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-md font-bold">
+                                ⚠️ {lead.duplicateCount} Doublons
+                              </span>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Customer Note if exists */}
-                        {lead.customerNote && (
-                          <div className="text-[10px] bg-amber-50/80 border border-amber-200/60 text-amber-800 p-1.5 rounded-md flex items-start gap-1">
-                            <FileText className="w-3 h-3 text-amber-600 mt-0.5 shrink-0" />
-                            <span className="truncate">{lead.customerNote}</span>
+                        {/* 3. BOTTOM ACTIONS: Call + Custom WhatsApp + Push to Chatbot */}
+                        <div className="px-3 pb-3 pt-2 border-t border-slate-100 bg-slate-50/50 space-y-2">
+                          {/* Action Buttons Row: Call | Custom WhatsApp | Push to Chatbot */}
+                          <div className="grid grid-cols-3 gap-1.5">
+                            {/* 1. Bouton Appel Direct */}
+                            <a
+                              href={`tel:${lead.phone}`}
+                              title={`Appeler ${lead.customerName} (${lead.phone})`}
+                              className="flex items-center justify-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-emerald-700 font-semibold py-1.5 rounded-lg text-[11px] transition-colors shadow-2xs"
+                            >
+                              <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>Appel</span>
+                            </a>
+
+                            {/* 2. Bouton Message Personnalisé WhatsApp */}
+                            <button
+                              onClick={() => openWhatsAppModal(lead)}
+                              title="Envoyer un message WhatsApp personnalisé"
+                              className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 rounded-lg text-[11px] transition-colors shadow-2xs"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>WhatsApp</span>
+                            </button>
+
+                            {/* 3. Bouton Pousser vers Chatbot IA */}
+                            <button
+                              onClick={() => handleTriggerAiBot(lead)}
+                              title="Lancer l'Agent IA Sarah pour qualifier et confirmer en direct"
+                              className="flex items-center justify-center gap-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-1.5 rounded-lg text-[11px] transition-all shadow-xs active:scale-95"
+                            >
+                              <Bot className="w-3.5 h-3.5" />
+                              <span>Confirmer IA</span>
+                            </button>
                           </div>
-                        )}
 
-                        {/* AI Qualification Stage Note */}
-                        <div className="bg-blue-50/80 border border-blue-100 text-blue-900 p-2 rounded-lg text-[10px] flex items-start gap-1.5 leading-snug">
-                          <Bot className="w-3.5 h-3.5 shrink-0 text-blue-600 mt-0.5" />
-                          <span>{lead.aiStageText}</span>
-                        </div>
+                          {/* Stage Specific Action Button */}
+                          {lead.status === 'NEW' && (
+                            <button
+                              onClick={() => handleTriggerAiBot(lead)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-all shadow-xs active:scale-95"
+                            >
+                              <Sparkles className="w-3.5 h-3.5" />
+                              🤖 Lancer l'Agent IA pour confirmer ⚡
+                            </button>
+                          )}
 
-                        {/* Status Badges: Upsell, Voice note, GPS, Duplicate */}
-                        <div className="flex items-center gap-1 flex-wrap text-[10px] pt-0.5">
-                          {lead.hasVoiceNote && (
-                            <span className="bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded-md font-medium flex items-center gap-0.5">
-                              🎤 Note Vocale
-                            </span>
+                          {lead.status === 'AI_CHATTING' && (
+                            <button
+                              onClick={() => handleConfirmManually(lead.id)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-colors shadow-xs"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Confirmer la commande ✓
+                            </button>
                           )}
-                          {lead.isUpsold && (
-                            <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-bold flex items-center gap-0.5">
-                              + {lead.upsellAmount} MAD Upsell
-                            </span>
+
+                          {lead.status === 'CONFIRMED' && (
+                            <button
+                              onClick={() => handlePushToSendit(lead.id)}
+                              className="w-full flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-colors shadow-xs"
+                            >
+                              <Package className="w-3.5 h-3.5" />
+                              Push vers Sendit.ma
+                            </button>
                           )}
-                          {lead.gpsReceived && (
-                            <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-0.5">
-                              📍 GPS Reçu
-                            </span>
-                          )}
-                          {lead.duplicateCount && (
-                            <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-md font-bold">
-                              ⚠️ {lead.duplicateCount} Doublons
-                            </span>
+
+                          {lead.status === 'PACKING' && (
+                            <div className="w-full text-center py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg">
+                              📦 Prêt pour ramassage Sendit
+                            </div>
                           )}
                         </div>
                       </div>
-
-                      {/* 3. BOTTOM ACTIONS: Call + Custom WhatsApp + Push to Chatbot */}
-                      <div className="px-3 pb-3 pt-2 border-t border-slate-100 bg-slate-50/50 space-y-2">
-                        {/* Action Buttons Row: Call | Custom WhatsApp | Push to Chatbot */}
-                        <div className="grid grid-cols-3 gap-1.5">
-                          {/* 1. Bouton Appel Direct */}
-                          <a
-                            href={`tel:${lead.phone}`}
-                            title={`Appeler ${lead.customerName} (${lead.phone})`}
-                            className="flex items-center justify-center gap-1 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 hover:text-emerald-700 font-semibold py-1.5 rounded-lg text-[11px] transition-colors shadow-2xs"
-                          >
-                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Appel</span>
-                          </a>
-
-                          {/* 2. Bouton Message Personnalisé WhatsApp */}
-                          <button
-                            onClick={() => openWhatsAppModal(lead)}
-                            title="Envoyer un message WhatsApp personnalisé"
-                            className="flex items-center justify-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-1.5 rounded-lg text-[11px] transition-colors shadow-2xs"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5" />
-                            <span>WhatsApp</span>
-                          </button>
-
-                          {/* 3. Bouton Pousser vers Chatbot IA */}
-                          <button
-                            onClick={() => handleTriggerAiBot(lead)}
-                            title="Lancer l'Agent IA Sarah pour qualifier et confirmer en direct"
-                            className="flex items-center justify-center gap-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold py-1.5 rounded-lg text-[11px] transition-all shadow-xs active:scale-95"
-                          >
-                            <Bot className="w-3.5 h-3.5" />
-                            <span>Confirmer IA</span>
-                          </button>
-                        </div>
-
-                        {/* Stage Specific Action Button */}
-                        {lead.status === 'NEW' && (
-                          <button
-                            onClick={() => handleTriggerAiBot(lead)}
-                            className="w-full flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-all shadow-xs active:scale-95"
-                          >
-                            <Sparkles className="w-3.5 h-3.5" />
-                            🤖 Lancer l'Agent IA pour confirmer ⚡
-                          </button>
-                        )}
-
-                        {lead.status === 'AI_CHATTING' && (
-                          <button
-                            onClick={() => handleConfirmManually(lead.id)}
-                            className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-colors shadow-xs"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            Confirmer la commande ✓
-                          </button>
-                        )}
-
-                        {lead.status === 'CONFIRMED' && (
-                          <button
-                            onClick={() => handlePushToSendit(lead.id)}
-                            className="w-full flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold py-1.5 rounded-lg transition-colors shadow-xs"
-                          >
-                            <Package className="w-3.5 h-3.5" />
-                            Push vers Sendit.ma
-                          </button>
-                        )}
-
-                        {lead.status === 'PACKING' && (
-                          <div className="w-full text-center py-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-lg">
-                            📦 Prêt pour ramassage Sendit
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
       )}
 
       {/* ========================================================================= */}

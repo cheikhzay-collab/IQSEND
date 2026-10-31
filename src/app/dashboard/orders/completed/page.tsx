@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
 import { InvoiceModal } from '@/components/orders/lifecycle/OrderModals';
+import { CodReconciliationModal } from '@/components/orders/CodReconciliationModal';
 import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
 import { OrderItem } from '@/types/orders';
@@ -30,6 +31,7 @@ export default function CompletedOrdersPage() {
     orders,
     requestReview,
     processReturn,
+    editOrder,
     completedCount,
   } = useOrderLifecycle();
 
@@ -38,6 +40,7 @@ export default function CompletedOrdersPage() {
   const [returnOrder, setReturnOrder] = useState<LifecycleOrder | null>(null);
   const [returnReason, setReturnReason] = useState('Changement de taille souhaité');
   const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
+  const [reconcilingOrder, setReconcilingOrder] = useState<LifecycleOrder | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
 
   // Filter orders for Completed
@@ -376,14 +379,34 @@ export default function CompletedOrdersPage() {
 
                       {/* 5. Financial Clearance Status */}
                       <td className="py-4 px-4 whitespace-nowrap">
-                        <div className="space-y-1">
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                            <span>Virement Sendit Effectué</span>
-                          </span>
-                          <span className="text-[10px] text-slate-400 block font-mono">
-                            Réf : {order.payment.settlementRef || 'VIR-SENDIT-89410'}
-                          </span>
+                        <div className="space-y-1.5">
+                          {order.payment?.settlementRef ? (
+                            <>
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                <span>Virement Réconcilié ✓</span>
+                              </span>
+                              <span className="text-[10px] text-slate-500 block font-mono">
+                                Réf : <strong className="text-slate-800">{order.payment.settlementRef}</strong>
+                              </span>
+                              <span className="text-[10px] text-emerald-700 block font-bold">
+                                Net viré : {order.payment.amount - 35} MAD
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                                <span>En attente virement</span>
+                              </span>
+                              <button
+                                onClick={() => setReconcilingOrder(order)}
+                                className="block mt-1 text-[10px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200 transition-colors"
+                              >
+                                Saisir Réf Virement
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
 
@@ -537,6 +560,22 @@ export default function CompletedOrdersPage() {
         isOpen={!!agentInterventionOrder}
         onClose={() => setAgentInterventionOrder(null)}
       />
-    </div>
+    
+      {/* COD Financial Reconciliation Modal */}
+      <CodReconciliationModal
+        order={reconcilingOrder}
+        isOpen={!!reconcilingOrder}
+        onClose={() => setReconcilingOrder(null)}
+        onReconciled={(orderId, virementRef, netPayout) => {
+          editOrder(orderId, {
+            payment: {
+              ...(reconcilingOrder?.payment || { method: 'COD', amount: 0, currency: 'MAD', status: 'SETTLED' }),
+              status: 'SETTLED',
+              settlementRef: virementRef,
+            },
+          });
+        }}
+      />
+</div>
   );
 }

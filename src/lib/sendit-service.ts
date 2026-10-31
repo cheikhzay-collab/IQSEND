@@ -146,6 +146,8 @@ export class SenditLogisticsService {
   private webhookSecret: string;
   private sessionToken: string | null = null;
   private tokenExpiresAt: number = 0;
+  public defaultPickupDistrictId: number = 139; // Hub Fès par défaut (confirmé par l'historique du compte Sendit)
+
   private cachedDistricts: Array<{
     id: number;
     ville: string;
@@ -207,13 +209,16 @@ export class SenditLogisticsService {
       const pool = getMysqlPool();
       const [rows]: any = await pool.execute(`
         SELECT setting_key, setting_value FROM store_settings
-        WHERE setting_key IN ('SENDIT_PUBLIC_KEY', 'SENDIT_PRIVATE_KEY', 'SENDIT_WEBHOOK_SECRET')
+        WHERE setting_key IN ('SENDIT_PUBLIC_KEY', 'SENDIT_PRIVATE_KEY', 'SENDIT_WEBHOOK_SECRET', 'SENDIT_DEFAULT_PICKUP_DISTRICT')
       `);
       if (Array.isArray(rows)) {
         for (const r of rows) {
           if (!this.publicKey && r.setting_key === 'SENDIT_PUBLIC_KEY') this.publicKey = r.setting_value;
           if (!this.secretKey && r.setting_key === 'SENDIT_PRIVATE_KEY') this.secretKey = r.setting_value;
           if (!this.webhookSecret && r.setting_key === 'SENDIT_WEBHOOK_SECRET') this.webhookSecret = r.setting_value;
+          if (r.setting_key === 'SENDIT_DEFAULT_PICKUP_DISTRICT' && r.setting_value) {
+            this.defaultPickupDistrictId = Number(r.setting_value) || 139;
+          }
         }
       }
     } catch {}
@@ -313,67 +318,160 @@ export class SenditLogisticsService {
   }
 
   // ──────────────────────────────────────────
-  //  2b. POST /deliveries — إنشاء كولي
+  //  2b. POST /deliveries — إنشاء كولي فعلي
   // ──────────────────────────────────────────
+
+  /**
+   * البحث الذكي وتحديد معرف المدينة (district_id) في نظام Sendit.ma
+   * يدعم الأسماء العربية، الفرنسية، الأسماء الشائعة والمختصرة لـ 517 مدينة ومقاطعة مغربية
+   */
+  resolveDistrict(cityInput?: string): { id: number; name: string; ville: string; arabic_name?: string } {
+    const defaultHub = { id: 1, name: 'Casablanca - Al fida', ville: 'Casablanca', arabic_name: 'الدار البيضاء - الفداء' };
+    if (!cityInput || !cityInput.trim()) return defaultHub;
+
+    const normalize = (s: string) =>
+      (s || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w\s\u0600-\u06FF]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const q = normalize(cityInput);
+
+    const aliases: Record<string, string> = {
+      'كازا': 'casablanca',
+      'كازابلانكا': 'casablanca',
+      'casa': 'casablanca',
+      'الرباط سلا': 'rabat',
+      'marrakesh': 'marrakech',
+      'fes': 'fes',
+      'fès': 'fes',
+      'tanger': 'tanger',
+      'sale': 'sale',
+      'salé': 'sale',
+    };
+    const target = aliases[q] || q;
+
+    // Load districts list from memory cache or file
+    let list = this.cachedDistricts || [];
+    if (list.length === 0) {
+      try {
+        const filePath = path.join(process.cwd(), 'data', 'sendit-districts.json');
+        if (fs.existsSync(filePath)) {
+          list = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+          this.cachedDistricts = list;
+          this.cachedDistrictsExpiresAt = Date.now() + 24 * 60 * 60 * 1000;
+        }
+      } catch {}
+    }
+
+    if (list.length === 0) return defaultHub;
+
+    // 1. Exact match on arabic_name
+    let match = list.find((d: any) => d.arabic_name && normalize(d.arabic_name) === target);
+    if (match) return match;
+
+    // 2. Exact match on ville or name
+    match = list.find((d: any) => normalize(d.ville) === target || normalize(d.name) === target);
+    if (match) return match;
+
+    // 3. Substring match on arabic_name
+    match = list.find((d: any) => d.arabic_name && (normalize(d.arabic_name).includes(target) || target.includes(normalize(d.arabic_name))));
+    if (match) return match;
+
+    // 4. Substring match on ville or name
+    const candidates = list.filter((d: any) => normalize(d.ville).includes(target) || normalize(d.name).includes(target));
+    if (candidates.length > 0) {
+      const exactVille = candidates.find((d: any) => normalize(d.ville) === target);
+      return exactVille || candidates[0];
+    }
+
+    return defaultHub;
+  }
 
   async createParcel(payload: SenditCreateParcelPayload): Promise<SenditParcelResponse> {
     try {
-      // 1. Essai avec API Réelle
-      if (this.publicKey && this.secretKey) {
-        let headers = await this.authHeaders();
-        let response = await fetch(`${this.apiBaseUrl}/deliveries`, {
+      await this.ensureCredentials();
+
+      if (!this.publicKey || !this.secretKey) {
+        throw new Error('Clés API Sendit.ma manquantes. Veuillez configurer vos clés dans les paramètres.');
+      }
+
+      // Normaliser le numéro de téléphone au format marocain (10 chiffres: 06..., 07..., 05...)
+      let cleanPhone = String(payload.phone || '').replace(/\D/g, '');
+      if (cleanPhone.startsWith('212') && cleanPhone.length === 12) {
+        cleanPhone = '0' + cleanPhone.slice(3);
+      } else if (!cleanPhone.startsWith('0') && cleanPhone.length === 9) {
+        cleanPhone = '0' + cleanPhone;
+      }
+
+      // Ville de ramassage (139 = Fès Hub par défaut selon l'historique du compte Sendit)
+      const pickupDistrict = payload.pickup_district_id || this.defaultPickupDistrictId || 139;
+
+      const finalPayload: SenditCreateParcelPayload = {
+        pickup_district_id: pickupDistrict,
+        district_id: Number(payload.district_id),
+        name: (payload.name || 'Client').trim(),
+        phone: cleanPhone,
+        address: (payload.address || 'Adresse à confirmer').trim(),
+        amount: Number(payload.amount) || 0,
+        comment: payload.comment || '',
+        reference: payload.reference || '',
+        allow_open: payload.allow_open ?? 1,
+        allow_try: payload.allow_try ?? 1,
+        products: payload.products || undefined,
+        products_from_stock: payload.products_from_stock ?? 0,
+        packaging_id: payload.packaging_id,
+        option_exchange: payload.option_exchange ?? 0,
+        delivery_exchange_id: payload.delivery_exchange_id,
+      };
+
+      let headers = await this.authHeaders();
+      let response = await fetch(`${this.apiBaseUrl}/deliveries`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(finalPayload),
+      });
+
+      // Si token expiré (401), rafraîchir et réexécuter une fois
+      if (response.status === 401) {
+        this.clearSession();
+        headers = await this.authHeaders();
+        response = await fetch(`${this.apiBaseUrl}/deliveries`, {
           method: 'POST',
           headers,
-          body: JSON.stringify(payload),
+          body: JSON.stringify(finalPayload),
         });
-
-        // Si token expiré (401), rafraîchir et réexécuter une fois
-        if (response.status === 401) {
-          this.clearSession();
-          headers = await this.authHeaders();
-          response = await fetch(`${this.apiBaseUrl}/deliveries`, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify(payload),
-          });
-        }
-
-        return await this._parseCreateResponse(response);
       }
+
+      return await this._parseCreateResponse(response);
     } catch (err: any) {
-      console.error('[Sendit API] Erreur envoi réel:', err.message);
-
-      // Si erreur en production avec clés configurées, remonter l'erreur
-      if (process.env.NODE_ENV === 'production' && this.publicKey) {
-        return {
-          success: false,
-          trackingCode: '',
-          waybillPdfUrl: '',
-          errorMessage: err.message,
-        };
-      }
+      console.error('[Sendit API] Erreur création de livraison réelle:', err.message);
+      return {
+        success: false,
+        trackingCode: '',
+        waybillPdfUrl: '',
+        errorMessage: err.message,
+      };
     }
-
-    // Fallback Démonstration / Mode Local
-    const mockCode = `DHF${Math.floor(1000000 + Math.random() * 9000000)}`;
-    console.warn(`[Sendit Simulator] 📦 Mode simulation active — Numéro généré: ${mockCode}`);
-    return {
-      success: true,
-      trackingCode: mockCode,
-      waybillPdfUrl: `https://app.sendit.ma/signed-files/labels_${mockCode}.pdf`,
-      fee: 35,
-    };
   }
 
   private async _parseCreateResponse(response: Response): Promise<SenditParcelResponse> {
     const resJson = await response.json().catch(() => ({}));
 
     if (!response.ok || resJson.success === false) {
-      const errMsg =
-        resJson.message ||
-        resJson.error ||
-        (resJson.errors ? JSON.stringify(resJson.errors) : `Erreur HTTP ${response.status}`);
-      throw new Error(errMsg);
+      let errMsg = resJson.message || resJson.error || '';
+      if (resJson.data && typeof resJson.data === 'object') {
+        const fieldErrors = Object.entries(resJson.data)
+          .map(([k, v]) => `${k}: ${v}`)
+          .join(', ');
+        if (fieldErrors) errMsg = `${errMsg} (${fieldErrors})`;
+      } else if (resJson.errors) {
+        errMsg = `${errMsg} (${JSON.stringify(resJson.errors)})`;
+      }
+      throw new Error(errMsg || `Erreur HTTP ${response.status}`);
     }
 
     const colis = resJson.data || resJson;
@@ -388,7 +486,7 @@ export class SenditLogisticsService {
       success: true,
       trackingCode,
       waybillPdfUrl,
-      fee: colis.fee,
+      fee: Number(colis.fee) || 35,
       rawData: resJson,
     };
   }
@@ -405,6 +503,17 @@ export class SenditLogisticsService {
       });
 
       if (!response.ok) {
+        if (response.status === 404) {
+          return {
+            status: 'CANCELED',
+            data: {
+              code: trackingCode,
+              status: 'CANCELED',
+              note: 'Colis introuvable ou annulé sur Sendit.ma',
+              last_action_at: new Date().toISOString(),
+            },
+          };
+        }
         throw new Error(`HTTP ${response.status}`);
       }
 
@@ -413,12 +522,12 @@ export class SenditLogisticsService {
       const status = data.status || data.newStatus || 'PENDING';
       return { status, data };
     } catch {
-      // Fallback
       return {
-        status: 'DELIVERING',
+        status: 'CANCELED',
         data: {
           code: trackingCode,
-          status: 'DELIVERING',
+          status: 'CANCELED',
+          note: 'Colis annulé ou indisponible',
           last_action_at: new Date().toISOString(),
         },
       };
@@ -483,49 +592,145 @@ export class SenditLogisticsService {
 
   /**
    * مزامنة حية وشاملة لكافة الكوليات من حساب Sendit.ma إلى قاعدة بيانات المنصة (Hostinger MySQL)
-   * يقوم بإدخال/تحديث order_leads و shipment_details تلقائياً
+   * مع احترام إعدادات نطاق السجل الزمني (Sync Scope) لتفادي جلب الكوليات القديمة
    */
-  async syncDeliveriesToDatabase(options?: { maxPages?: number }): Promise<{
+  async syncDeliveriesToDatabase(options?: {
+    maxPages?: number;
+    syncWindow?: string;
+    syncStartDate?: string;
+    syncStatusScope?: string;
+    forceAll?: boolean;
+  }): Promise<{
     success: boolean;
     syncedCount: number;
     totalOnSendit: number;
+    skippedOldCount: number;
+    cutoffDate?: string;
     message: string;
   }> {
     try {
-      // 1. جلب الصفحة الأولى لمعرفة إجمالي الصفحات
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+
+      // 1. Lire les paramètres de périmètre de synchronisation depuis MySQL
+      let syncWindow = options?.syncWindow || 'LAST_30_DAYS';
+      let syncStartDate = options?.syncStartDate || '';
+      let syncStatusScope = options?.syncStatusScope || 'ACTIVE_AND_RECENT_CLOSED';
+      let maxPages = options?.maxPages || 5;
+
+      try {
+        const [settingsRows]: any = await pool.execute(`
+          SELECT setting_key, setting_value FROM store_settings
+          WHERE setting_key IN (
+            'SENDIT_SYNC_WINDOW',
+            'SENDIT_SYNC_START_DATE',
+            'SENDIT_SYNC_STATUS_SCOPE',
+            'SENDIT_SYNC_MAX_PAGES'
+          )
+        `);
+        if (Array.isArray(settingsRows)) {
+          for (const s of settingsRows) {
+            if (!options?.syncWindow && s.setting_key === 'SENDIT_SYNC_WINDOW') syncWindow = s.setting_value;
+            if (!options?.syncStartDate && s.setting_key === 'SENDIT_SYNC_START_DATE') syncStartDate = s.setting_value;
+            if (!options?.syncStatusScope && s.setting_key === 'SENDIT_SYNC_STATUS_SCOPE') syncStatusScope = s.setting_value;
+            if (!options?.maxPages && s.setting_key === 'SENDIT_SYNC_MAX_PAGES') maxPages = parseInt(s.setting_value, 10) || 5;
+          }
+        }
+      } catch (err: any) {
+        console.warn('[Sendit Sync] Could not load scope settings, using defaults:', err.message);
+      }
+
+      // 2. Calculer la date limite de synchronisation (Cutoff Date)
+      let cutoffDate: Date | null = null;
+      const now = new Date();
+      if (!options?.forceAll) {
+        if (syncWindow === 'LAST_7_DAYS') {
+          cutoffDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        } else if (syncWindow === 'LAST_14_DAYS') {
+          cutoffDate = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+        } else if (syncWindow === 'LAST_30_DAYS') {
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        } else if (syncWindow === 'LAST_60_DAYS') {
+          cutoffDate = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+        } else if (syncWindow === 'CUSTOM' && syncStartDate) {
+          const parsed = new Date(syncStartDate);
+          if (!isNaN(parsed.getTime())) cutoffDate = parsed;
+        } else if (syncWindow === 'ALL') {
+          cutoffDate = null;
+        } else {
+          cutoffDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        }
+      }
+
+      // 3. جلب الصفحة الأولى لمعرفة إجمالي الصفحات
       const p1 = await this.getDeliveries({ page: 1 });
       if (!p1.success || !Array.isArray(p1.data)) {
         return {
           success: false,
           syncedCount: 0,
           totalOnSendit: 0,
+          skippedOldCount: 0,
           message: 'تعذر الاتصال بخوادم Sendit.ma أو التحقق من المفاتيح',
         };
       }
 
-      let allDeliveries = [...p1.data];
-      const maxPages = options?.maxPages || 20; // limit safety
+      let allDeliveries: any[] = [];
+      let skippedOldCount = 0;
+      let shouldStopPagination = false;
+
+      // Filtrer la page 1
+      for (const item of p1.data) {
+        let itemDate = item.created_at ? new Date(item.created_at) : new Date();
+        if (isNaN(itemDate.getTime())) itemDate = new Date();
+
+        if (cutoffDate && itemDate.getTime() < cutoffDate.getTime()) {
+          skippedOldCount++;
+          shouldStopPagination = true;
+          continue;
+        }
+        allDeliveries.push(item);
+      }
+
       const lastPage = Math.min(p1.last_page, maxPages);
 
-      // 2. جلب باقي الصفحات
-      for (let p = 2; p <= lastPage; p++) {
-        const pageRes = await this.getDeliveries({ page: p });
-        if (pageRes.success && Array.isArray(pageRes.data)) {
-          allDeliveries = allDeliveries.concat(pageRes.data);
+      // 4. جلب باقي الصفحات مع التوقف الذكي عند بلوغ التاريخ القديم
+      if (!shouldStopPagination && lastPage > 1) {
+        for (let p = 2; p <= lastPage; p++) {
+          const pageRes = await this.getDeliveries({ page: p });
+          if (!pageRes.success || !Array.isArray(pageRes.data) || pageRes.data.length === 0) {
+            break;
+          }
+
+          let pageHadOlder = false;
+          for (const item of pageRes.data) {
+            let itemDate = item.created_at ? new Date(item.created_at) : new Date();
+            if (isNaN(itemDate.getTime())) itemDate = new Date();
+
+            if (cutoffDate && itemDate.getTime() < cutoffDate.getTime()) {
+              skippedOldCount++;
+              pageHadOlder = true;
+              continue;
+            }
+            allDeliveries.push(item);
+          }
+
+          // Les colis Sendit étant ordonnés par created_at DESC (du plus récent au plus ancien),
+          // dès qu'une page commence à contenir des colis antérieurs à la date limite,
+          // les pages suivantes seront 100% obsolètes -> on arrête la pagination immédiatement !
+          if (pageHadOlder) {
+            console.log(`[Sendit Sync] Arrêt intelligent de la pagination à la page ${p}/${lastPage} (date limite atteinte : ${cutoffDate?.toISOString().slice(0, 10)})`);
+            break;
+          }
         }
       }
 
-      // 3. كتابة البيانات في Hostinger MySQL
-      const { getMysqlPool } = await import('@/lib/db');
-      const pool = getMysqlPool();
-
       let syncedCount = 0;
 
+      // 5. كتابة وتحديث البيانات في Hostinger MySQL
       for (const item of allDeliveries) {
         const code = item.code;
         if (!code) continue;
 
-        const leadId = `snd-${code}`;
         const name = item.name || 'Client Sendit';
         const phone = item.phone || '';
         const city = item.district?.ville || item.district?.name || item.district?.arabic_name || 'Maroc';
@@ -536,39 +741,177 @@ export class SenditLogisticsService {
         const waybill = `https://app.sendit.ma/signed-files/labels_${code}.pdf`;
         const fee = Number(item.fee) || 35;
         const lastAction = item.last_action_at ? new Date(item.last_action_at) : new Date();
-        const createdAt = item.created_at ? new Date(item.created_at) : new Date();
 
-        // حفظ / تحديث الطلب في order_leads
-        await pool.execute(
-          `INSERT INTO order_leads 
-             (id, order_number, customer_name, phone_number, city, address, total_amount, status, store_source, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SENDIT_SYNC', ?, ?)
-           ON DUPLICATE KEY UPDATE
-             status = VALUES(status),
-             total_amount = VALUES(total_amount),
-             updated_at = NOW()`,
-          [leadId, code, name, phone, city, address, amount, mappedStatus, createdAt, lastAction]
+        // Vérifier le statut de clôture
+        const isClosedStatus = ['DELIVERED', 'CANCELED', 'REJECTED', 'RETURNED'].includes(rawStatus);
+
+        // 1. Déterminer avec exactitude la date de création originale
+        let senditCreatedAt: Date;
+        if (item.created_at) {
+          const parsed = new Date(item.created_at);
+          senditCreatedAt = !isNaN(parsed.getTime()) ? parsed : new Date();
+        } else {
+          senditCreatedAt = new Date();
+        }
+
+        // 2. Vérifier si la commande existe déjà dans notre plateforme (order_leads ou shipment_details)
+        // afin de préserver ABSOLUMENT la date de création originale de la commande dans la plateforme !
+        const cleanRef = item.reference ? String(item.reference).trim() : '';
+        const [existingRows]: any = await pool.execute(
+          `SELECT l.id, l.order_number, l.created_at, l.store_source, l.status as cur_status
+           FROM order_leads l
+           LEFT JOIN shipment_details s ON l.id = s.order_id
+           WHERE s.sendit_tracking_number = ?
+              OR l.order_number = ?
+              OR l.order_number = ?
+              OR (CHAR_LENGTH(?) > 0 AND l.id = ?)
+              OR (CHAR_LENGTH(?) > 0 AND l.order_number = ?)
+              OR (CHAR_LENGTH(?) > 0 AND l.phone_number = ? AND l.store_source COLLATE utf8mb4_unicode_ci != 'SENDIT_SYNC')
+           ORDER BY CASE WHEN l.store_source COLLATE utf8mb4_unicode_ci = 'SENDIT_SYNC' THEN 1 ELSE 0 END, l.created_at ASC
+           LIMIT 1`,
+          [code, code, `#${code}`, cleanRef, cleanRef, cleanRef, cleanRef, phone, phone]
         );
 
-        // حفظ / تحديث معلومات الشحن في shipment_details
+        let targetLeadId = `snd-${code}`;
+        let finalCreatedAt = senditCreatedAt;
+
+        const isExistingInPlatform = Array.isArray(existingRows) && existingRows.length > 0;
+
+        // Si le filtre 'ACTIVE_ONLY' est actif et que le colis est clôturé et N'EXISTE PAS dans notre plateforme, on l'ignore
+        if (syncStatusScope === 'ACTIVE_ONLY' && isClosedStatus && !isExistingInPlatform) {
+          continue;
+        }
+
+        if (isExistingInPlatform) {
+          const match = existingRows[0];
+          targetLeadId = match.id;
+          // Préserver la date de commande originale de la plateforme !
+          if (match.created_at) {
+            const platformDate = new Date(match.created_at);
+            if (!isNaN(platformDate.getTime())) {
+              finalCreatedAt = platformDate;
+            }
+          }
+
+          // Mise à jour du statut sans écraser la date de création originale
+          await pool.execute(
+            `UPDATE order_leads 
+             SET status = ?,
+                 total_amount = CASE WHEN total_amount = 0 THEN ? ELSE total_amount END,
+                 updated_at = ?
+             WHERE id = ?`,
+            [mappedStatus, amount, lastAction, targetLeadId]
+          );
+        } else {
+          // Nouvelle commande importée depuis Sendit : enregistrer avec sa vraie date Sendit
+          await pool.execute(
+            `INSERT INTO order_leads 
+               (id, order_number, customer_name, phone_number, city, address, total_amount, status, store_source, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'SENDIT_SYNC', ?, ?)
+             ON DUPLICATE KEY UPDATE
+               status = VALUES(status),
+               total_amount = VALUES(total_amount),
+               updated_at = ?`,
+            [targetLeadId, code, name, phone, city, address, amount, mappedStatus, finalCreatedAt, lastAction, lastAction]
+          );
+        }
+
+        // Upsert des informations logistiques dans shipment_details
         await pool.execute(
           `INSERT INTO shipment_details 
              (id, order_id, carrier, sendit_tracking_number, status, waybill_url, shipping_fee, last_status_update_at, created_at, updated_at)
            VALUES (CONCAT('ship-', ?), ?, 'Sendit.ma Express', ?, ?, ?, ?, ?, ?, NOW())
            ON DUPLICATE KEY UPDATE
+             order_id = VALUES(order_id),
              status = VALUES(status),
              sendit_tracking_number = VALUES(sendit_tracking_number),
              waybill_url = VALUES(waybill_url),
              shipping_fee = VALUES(shipping_fee),
              last_status_update_at = VALUES(last_status_update_at),
              updated_at = NOW()`,
-          [leadId, leadId, code, mappedStatus, waybill, fee, lastAction, createdAt]
+          [targetLeadId, targetLeadId, code, mappedStatus, waybill, fee, lastAction, finalCreatedAt]
         );
 
         syncedCount++;
       }
 
-      // 4. إشعار الـ Realtime Hub بحدوث المزامنة
+      // 5b. التسوية الذكية التلقائية للطلبات الملغاة أو المحذوفة من نظام Sendit
+      // إذا كان هناك طرد في منصتنا بحالة نشطة، ولكنه اختفى من استجابة Sendit
+      // نتحقق منه للتأكد من أنه ألغي أو حذف على Sendit ونحول حالته محلياً إلى CANCELED
+      let reconciledCanceledCount = 0;
+      try {
+        const returnedCodes = new Set(
+          allDeliveries.map((d: any) => String(d.code || '').toUpperCase().trim()).filter(Boolean)
+        );
+
+        let reconcileQuery = `
+          SELECT l.id, l.order_number, s.sendit_tracking_number, s.status as ship_status
+          FROM order_leads l
+          JOIN shipment_details s ON l.id = s.order_id
+          WHERE (l.store_source COLLATE utf8mb4_unicode_ci = 'SENDIT_SYNC' OR l.id LIKE 'snd-%' OR (s.sendit_tracking_number IS NOT NULL AND s.sendit_tracking_number != ''))
+            AND s.status IN ('READY_FOR_PICKUP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERY_FAILED')
+        `;
+        const queryParams: any[] = [];
+        if (cutoffDate) {
+          reconcileQuery += ` AND l.created_at >= ?`;
+          queryParams.push(cutoffDate);
+        }
+
+        const [activeRows]: any = await pool.execute(reconcileQuery, queryParams);
+
+        if (Array.isArray(activeRows)) {
+          for (const row of activeRows) {
+            const trackNum = (row.sendit_tracking_number || row.order_number || '')
+              .replace(/^#/, '')
+              .toUpperCase()
+              .trim();
+
+            if (!trackNum || returnedCodes.has(trackNum)) continue;
+
+            // التحقق من كود الطرد عبر Sendit API لمعرفة سبب عدم ظهوره في القائمة
+            let isCanceled = false;
+            try {
+              const headers = await this.authHeaders();
+              const singleRes = await fetch(`${this.apiBaseUrl}/deliveries?querystring=${trackNum}`, {
+                headers,
+              });
+              if (singleRes.ok) {
+                const singleJson = await singleRes.json();
+                const items = singleJson.data || [];
+                if (items.length === 0) {
+                  // الطرد تم حذفه بالكامل من Sendit
+                  isCanceled = true;
+                } else {
+                  const item = items[0];
+                  if (['CANCELED', 'CANCELLED'].includes((item.status || '').toUpperCase())) {
+                    isCanceled = true;
+                  }
+                }
+              } else if (singleRes.status === 404) {
+                isCanceled = true;
+              }
+            } catch {
+              // تجاهل في حالة مشاكل الاتصال
+            }
+
+            if (isCanceled) {
+              await pool.execute(
+                `UPDATE order_leads SET status = 'CANCELED', updated_at = NOW() WHERE id = ?`,
+                [row.id]
+              );
+              await pool.execute(
+                `UPDATE shipment_details SET status = 'CANCELED', updated_at = NOW() WHERE order_id = ?`,
+                [row.id]
+              );
+              reconciledCanceledCount++;
+            }
+          }
+        }
+      } catch (recErr) {
+        console.warn('[Sendit Service] Reconcile canceled orders error:', recErr);
+      }
+
+      // 6. إشعار الـ Realtime Hub بحدوث المزامنة
       try {
         const { realtimeHub } = await import('@/lib/realtime-events');
         realtimeHub.broadcast({
@@ -576,16 +919,20 @@ export class SenditLogisticsService {
           entityType: 'PARCEL',
           entityId: 'ALL_SYNC',
           title: `Mise à jour Sendit: ${syncedCount} colis synchronisés`,
-          payload: { syncedCount, totalOnSendit: p1.total },
+          payload: { syncedCount, totalOnSendit: p1.total, skippedOldCount },
           source: 'SENDIT_SERVICE',
         }).catch(() => {});
       } catch {}
+
+      const cutoffLabel = cutoffDate ? `à partir du ${cutoffDate.toISOString().slice(0, 10)}` : 'toutes dates confondues';
 
       return {
         success: true,
         syncedCount,
         totalOnSendit: p1.total,
-        message: `تمت مزامنة ${syncedCount} طلب بنجاح من أصل ${p1.total} كولي في Sendit.ma`,
+        skippedOldCount,
+        cutoffDate: cutoffDate ? cutoffDate.toISOString().slice(0, 10) : undefined,
+        message: `✅ ${syncedCount} colis récents synchronisés (${cutoffLabel}). ${skippedOldCount > 0 ? `${skippedOldCount} anciens colis ignorés.` : ''}`,
       };
     } catch (err: any) {
       console.error('[Sendit Service] syncDeliveriesToDatabase error:', err);
@@ -593,6 +940,7 @@ export class SenditLogisticsService {
         success: false,
         syncedCount: 0,
         totalOnSendit: 0,
+        skippedOldCount: 0,
         message: `خطأ أثناء المزامنة: ${err.message}`,
       };
     }
@@ -748,7 +1096,6 @@ export class SenditLogisticsService {
       process.env.SENDIT_WEBHOOK_SECRET,
       process.env.SENDIT_SECRET_KEY,
       process.env.SENDIT_PRIVATE_KEY,
-      'RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ',
     ].filter(Boolean) as string[];
 
     // 1. Si aucun secret configuré, accepter pour éviter tout blocage

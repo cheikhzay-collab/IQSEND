@@ -22,6 +22,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
+import { DispatchManifestModal } from '@/components/packing/DispatchManifestModal';
 
 interface PackingRow {
   id: string;
@@ -57,6 +58,8 @@ export default function PackingPage() {
   const [selectedCity, setSelectedCity] = useState('ALL');
   const [packedMap, setPackedMap] = useState<Record<string, boolean>>({});
   const [previewAwbItem, setPreviewAwbItem] = useState<PackingRow | null>(null);
+  const [isManifestOpen, setIsManifestOpen] = useState(false);
+  const [pushingMap, setPushingMap] = useState<Record<string, boolean>>({});
 
   // Fetch from MySQL Packing API
   const fetchItems = async () => {
@@ -80,45 +83,49 @@ export default function PackingPage() {
   }, []);
 
   // Merge lifecycle orders in PROCESSING stage with DB items for complete cohesion
+  // EXCLUSIVELY confirmed orders waiting to be packed & pushed to Sendit (Once pushed, they leave this stage!)
   const items: PackingRow[] = useMemo(() => {
     const combined: PackingRow[] = [];
     const seenIds = new Set<string>();
 
-    // 1. From OrderLifecycleContext (PROCESSING stage)
-    const processingLifecycle = lifecycleOrders.filter((o) => o.stage === 'PROCESSING');
-    processingLifecycle.forEach((o) => {
-      seenIds.add(o.id);
-      const isItemPacked = packedMap[o.id] !== undefined ? packedMap[o.id] : true;
-      const isPushed = o.shipping?.liveStatus === 'DISPATCHED' || o.fulfillment?.status === 'READY_FOR_PICKUP';
-
-      combined.push({
-        id: o.id,
-        orderNumber: o.orderNumber.startsWith('#') ? o.orderNumber : `#${o.orderNumber}`,
-        customerName: o.customer.name,
-        phone: o.customer.phone,
-        address: o.customer.address,
-        city: o.customer.city,
-        productName: o.items[0]?.name || 'Produit COD Sendit',
-        sku: o.items[0]?.sku || 'SKU-GEN',
-        size: o.items[0]?.size,
-        color: o.items[0]?.color,
-        quantity: o.items[0]?.quantity || 1,
-        totalAmount: o.payment.amount,
-        stockAvailable: 28,
-        isPacked: isItemPacked,
-        senditStatus: isPushed ? 'PUSHED' : 'PENDING',
-        trackingCode: o.shipping?.trackingNumber || undefined,
-      });
-    });
-
-    // 2. From DB items if not already added
+    // 1. From DB items (already strictly filtered in /api/packing to confirmed & unpushed)
     dbItems.forEach((d) => {
-      if (!seenIds.has(d.id)) {
+      if (!seenIds.has(d.id) && !d.trackingCode && d.senditStatus !== 'PUSHED') {
         seenIds.add(d.id);
         const isItemPacked = packedMap[d.id] !== undefined ? packedMap[d.id] : d.isPacked;
         combined.push({
           ...d,
           isPacked: isItemPacked,
+        });
+      }
+    });
+
+    // 2. From OrderLifecycleContext (only PROCESSING orders that have no tracking and not pushed)
+    const processingLifecycle = lifecycleOrders.filter(
+      (o) => o.stage === 'PROCESSING' && !o.shipping?.trackingNumber && o.fulfillment?.status !== 'READY_FOR_PICKUP'
+    );
+    processingLifecycle.forEach((o) => {
+      if (!seenIds.has(o.id)) {
+        seenIds.add(o.id);
+        const isItemPacked = packedMap[o.id] !== undefined ? packedMap[o.id] : false;
+
+        combined.push({
+          id: o.id,
+          orderNumber: o.orderNumber.startsWith('#') ? o.orderNumber : `#${o.orderNumber}`,
+          customerName: o.customer.name,
+          phone: o.customer.phone,
+          address: o.customer.address,
+          city: o.customer.city,
+          productName: o.items[0]?.name || 'Produit COD Sendit',
+          sku: o.items[0]?.sku || 'SKU-GEN',
+          size: o.items[0]?.size,
+          color: o.items[0]?.color,
+          quantity: o.items[0]?.quantity || 1,
+          totalAmount: o.payment.amount,
+          stockAvailable: 28,
+          isPacked: isItemPacked,
+          senditStatus: 'PENDING',
+          trackingCode: undefined,
         });
       }
     });
@@ -162,35 +169,53 @@ export default function PackingPage() {
   };
 
   // Push single order to Sendit
-  const handlePushSingle = (item: PackingRow) => {
-    const tracking = item.trackingCode || `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+  const handlePushSingle = async (item: PackingRow) => {
+    if (pushingMap[item.id]) return;
+    setPushingMap((prev) => ({ ...prev, [item.id]: true }));
 
-    // Call context to move to IN_TRANSIT and increment counts across whole app
-    shipOrder(item.id);
+    try {
+      // 1. Sync to MySQL and push to Sendit API (Reel)
+      const res = await fetch('/api/packing', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: item.id, action: 'PUSH_SENDIT' }),
+      });
 
-    // Sync to MySQL
-    fetch('/api/packing', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ orderId: item.id, action: 'PUSH_SENDIT', trackingCode: tracking }),
-    }).catch((e) => console.warn('Push Sendit DB error:', e));
+      const data = await res.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Échec de transmission du colis à Sendit');
+      }
 
-    showToast(`Bordereau AWB généré pour ${item.orderNumber}. Colis passé en livraison Sendit (${tracking}).`, 'success');
+      const realTracking = data.trackingCode;
+
+      // 2. Immediately remove from local state so it DISAPPEARS from Packing station!
+      setDbItems((prev) => prev.filter((i) => i.id !== item.id));
+
+      // 3. Move order in context to IN_TRANSIT (Stage 3 Tracking)
+      shipOrder(item.id);
+
+      showToast(`✅ Colis ${item.orderNumber} transmis avec succès à Sendit (${realTracking}) ! Transféré vers "3. En livraison"`, 'success');
+
+      // 4. Refresh background DB items
+      fetchItems();
+    } catch (e: any) {
+      showToast('Erreur Sendit: ' + e.message, 'error');
+    } finally {
+      setPushingMap((prev) => ({ ...prev, [item.id]: false }));
+    }
   };
 
   // Push all packed orders
-  const handlePushAllPacked = () => {
-    const packedPending = items.filter((i) => i.isPacked && i.senditStatus === 'PENDING');
+  const handlePushAllPacked = async () => {
+    const packedPending = items.filter((i) => i.isPacked);
     if (packedPending.length === 0) {
-      showToast('Aucun colis emballé en attente de transmission.', 'info');
+      showToast("Veuillez d'abord emballer (ou scanner) au moins un colis avant de le transmettre à Sendit.", 'info');
       return;
     }
 
-    packedPending.forEach((item) => {
-      handlePushSingle(item);
-    });
-
-    showToast(`${packedPending.length} colis emballés ont été transmis à Sendit avec succès !`, 'success');
+    for (const item of packedPending) {
+      await handlePushSingle(item);
+    }
   };
 
   return (
@@ -232,6 +257,14 @@ export default function PackingPage() {
           >
             <Truck className="w-3.5 h-3.5" />
             Tout Transmettre à Sendit ({items.filter((i) => i.isPacked && i.senditStatus === 'PENDING').length})
+          </button>
+          <button
+            onClick={() => setIsManifestOpen(true)}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors shadow-xs cursor-pointer active:scale-95"
+            title="Générer le bordereau de remise au chauffeur Sendit pour signature"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            Bon de Ramassage (Manifeste)
           </button>
         </div>
       </div>
@@ -336,8 +369,25 @@ export default function PackingPage() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400 font-medium">
-                    Aucune commande en attente de préparation trouvée.
+                  <td colSpan={8} className="p-12 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-200">
+                        <CheckCircle2 className="w-6 h-6" />
+                      </div>
+                      <p className="font-black text-sm text-slate-800">
+                        Tous les colis ont été emballés et transmis à Sendit !
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Chaque commande poussée a disparu de cet atelier et est maintenant visible dans l'étape <strong>3. En livraison (Sendit)</strong> prête pour le ramassage.
+                      </p>
+                      <a
+                        href="/dashboard/tracking"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-colors"
+                      >
+                        <Truck className="w-3.5 h-3.5" />
+                        <span>Voir les colis en livraison (Sendit) →</span>
+                      </a>
+                    </div>
                   </td>
                 </tr>
               ) : (

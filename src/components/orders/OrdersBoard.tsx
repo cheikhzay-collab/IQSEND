@@ -55,7 +55,7 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: 'PENDING_CONFIRMATION',
     step: '1',
-    title: 'En attente de confirmation',
+    title: '1. En attente de confirmation',
     subText: 'Validation & Appels IA',
     href: '/dashboard/orders/pending',
     icon: ClipboardCheck,
@@ -68,9 +68,9 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: 'PROCESSING',
     step: '2',
-    title: 'En préparation',
+    title: '2. En préparation (AWB)',
     subText: 'Colisage & Bordereaux Sendit',
-    href: '/dashboard/orders/processing',
+    href: '/dashboard/packing',
     icon: Package,
     pillBg: 'bg-blue-50/90',
     pillBorder: 'border-blue-200/90',
@@ -81,9 +81,9 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: 'IN_TRANSIT',
     step: '3',
-    title: 'En cours de livraison',
+    title: '3. En livraison (Sendit)',
     subText: 'Expédition & Suivi Chauffeur',
-    href: '/dashboard/orders/in-transit',
+    href: '/dashboard/tracking',
     icon: Truck,
     pillBg: 'bg-indigo-50/90',
     pillBorder: 'border-indigo-200/90',
@@ -94,7 +94,7 @@ const COLUMNS_CONFIG: ColumnConfig[] = [
   {
     id: 'COMPLETED',
     step: '4',
-    title: 'Livrées & Encaissées',
+    title: '4. Livrées & Encaissées',
     subText: 'Fonds COD Collectés & POD',
     href: '/dashboard/orders/completed',
     icon: CheckCircle2,
@@ -239,6 +239,7 @@ export function OrdersBoard() {
         phone: newOrder.phone,
         address: newOrder.address || '',
         city: newOrder.city,
+        notes: (newOrder as any).notes || undefined,
       },
       items: [
         {

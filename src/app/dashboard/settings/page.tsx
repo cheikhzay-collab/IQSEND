@@ -520,46 +520,6 @@ export default function SettingsPage() {
               Ouvrez votre feuille Google Sheets &gt; <strong>Extensions</strong> &gt; <strong>Apps Script</strong>, collez ce code et ajoutez un déclencheur (Trigger) sur modification ou soumission de formulaire.
             </p>
           </div>
-
-          {/* Test Simulation Button */}
-          <div className="flex items-center justify-between p-3 bg-emerald-50/60 rounded-xl border border-emerald-200">
-            <div>
-              <span className="font-bold text-emerald-950 block">Tester la Réception d'une Commande Test</span>
-              <span className="text-[11px] text-emerald-700">
-                Simule l'arrivée instantanée d'une commande COD depuis Google Sheets vers l'étape de confirmation.
-              </span>
-            </div>
-            <button
-              onClick={async () => {
-                try {
-                  const testOrder = {
-                    name: 'Youssef El Amrani',
-                    phone: '0661998877',
-                    city: 'Marrakech',
-                    address: 'Gueliz, Imm. Atlas 6',
-                    product: 'Montre Homme Chrono Luxe',
-                    quantity: 1,
-                    price: 349,
-                    notes: 'Test Google Sheets'
-                  };
-                  const res = await fetch('/api/webhooks/google-sheets', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(testOrder)
-                  });
-                  const json = await res.json();
-                  if (json.success) {
-                    showToast(`Commande test ${json.orderNumber} créée avec succès dans "En attente de confirmation" !`);
-                  }
-                } catch {
-                  showToast('Erreur lors de la simulation de commande Google Sheets');
-                }
-              }}
-              className="px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-            >
-              Simuler un envoi Test
-            </button>
-          </div>
         </div>
       </div>
 

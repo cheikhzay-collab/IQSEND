@@ -1669,18 +1669,14 @@ export default function AiAgentsPage() {
               </div>
             </div>
 
-            {/* Test Customer Data Card */}
+            {/* Live Database Sync Notice */}
             <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 text-xs text-emerald-950 space-y-2">
               <div className="flex items-center gap-2 font-bold text-emerald-900">
                 <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
-                <span>Colis de test actif pour vérification immédiate :</span>
+                <span>Synchronisation avec les commandes réelles en base :</span>
               </div>
               <p className="text-[11px] leading-relaxed text-emerald-800">
-                Téléphone : <strong className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-200 text-emerald-900">0670114455</strong>
-                <br />
-                Client : <strong>Mohammed El Idrissi</strong> (Casablanca) • N° Commande : <strong>#AT1048</strong>
-                <br />
-                Statut : <span className="text-amber-800 font-bold">En cours de livraison (Sendit Express)</span>
+                L'agent conversationnel Sara est directement branché sur vos commandes réelles issues de <strong>Sendit.ma</strong> et de vos formulaires. Lorsqu'un client envoie un message ou un vocal WhatsApp, Sara retrouve instantanément son colis réel et son statut de livraison à jour.
               </p>
             </div>
           </div>

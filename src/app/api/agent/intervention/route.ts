@@ -13,8 +13,8 @@ export async function POST(req: NextRequest) {
     const {
       action = 'generate',
       stage = 'PENDING_CONFIRMATION',
-      orderNumber = '#AT1001',
-      customerName = 'Cher client',
+      orderNumber = '',
+      customerName = 'Client',
       phone = '',
       city = 'Maroc',
       productName = 'Article commandé',

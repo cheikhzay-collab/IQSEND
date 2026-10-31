@@ -210,7 +210,14 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     [orders]
   );
   const processingCount = useMemo(
-    () => orders.filter((o) => o.stage === 'PROCESSING').length,
+    () =>
+      orders.filter(
+        (o) =>
+          o.stage === 'PROCESSING' &&
+          !o.shipping?.trackingNumber &&
+          o.source?.name !== 'SENDIT_SYNC' &&
+          !o.id.startsWith('snd-')
+      ).length,
     [orders]
   );
   const inTransitCount = useMemo(
@@ -230,8 +237,23 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     [orders]
   );
 
-  // 1. Confirm Order (Moves to Processing)
-  const confirmOrder = (orderId: string) => {
+  // 1. Confirm Order (Moves to Processing with Moroccan COD validation)
+  const confirmOrder = async (orderId: string) => {
+    try {
+      const res = await fetch('/api/orders/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, actor: 'Agent Commercial' }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.error || 'Erreur lors de la validation', 'error');
+        return;
+      }
+    } catch (e: any) {
+      console.warn('[Confirm Order API] error:', e.message);
+    }
+
     syncStageToDb(orderId, 'PROCESSING');
     setOrders((prev) =>
       prev.map((order) => {
@@ -246,17 +268,11 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
             invoiceNumber: `INV-2026-${Math.floor(1000 + Math.random() * 9000)}`,
             invoiceDate: new Date().toLocaleDateString('fr-FR'),
           },
-          shipping: order.shipping || {
-            courier: 'Sendit.ma Express',
-            trackingNumber: `SND-${Math.floor(800000 + Math.random() * 99999)}`,
-            liveStatus: 'DISPATCHED',
-            lastUpdated: 'À l’instant',
-            deliveryAttempts: 0,
-          },
+          shipping: undefined, // No AWB until packaging & barcode scan in Stage 2!
         };
       })
     );
-    showToast(`Commande confirmée et transmise à l'atelier de préparation (Processing).`, 'success');
+    showToast(`Commande confirmée et stock réservé. Prête pour l'emballage.`, 'success');
   };
 
   // 2. Cancel Order
@@ -412,21 +428,21 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
           stage: 'COMPLETED',
           payment: {
             ...order.payment,
-            status: 'SETTLED',
-            clearanceDate: 'Aujourd’hui',
-            settlementRef: `VIR-SETTLE-${Math.floor(10000 + Math.random() * 90000)}`,
+            status: 'PENDING',
+            clearanceDate: 'En attente virement Sendit',
+            settlementRef: undefined,
           },
           shipping: order.shipping
             ? {
                 ...order.shipping,
                 liveStatus: 'DELIVERED',
-                lastUpdated: 'Livré avec succès',
+                lastUpdated: 'Livré avec succès (COD collecté)',
               }
             : undefined,
           completed: {
             deliveredAt: nowStr,
             podType: 'CUSTOMER_SIGNATURE',
-            settlementStatus: 'PAID_SETTLEMENT',
+            settlementStatus: 'PENDING_TRANSFER',
             reviewRequested: false,
             returnStatus: 'NONE',
           },
@@ -533,8 +549,22 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     showToast(`Commande ${orderId} réactivée et replacée en attente de confirmation.`, 'success');
   };
 
-  // 12. Reintegrate Stock
-  const reintegrateStock = (orderId: string) => {
+  // 12. Reintegrate Stock (Physical receipt & database restock)
+  const reintegrateStock = async (orderId: string, notes?: string) => {
+    try {
+      await fetch('/api/orders/returns/receive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId,
+          inspectorName: 'Magasinier Hub',
+          notes: notes || 'Retour inspecté et réintégré au stock',
+        }),
+      });
+    } catch (e: any) {
+      console.warn('[Reintegrate Stock API] error:', e.message);
+    }
+
     syncStageToDb(orderId, 'RETURNED');
     setOrders((prev) =>
       prev.map((order) => {

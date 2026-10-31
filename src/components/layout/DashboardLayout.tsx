@@ -78,6 +78,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isOrdersActive =
     pathname === '/dashboard/orders' ||
     pathname.startsWith('/dashboard/orders') ||
+    pathname === '/dashboard/packing' ||
+    pathname === '/dashboard/tracking' ||
     pathname === '/';
 
   const orderStages = [
@@ -91,13 +93,49 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       iconColor: 'text-amber-600',
     },
     {
-      label: '2. En préparation',
-      href: '/dashboard/orders/processing',
-      icon: Package,
+      label: '2. En préparation (AWB)',
+      href: '/dashboard/packing',
+      icon: PackageCheck,
       count: processingCount,
       countClass: 'bg-blue-100 text-blue-700 font-bold',
       activeClass: 'bg-blue-50 text-blue-900 font-bold',
       iconColor: 'text-blue-600',
+    },
+    {
+      label: '3. En livraison (Sendit)',
+      href: '/dashboard/tracking',
+      icon: Truck,
+      count: inTransitCount,
+      countClass: 'bg-indigo-100 text-indigo-700 font-bold',
+      activeClass: 'bg-indigo-50 text-indigo-900 font-bold',
+      iconColor: 'text-indigo-600',
+    },
+    {
+      label: '4. Livrées & Encaissées',
+      href: '/dashboard/orders/completed',
+      icon: CheckCircle2,
+      count: completedCount,
+      countClass: 'bg-emerald-100 text-emerald-700 font-bold',
+      activeClass: 'bg-emerald-50 text-emerald-900 font-bold',
+      iconColor: 'text-emerald-600',
+    },
+    {
+      label: '5. Retours & Refusés',
+      href: '/dashboard/orders/returns',
+      icon: RotateCcw,
+      count: returnedCount,
+      countClass: 'bg-amber-100 text-amber-800 font-bold',
+      activeClass: 'bg-amber-50 text-amber-900 font-bold',
+      iconColor: 'text-amber-600',
+    },
+    {
+      label: '6. Annulées',
+      href: '/dashboard/orders/canceled',
+      icon: XCircle,
+      count: canceledCount,
+      countClass: 'bg-rose-100 text-rose-700 font-bold',
+      activeClass: 'bg-rose-50 text-rose-900 font-bold',
+      iconColor: 'text-rose-600',
     },
   ];
 
@@ -314,7 +352,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               )}
               {hasPermission('canAccessPacking') && (
                 <Link
-                  href="/dashboard/orders/processing"
+                  href="/dashboard/packing"
                   onClick={() => setMobileSearchOpen(false)}
                   className="text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-1 rounded-lg"
                 >
@@ -509,41 +547,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </Link>
                 )}
 
-                {hasPermission('canAccessPacking') && (
-                  <Link
-                    href="/dashboard/packing"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <PackageCheck className="w-4 h-4 text-blue-600" />
-                      <span>Station d'Emballage (AWB)</span>
-                    </div>
-                    {processingCount > 0 && (
-                      <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                        {processingCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
 
-                {hasPermission('canAccessTracking') && (
-                  <Link
-                    href="/dashboard/tracking"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Truck className="w-4 h-4 text-indigo-600" />
-                      <span>3. En livraison (Sendit)</span>
-                    </div>
-                    {inTransitCount > 0 && (
-                      <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                        {inTransitCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
 
                 {hasPermission('canAccessProducts') && (
                   <Link
@@ -693,26 +697,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         </Link>
                       );
                     })}
-
-                    {/* Annulées */}
-                    <Link
-                      href="/dashboard/orders/canceled"
-                      className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-xs transition-colors ${
-                        pathname === '/dashboard/orders/canceled'
-                          ? 'bg-rose-50 text-rose-950 font-bold border border-rose-200/80'
-                          : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <XCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
-                        <span className="truncate">Annulées</span>
-                      </div>
-                      {canceledCount > 0 && (
-                        <span className="text-[10px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded-full border border-rose-200 shrink-0">
-                          {canceledCount}
-                        </span>
-                      )}
-                    </Link>
                   </div>
                 )}
               </div>
@@ -821,102 +805,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             )}
 
 
-            {/* SECTION 3: FULFILLMENT & LOGISTIQUE SENDIT */}
-            {(hasPermission('canAccessPacking') || hasPermission('canAccessTracking')) && (
-              <div className="pt-3 pb-1 px-3">
-                <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
-                  Logistique Sendit.ma
-                </span>
-              </div>
-            )}
 
-            {/* Packing Station */}
-            {hasPermission('canAccessPacking') && (
-              <Link
-                href="/dashboard/packing"
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  pathname === '/dashboard/packing'
-                    ? 'bg-blue-50 text-blue-950 font-bold border border-blue-200/80'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <PackageCheck className="w-4 h-4 text-blue-600" />
-                  <span>Station d'Emballage (AWB)</span>
-                </div>
-                {processingCount > 0 && (
-                  <span className="text-[10px] font-black bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full">
-                    {processingCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {/* 3. En livraison (Sendit) */}
-            {hasPermission('canAccessTracking') && (
-              <Link
-                href="/dashboard/tracking"
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit'
-                    ? 'bg-indigo-50 text-indigo-950 font-bold border border-indigo-200/80'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <Truck className="w-4 h-4 text-indigo-600" />
-                  <span>3. En livraison (Sendit)</span>
-                </div>
-                {inTransitCount > 0 && (
-                  <span className="text-[10px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded-full">
-                    {inTransitCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {/* 4. Livrées & Encaissées */}
-            {(hasPermission('canAccessTracking') || hasPermission('canAccessOrders')) && (
-              <Link
-                href="/dashboard/orders/completed"
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  pathname === '/dashboard/orders/completed'
-                    ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  <span>4. Livrées & Encaissées</span>
-                </div>
-                {completedCount > 0 && (
-                  <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full">
-                    {completedCount}
-                  </span>
-                )}
-              </Link>
-            )}
-
-            {/* Retours & Refusés */}
-            {(hasPermission('canAccessTracking') || hasPermission('canAccessOrders')) && (
-              <Link
-                href="/dashboard/orders/returns"
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  pathname === '/dashboard/orders/returns'
-                    ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <RotateCcw className="w-4 h-4 text-amber-600" />
-                  <span>Retours & Refusés</span>
-                </div>
-                {returnedCount > 0 && (
-                  <span className="text-[10px] font-black bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded-full">
-                    {returnedCount}
-                  </span>
-                )}
-              </Link>
-            )}
 
             {/* SECTION 4: CATALOGUE & CLIENTS */}
             {(hasPermission('canAccessProducts') || hasPermission('canAccessCustomers')) && (

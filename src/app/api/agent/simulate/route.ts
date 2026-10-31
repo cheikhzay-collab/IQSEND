@@ -40,9 +40,26 @@ export async function POST(req: NextRequest) {
     const effectiveKey = getEffectiveGeminiKey();
     const isLiveApiActive = Boolean(effectiveKey && effectiveKey.length > 15);
 
-    // Look for matching order by phone or default test order
+    // Look for matching real order from database or store
+    let dbMatch: any = null;
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+      const [rows]: any = await pool.execute(
+        `SELECT l.*, i.product_name, i.sku, i.quantity, i.price
+         FROM order_leads l
+         LEFT JOIN order_items i ON l.id = i.order_id
+         WHERE l.phone_number = ? OR l.order_number = ?
+         ORDER BY l.created_at DESC LIMIT 1`,
+        [phone, phone]
+      );
+      if (Array.isArray(rows) && rows.length > 0) {
+        dbMatch = rows[0];
+      }
+    } catch {}
+
     const matchedOrders = findOrdersByPhone(phone);
-    const matchedOrder = matchedOrders[0] || getInboundOrders()[0];
+    const matchedOrder = matchedOrders[0];
 
     // Format conversation history for Gemini context
     const formattedHistory = Array.isArray(conversationHistory)
@@ -54,19 +71,21 @@ export async function POST(req: NextRequest) {
       : [];
 
     const orderContext: OrderContext = {
-      orderId: matchedOrder?.id || 'lead_sim_1',
-      orderNumber: matchedOrder?.orderNumber || '#AT1048',
-      customerName: matchedOrder?.customer?.name || customerName,
-      phoneNumber: matchedOrder?.customer?.phone || phone,
-      city: matchedOrder?.customer?.city || city,
-      address: matchedOrder?.customer?.address || 'المعاريف، الدار البيضاء',
-      totalAmount: matchedOrder?.payment?.amount || 399,
-      items: (matchedOrder?.items || []).map((it) => ({
-        name: it.name,
-        sku: it.sku,
-        quantity: it.quantity,
-        price: it.price,
-      })),
+      orderId: dbMatch?.id || matchedOrder?.id || `conv-${Date.now()}`,
+      orderNumber: dbMatch?.order_number || matchedOrder?.orderNumber || '',
+      customerName: dbMatch?.customer_name || matchedOrder?.customer?.name || customerName || 'Client',
+      phoneNumber: dbMatch?.phone_number || matchedOrder?.customer?.phone || phone,
+      city: dbMatch?.city || matchedOrder?.customer?.city || city,
+      address: dbMatch?.address || matchedOrder?.customer?.address || '',
+      totalAmount: Number(dbMatch?.total_amount) || matchedOrder?.payment?.amount || 0,
+      items: dbMatch?.product_name
+        ? [{ name: dbMatch.product_name, sku: dbMatch.sku || 'COD', quantity: dbMatch.quantity || 1, price: dbMatch.price || dbMatch.total_amount }]
+        : (matchedOrder?.items || []).map((it) => ({
+            name: it.name,
+            sku: it.sku,
+            quantity: it.quantity,
+            price: it.price,
+          })),
       conversationHistory: formattedHistory,
     };
 

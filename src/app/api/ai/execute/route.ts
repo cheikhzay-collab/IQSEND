@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import {
   executeAiLeadConfirmation,
   executeAiAutoPilotAll,
-  createAndConfirmTestLead,
 } from '@/lib/db-service';
 
 export const dynamic = 'force-dynamic';
@@ -27,16 +26,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(result);
     }
 
-    // 3. Demo / Test Lead Generation and Confirmation
-    if (action === 'create_test_lead') {
-      const result = await createAndConfirmTestLead();
-      return NextResponse.json(result);
-    }
-
     return NextResponse.json(
       {
         success: false,
-        error: 'Action non reconnue. Actions valides: confirm_lead, auto_pilot, create_test_lead',
+        error: 'Action non reconnue. Actions valides: confirm_lead, auto_pilot',
       },
       { status: 400 }
     );

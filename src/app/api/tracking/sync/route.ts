@@ -10,12 +10,27 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(req: NextRequest) {
   try {
-    const result = await senditService.syncDeliveriesToDatabase();
+    let bodyOptions: any = {};
+    try {
+      bodyOptions = await req.json();
+    } catch {
+      // Body may be empty in normal POST requests
+    }
+
+    const result = await senditService.syncDeliveriesToDatabase({
+      maxPages: bodyOptions.maxPages,
+      syncWindow: bodyOptions.syncWindow,
+      syncStartDate: bodyOptions.syncStartDate,
+      syncStatusScope: bodyOptions.syncStatusScope,
+      forceAll: bodyOptions.forceAll,
+    });
 
     return NextResponse.json({
       success: result.success,
       syncedCount: result.syncedCount,
       totalOnSendit: result.totalOnSendit,
+      skippedOldCount: result.skippedOldCount,
+      cutoffDate: result.cutoffDate,
       message: result.message,
     });
   } catch (error: any) {

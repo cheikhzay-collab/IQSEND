@@ -8,7 +8,7 @@ export async function GET() {
   try {
     const pool = getMysqlPool();
 
-    // 1. Fetch leads that have been confirmed or are in logistics stages
+    // 1. Fetch only parcels in logistics (strictly exclude unconfirmed leads)
     const [leads]: any = await pool.execute(`
       SELECT 
         l.*,
@@ -25,6 +25,13 @@ export async function GET() {
       FROM order_leads l
       LEFT JOIN shipment_details s ON l.id = s.order_id
       LEFT JOIN order_items i ON l.id = i.order_id
+      WHERE (
+        (s.sendit_tracking_number IS NOT NULL AND s.sendit_tracking_number != '')
+        OR l.store_source = 'SENDIT_SYNC'
+        OR l.id LIKE 'snd-%'
+        OR l.status IN ('IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERY_FAILED', 'DELIVERED_PAID', 'RETURNED', 'CANCELED')
+      )
+      AND l.status NOT IN ('NEW', 'AI_CHATTING', 'DUPLICATE')
       ORDER BY l.created_at DESC
     `);
 
@@ -52,17 +59,52 @@ export async function GET() {
       }
     }
 
+    // Index original platform orders (store_source != 'SENDIT_SYNC') by phone & order number
+    // to guarantee every Sendit delivery displays its TRUE original platform creation date!
+    const platformOrdersByPhone = new Map<string, any>();
+    const platformOrdersByNum = new Map<string, any>();
+
+    for (const r of leads) {
+      if (r.store_source && r.store_source !== 'SENDIT_SYNC' && r.created_at) {
+        const cleanPhone = (r.phone_number || '').replace(/\D/g, '');
+        if (cleanPhone.length >= 9 && !platformOrdersByPhone.has(cleanPhone)) {
+          platformOrdersByPhone.set(cleanPhone, r);
+        }
+        const num = (r.order_number || '').replace(/^#/, '').trim();
+        if (num && !platformOrdersByNum.has(num)) {
+          platformOrdersByNum.set(num, r);
+        }
+      }
+    }
+
+    // Set of phones that already have a real Sendit shipment in the query
+    const senditPhones = new Set<string>();
+    for (const r of leads) {
+      if (r.store_source === 'SENDIT_SYNC' || (r.id && r.id.startsWith('snd-'))) {
+        const p = (r.phone_number || '').replace(/\D/g, '');
+        if (p.length >= 9) senditPhones.add(p);
+      }
+    }
+
     // Deduplicate leads by ID (in case of multiple items)
     const ordersMap = new Map<string, TrackingOrder>();
 
     for (const row of leads) {
       if (ordersMap.has(row.id)) continue;
 
+      // If this is an unlinked store stub without AWB, and Sendit already has the delivery for this phone, skip duplicate
+      if (row.store_source !== 'SENDIT_SYNC' && !row.id.startsWith('snd-') && !row.sendit_tracking_number) {
+        const p = (row.phone_number || '').replace(/\D/g, '');
+        if (p.length >= 9 && senditPhones.has(p)) {
+          continue;
+        }
+      }
+
       const rawNum = row.order_number || '';
       const cleanNum = rawNum.startsWith('#') ? rawNum : `#${rawNum}`;
 
       // Map DB status to ShipmentStatus
-      let shipmentStatus: ShipmentStatus = 'READY_FOR_PICKUP';
+      let shipmentStatus: ShipmentStatus = 'IN_TRANSIT';
       if (row.shipment_db_status) {
         switch (row.shipment_db_status) {
           case 'DELIVERED_PAID':
@@ -80,15 +122,19 @@ export async function GET() {
           case 'RETURNED':
             shipmentStatus = 'RETURNED';
             break;
+          case 'CANCELED':
+            shipmentStatus = 'CANCELED';
+            break;
           default:
-            shipmentStatus = 'READY_FOR_PICKUP';
+            shipmentStatus = row.status === 'CANCELED' ? 'CANCELED' : (row.status === 'RETURNED' ? 'RETURNED' : 'READY_FOR_PICKUP');
         }
       } else {
         if (row.status === 'DELIVERED_PAID') shipmentStatus = 'DELIVERED_PAID';
         else if (row.status === 'IN_TRANSIT') shipmentStatus = 'IN_TRANSIT';
         else if (row.status === 'DELIVERY_FAILED') shipmentStatus = 'DELIVERY_FAILED';
-        else if (row.status === 'CANCELED') shipmentStatus = 'RETURNED';
-        else shipmentStatus = 'READY_FOR_PICKUP';
+        else if (row.status === 'RETURNED') shipmentStatus = 'RETURNED';
+        else if (row.status === 'CANCELED') shipmentStatus = 'CANCELED';
+        else shipmentStatus = 'IN_TRANSIT';
       }
 
       // Lead status
@@ -99,10 +145,22 @@ export async function GET() {
 
       const trackingNumber = row.sendit_tracking_number || `SND-${Math.abs(row.id.split('').reduce((a: any, b: any) => ((a << 5) - a) + b.charCodeAt(0), 0) % 900000 + 100000)}`;
 
+      // Déterminer la date de création de la commande :
+      // Si la commande provient de Sendit mais existait déjà dans notre plateforme,
+      // on hérite OBLIGATOIREMENT de sa date originale de création dans la plateforme !
+      let effectiveCreatedAt = row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString();
+      const cleanPhone = (row.phone_number || '').replace(/\D/g, '');
+      const num = (row.order_number || '').replace(/^#/, '').trim();
+      const matchedStoreOrder = platformOrdersByNum.get(num) || (cleanPhone ? platformOrdersByPhone.get(cleanPhone) : null);
+
+      if (matchedStoreOrder && matchedStoreOrder.created_at) {
+        effectiveCreatedAt = new Date(matchedStoreOrder.created_at).toISOString();
+      }
+
       const orderTimelines = timelinesByOrder.get(row.id) || [
         {
           id: `t-created-${row.id}`,
-          timestamp: row.created_at ? new Date(row.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Récemment',
+          timestamp: effectiveCreatedAt ? new Date(effectiveCreatedAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Récemment',
           title: 'Commande enregistrée dans le système',
           description: `Commande reçue pour ${row.customer_name}`,
           actor: 'SYSTEM',
@@ -125,13 +183,13 @@ export async function GET() {
         trackingNumber,
         waybillUrl: row.waybill_url || `https://sendit.ma/awb/${trackingNumber}.pdf`,
         driverName: row.carrier || 'Livreur Sendit.ma Hub Express',
-        driverPhone: '0661009988',
+        driverPhone: undefined,
         deliveryAttempts: row.delivery_attempts_count || (shipmentStatus === 'DELIVERED_PAID' ? 1 : 0),
-        failedReason: row.failed_reason || undefined,
+        failedReason: row.failed_reason || (shipmentStatus === 'CANCELED' ? (row.notes || 'Commande annulée (Doublon ou refus client)') : (shipmentStatus === 'RETURNED' ? 'Colis refusé / Non réclamé' : undefined)),
         aiHandoverRequired: row.status === 'AI_CHATTING',
         aiConversationEnabled: true,
         riskScore: row.risk_score || 10,
-        createdAt: row.created_at ? new Date(row.created_at).toISOString() : new Date().toISOString(),
+        createdAt: effectiveCreatedAt,
         lastUpdatedAt: row.updated_at ? new Date(row.updated_at).toISOString() : new Date().toISOString(),
         timeline: orderTimelines,
         chatMessages: [
@@ -156,7 +214,7 @@ export async function GET() {
     const inbound = getInboundOrders();
 
     const fallbackOrders: TrackingOrder[] = inbound.map((o) => {
-      let shipmentStatus: ShipmentStatus = 'READY_FOR_PICKUP';
+      let shipmentStatus: ShipmentStatus = 'IN_TRANSIT';
       if (o.stage === 'IN_TRANSIT') shipmentStatus = 'OUT_FOR_DELIVERY';
       else if (o.stage === 'DELIVERED') shipmentStatus = 'DELIVERED_PAID';
       else if (o.stage === 'CANCELLED') shipmentStatus = 'RETURNED';
@@ -172,7 +230,7 @@ export async function GET() {
         phoneNumber: o.customer.phone,
         city: o.customer.city,
         address: o.customer.address,
-        gpsLocationUrl: o.gpsLocationUrl || 'https://maps.google.com/?q=33.5731,-7.5898',
+        gpsLocationUrl: o.gpsLocationUrl || undefined,
         totalAmount: o.payment.amount,
         productName: o.items[0]?.name || 'Article E-commerce COD',
         productQuantity: o.items[0]?.quantity || 1,
@@ -180,8 +238,8 @@ export async function GET() {
         shipmentStatus,
         trackingNumber: tracking,
         waybillUrl: `https://sendit.ma/awb/${tracking}.pdf`,
-        driverName: 'Mohamed Tazi',
-        driverPhone: '0670112233',
+        driverName: o.tracking?.carrier || 'Livreur Sendit.ma',
+        driverPhone: undefined,
         deliveryAttempts: shipmentStatus === 'DELIVERED_PAID' ? 1 : 0,
         aiHandoverRequired: false,
         aiConversationEnabled: true,

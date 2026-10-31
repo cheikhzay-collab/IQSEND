@@ -51,5 +51,7 @@ export interface OrderItem {
   size?: string;
   color?: string;
   quantity?: number;
+  trackingCode?: string;
+  waybillUrl?: string;
   isFloatingDemo?: boolean; // For initial demonstration tilt like the screenshot
 }

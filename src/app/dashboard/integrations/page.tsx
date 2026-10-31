@@ -22,7 +22,14 @@ import {
   Radio,
   Play,
   Webhook,
-  AlertTriangle
+  AlertTriangle,
+  Calendar,
+  Filter,
+  Trash2,
+  Clock,
+  History,
+  Layers,
+  Sliders
 } from 'lucide-react';
 
 export default function IntegrationsPage() {
@@ -45,6 +52,24 @@ export default function IntegrationsPage() {
   const [isTestingWebhook, setIsTestingWebhook] = useState(false);
   const [senditAlert, setSenditAlert] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [webhookSimResult, setWebhookSimResult] = useState<string | null>(null);
+
+  // -------------------------------------------------------------
+  // 📦 Sendit Sync Scope & Anti-Old-Parcels Filter State
+  // -------------------------------------------------------------
+  const [senditSyncWindow, setSenditSyncWindow] = useState<string>('LAST_30_DAYS');
+  const [senditSyncStartDate, setSenditSyncStartDate] = useState<string>('');
+  const [senditSyncStatusScope, setSenditSyncStatusScope] = useState<string>('ACTIVE_AND_RECENT_CLOSED');
+  const [senditSyncMaxPages, setSenditSyncMaxPages] = useState<number>(5);
+  const [senditCalculatedCutoff, setSenditCalculatedCutoff] = useState<string>('');
+  const [senditStats, setSenditStats] = useState<{ totalSenditSync: number; inScopeCount: number; outOfScopeCount: number }>({
+    totalSenditSync: 0,
+    inScopeCount: 0,
+    outOfScopeCount: 0,
+  });
+  const [isSavingSyncScope, setIsSavingSyncScope] = useState(false);
+  const [isPurgingOld, setIsPurgingOld] = useState(false);
+  const [isSyncingNow, setIsSyncingNow] = useState(false);
+  const [syncScopeAlert, setSyncScopeAlert] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
 
   // -------------------------------------------------------------
   // 📱 WhatsApp Multi-Provider & Real QR State (Transféré depuis IA)
@@ -106,23 +131,140 @@ export default function IntegrationsPage() {
       .catch(() => {});
   }, []);
 
-  // Check Sendit API Key status on load
-  useEffect(() => {
-    fetch('/api/settings/sendit')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success) {
-          setIsSenditConfigured(data.isConfigured);
-          if (data.publicKey && !data.publicKey.includes('...')) setSenditPublic(data.publicKey);
-          if (data.webhookSecret) setSenditWebhookSecret(data.webhookSecret);
-          if (typeof window !== 'undefined') {
-            const secret = data.webhookSecret || 'iqsend_webhook_secret_2025';
-            setSenditWebhookUrl(`${window.location.origin}/api/webhooks/sendit?token=${secret}`);
-          }
+  const loadSenditSettings = async () => {
+    try {
+      const res = await fetch('/api/settings/sendit');
+      const data = await res.json();
+      if (data.success) {
+        setIsSenditConfigured(data.isConfigured);
+        if (data.publicKey && !data.publicKey.includes('...')) setSenditPublic(data.publicKey);
+        if (data.webhookSecret) setSenditWebhookSecret(data.webhookSecret);
+        if (typeof window !== 'undefined') {
+          const secret = data.webhookSecret || 'iqsend_webhook_secret_2025';
+          setSenditWebhookUrl(`${window.location.origin}/api/webhooks/sendit?token=${secret}`);
         }
-      })
-      .catch(() => {});
+        if (data.syncScope) {
+          if (data.syncScope.syncWindow) setSenditSyncWindow(data.syncScope.syncWindow);
+          if (data.syncScope.syncStartDate) setSenditSyncStartDate(data.syncScope.syncStartDate);
+          if (data.syncScope.syncStatusScope) setSenditSyncStatusScope(data.syncScope.syncStatusScope);
+          if (data.syncScope.syncMaxPages) setSenditSyncMaxPages(data.syncScope.syncMaxPages);
+          if (data.syncScope.calculatedCutoffDate) setSenditCalculatedCutoff(data.syncScope.calculatedCutoffDate);
+          if (data.syncScope.stats) setSenditStats(data.syncScope.stats);
+        }
+      }
+    } catch (err) {
+      console.warn('[Integrations] Could not load Sendit settings:', err);
+    }
+  };
+
+  // Check Sendit API Key and Sync Scope status on load
+  useEffect(() => {
+    loadSenditSettings();
   }, []);
+
+  const handleSaveSyncScope = async () => {
+    setIsSavingSyncScope(true);
+    setSyncScopeAlert(null);
+    try {
+      const res = await fetch('/api/settings/sendit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'SAVE_SYNC_SCOPE',
+          syncWindow: senditSyncWindow,
+          syncStartDate: senditSyncStartDate,
+          syncStatusScope: senditSyncStatusScope,
+          syncMaxPages: senditSyncMaxPages,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncScopeAlert({
+          type: 'success',
+          text: data.message || '✅ Périmètre de synchronisation Sendit enregistré !',
+        });
+        await loadSenditSettings();
+      } else {
+        setSyncScopeAlert({
+          type: 'error',
+          text: data.error || 'Erreur lors de l\'enregistrement du périmètre',
+        });
+      }
+    } catch {
+      setSyncScopeAlert({ type: 'error', text: 'Erreur réseau lors de la communication avec le serveur' });
+    } finally {
+      setIsSavingSyncScope(false);
+    }
+  };
+
+  const handlePurgeOldParcels = async () => {
+    const cutoffLabel = senditCalculatedCutoff ? `du ${senditCalculatedCutoff}` : 'de la date limite';
+    if (!window.confirm(`Confirmer la purge ? Cela supprimera définitivement les ${senditStats.outOfScopeCount} anciens colis Sendit synchronisés antérieurs à la date limite ${cutoffLabel} pour nettoyer votre tableau de bord.`)) {
+      return;
+    }
+    setIsPurgingOld(true);
+    setSyncScopeAlert(null);
+    try {
+      const res = await fetch('/api/settings/sendit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'PURGE_OLD_PARCELS',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncScopeAlert({
+          type: 'success',
+          text: data.message || '✅ Nettoyage terminé avec succès !',
+        });
+        await loadSenditSettings();
+      } else {
+        setSyncScopeAlert({
+          type: 'error',
+          text: data.error || 'Erreur lors du nettoyage des anciens colis',
+        });
+      }
+    } catch {
+      setSyncScopeAlert({ type: 'error', text: 'Erreur réseau lors du nettoyage' });
+    } finally {
+      setIsPurgingOld(false);
+    }
+  };
+
+  const handleTriggerSyncNow = async () => {
+    setIsSyncingNow(true);
+    setSyncScopeAlert(null);
+    try {
+      const res = await fetch('/api/tracking/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          syncWindow: senditSyncWindow,
+          syncStartDate: senditSyncStartDate,
+          syncStatusScope: senditSyncStatusScope,
+          maxPages: senditSyncMaxPages,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncScopeAlert({
+          type: 'success',
+          text: data.message || `✅ Synchronisation filtrée réussie (${data.syncedCount} colis récents traités) !`,
+        });
+        await loadSenditSettings();
+      } else {
+        setSyncScopeAlert({
+          type: 'error',
+          text: data.error || data.message || 'Erreur lors de la synchronisation',
+        });
+      }
+    } catch {
+      setSyncScopeAlert({ type: 'error', text: 'Erreur réseau lors de la synchronisation' });
+    } finally {
+      setIsSyncingNow(false);
+    }
+  };
 
   const handleSaveSendit = async () => {
     setIsSavingSendit(true);
@@ -1123,6 +1265,238 @@ export default function IntegrationsPage() {
             <span>{webhookSimResult}</span>
           </div>
         )}
+
+        {/* ───────────────────────────────────────────────────────────── */}
+        {/* SOUS-SECTION : PÉRIMÈTRE DE SYNCHRONISATION & FILTRE ANTI-ANCIENS COLIS */}
+        {/* ───────────────────────────────────────────────────────────── */}
+        <div className="bg-gradient-to-br from-blue-50/60 via-slate-50 to-indigo-50/50 p-5 rounded-2xl border border-blue-200/90 shadow-2xs space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-blue-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+                <History className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="font-black text-sm text-slate-900">
+                    Périmètre de Synchronisation &amp; Filtre Anti-Anciens Colis
+                  </h4>
+                  <span className="bg-blue-100 text-blue-800 border border-blue-300 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+                    Filtre Intelligent Actif
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Évitez de saturer votre tableau de bord avec les anciens colis obsolètes de 2025/début 2026. Seuls les colis de votre période d'activité sont synchronisés.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-[11px] font-mono font-bold bg-white px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700">
+                Limite : {senditCalculatedCutoff ? `≥ ${senditCalculatedCutoff}` : 'Tout'}
+              </span>
+            </div>
+          </div>
+
+          {/* Diagnostic Stats Live Badges */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs">
+              <div className="text-[10px] uppercase font-bold text-slate-400">Total Colis Sendit en Base</div>
+              <div className="text-xl font-black text-slate-900 mt-0.5">{senditStats.totalSenditSync} <span className="text-xs font-normal text-slate-500">colis</span></div>
+              <div className="text-[10px] text-slate-400 mt-0.5">Tous statuts confondus</div>
+            </div>
+
+            <div className="bg-white p-3 rounded-xl border border-emerald-200 shadow-2xs">
+              <div className="text-[10px] uppercase font-bold text-emerald-700">Colis dans le Périmètre Actif</div>
+              <div className="text-xl font-black text-emerald-600 mt-0.5">{senditStats.inScopeCount} <span className="text-xs font-normal text-emerald-600/70">colis</span></div>
+              <div className="text-[10px] text-emerald-600 font-medium mt-0.5">Visibles dans le suivi &amp; kanban</div>
+            </div>
+
+            <div className={`p-3 rounded-xl border shadow-2xs ${senditStats.outOfScopeCount > 0 ? 'bg-amber-50 border-amber-300' : 'bg-white border-slate-200'}`}>
+              <div className="text-[10px] uppercase font-bold text-slate-500">Anciens Colis Hors Périmètre</div>
+              <div className={`text-xl font-black mt-0.5 ${senditStats.outOfScopeCount > 0 ? 'text-amber-700' : 'text-slate-700'}`}>
+                {senditStats.outOfScopeCount} <span className="text-xs font-normal text-slate-500">colis</span>
+              </div>
+              <div className="text-[10px] mt-0.5 font-medium">
+                {senditStats.outOfScopeCount > 0 ? (
+                  <span className="text-amber-700 font-bold">⚠️ Obsolètes (purge recommandée)</span>
+                ) : (
+                  <span className="text-emerald-600">✅ Base propre (0 ancien colis)</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Configuration Form */}
+          <div className="space-y-4 pt-1">
+            {/* 1. Fenêtre temporelle */}
+            <div>
+              <label className="text-xs font-black text-slate-800 flex items-center gap-1.5 mb-2">
+                <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                Fenêtre Temporelle de Synchronisation
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+                {[
+                  { id: 'LAST_7_DAYS', label: '7 jours', sub: 'Semaine en cours', icon: '⚡' },
+                  { id: 'LAST_14_DAYS', label: '14 jours', sub: '2 semaines', icon: '📅' },
+                  { id: 'LAST_30_DAYS', label: '30 jours', sub: '1 mois (Recommandé)', icon: '⭐' },
+                  { id: 'LAST_60_DAYS', label: '60 jours', sub: '2 mois d\'activité', icon: '🗓️' },
+                  { id: 'CUSTOM', label: 'Personnalisée', sub: 'Date fixe précise', icon: '🎯' },
+                  { id: 'ALL', label: 'Tout l\'historique', sub: 'Tous les colis', icon: '🌐' },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSenditSyncWindow(item.id)}
+                    className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                      senditSyncWindow === item.id
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-xs ring-2 ring-blue-500/30'
+                        : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <div className="text-xs font-black flex items-center gap-1">
+                      <span>{item.icon}</span> {item.label}
+                    </div>
+                    <div className={`text-[10px] truncate mt-0.5 ${senditSyncWindow === item.id ? 'text-blue-100' : 'text-slate-400'}`}>
+                      {item.sub}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Si personnalisé : Choix de la date de départ */}
+            {senditSyncWindow === 'CUSTOM' && (
+              <div className="p-3 bg-white rounded-xl border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-800 block">
+                    Date de début de synchronisation (Cutoff Date) :
+                  </label>
+                  <p className="text-[11px] text-slate-500">
+                    Tous les colis créés sur Sendit.ma avant cette date seront automatiquement ignorés.
+                  </p>
+                </div>
+                <input
+                  type="date"
+                  value={senditSyncStartDate}
+                  onChange={(e) => setSenditSyncStartDate(e.target.value)}
+                  className="px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-xs font-mono font-bold text-slate-800 focus:outline-blue-600 w-44"
+                />
+              </div>
+            )}
+
+            {/* 2. Périmètre des statuts & 3. Plafond de pagination */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-black text-slate-800 flex items-center gap-1.5 mb-1.5">
+                  <Filter className="w-3.5 h-3.5 text-blue-600" />
+                  Filtrage Intelligent des Statuts
+                </label>
+                <select
+                  value={senditSyncStatusScope}
+                  onChange={(e) => setSenditSyncStatusScope(e.target.value)}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:outline-blue-600"
+                >
+                  <option value="ACTIVE_AND_RECENT_CLOSED">
+                    ⭐ Colis Actifs + Clôturés récents (Recommandé)
+                  </option>
+                  <option value="ACTIVE_ONLY">
+                    ⚡ Colis Actifs uniquement (Ignore les anciens livrés/annulés)
+                  </option>
+                  <option value="ALL_STATUSES">
+                    🌐 Tous les statuts sans restriction
+                  </option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Met à jour les statuts en temps réel sans réimporter de vieux colis clôturés.
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-black text-slate-800 flex items-center gap-1.5 mb-1.5">
+                  <Layers className="w-3.5 h-3.5 text-blue-600" />
+                  Plafond de Pagination (Sécurité Réseau)
+                </label>
+                <select
+                  value={senditSyncMaxPages}
+                  onChange={(e) => setSenditSyncMaxPages(parseInt(e.target.value, 10))}
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 focus:outline-blue-600"
+                >
+                  <option value={2}>2 pages (~100 colis max — Ultra-rapide)</option>
+                  <option value={5}>5 pages (~250 colis max — Idéal pour COD régulier)</option>
+                  <option value={10}>10 pages (~500 colis max)</option>
+                  <option value={20}>20 pages (~1000 colis max)</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Grâce au tri antéchronologique de Sendit, la synchronisation s'arrête dès que la date limite est atteinte.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Toolbar for Sync Scope */}
+          <div className="pt-3 border-t border-blue-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={handleSaveSyncScope}
+                disabled={isSavingSyncScope}
+                className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSavingSyncScope ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>{isSavingSyncScope ? 'Enregistrement...' : 'Enregistrer le Périmètre'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleTriggerSyncNow}
+                disabled={isSyncingNow}
+                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingNow ? 'animate-spin' : ''}`} />
+                <span>{isSyncingNow ? 'Synchronisation en cours...' : 'Lancer la Synchronisation Filtrée'}</span>
+              </button>
+            </div>
+
+            {/* Action Purge des anciens colis */}
+            <button
+              type="button"
+              onClick={handlePurgeOldParcels}
+              disabled={isPurgingOld || senditStats.outOfScopeCount === 0}
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                senditStats.outOfScopeCount > 0
+                  ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-300 shadow-2xs'
+                  : 'bg-slate-100 text-slate-400 border-slate-200 cursor-not-allowed opacity-60'
+              }`}
+              title={
+                senditStats.outOfScopeCount > 0
+                  ? `Supprimer les ${senditStats.outOfScopeCount} anciens colis antérieurs à la date limite`
+                  : 'Aucun ancien colis hors périmètre à purger'
+              }
+            >
+              {isPurgingOld ? <RotateCcw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+              <span>
+                {isPurgingOld
+                  ? 'Purge en cours...'
+                  : senditStats.outOfScopeCount > 0
+                  ? `Purger les ${senditStats.outOfScopeCount} anciens colis`
+                  : 'Base propre (0 ancien colis)'}
+              </span>
+            </button>
+          </div>
+
+          {syncScopeAlert && (
+            <div
+              className={`p-3 rounded-xl text-xs font-medium border flex items-center gap-2 ${
+                syncScopeAlert.type === 'success'
+                  ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                  : 'bg-rose-50 text-rose-900 border-rose-200'
+              }`}
+            >
+              <span>{syncScopeAlert.text}</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

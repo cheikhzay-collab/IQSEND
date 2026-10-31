@@ -145,11 +145,19 @@ export async function POST(req: NextRequest) {
     const orderNumber = payload.orderNumber || `#GS${randomSuffix}`;
     const orderId = `ord-gs-${Date.now()}-${randomSuffix}`;
 
+    // Parse potential date from payload or fallback to current time
+    const rawDate = payload.date || payload.timestamp || payload['تاريخ'] || payload['التاريخ'] || payload.horodateur;
+    let webhookCreatedAt = new Date();
+    if (rawDate) {
+      const parsed = new Date(rawDate);
+      if (!isNaN(parsed.getTime())) webhookCreatedAt = parsed;
+    }
+
     const newOrder: IngestedOrder = {
       id: orderId,
       orderNumber,
       stage: 'PENDING_CONFIRMATION',
-      createdAt: 'الآن (Google Sheet)',
+      createdAt: webhookCreatedAt.toISOString(),
       source: 'GOOGLE_SHEETS',
       customer: {
         name: String(name).trim(),
@@ -193,10 +201,10 @@ export async function POST(req: NextRequest) {
       await pool.execute(
         `INSERT INTO order_leads (
           id, order_number, customer_name, phone_number, city, address, total_amount, status,
-          risk_score, risk_level, ai_confirmation_status, store_source, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 10, 'LOW', 'PENDING', 'Google Sheets Webhook', ?)
+          risk_score, risk_level, ai_confirmation_status, store_source, created_at, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 10, 'LOW', 'PENDING', 'Google Sheets Webhook', ?, ?)
         ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
-        [orderId, orderNumber, newOrder.customer.name, cleanedPhone, newOrder.customer.city, newOrder.customer.address, newOrder.payment.amount, notes]
+        [orderId, orderNumber, newOrder.customer.name, cleanedPhone, newOrder.customer.city, newOrder.customer.address, newOrder.payment.amount, webhookCreatedAt, notes]
       );
 
       // 2. Insert line item into order_items

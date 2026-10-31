@@ -147,7 +147,9 @@ export async function triggerReviewInvitation(
   customerName: string,
   orderNumber: string
 ) {
-  const reviewUrl = `http://localhost:3000/dashboard/orders/reviews?order=${orderNumber}`;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://app.sendit.ma';
+  const cleanBase = baseUrl.replace(/\/+$/, '');
+  const reviewUrl = `${cleanBase}/dashboard/orders/reviews?order=${orderNumber}`;
   const message = `بصحتك وراحتك أخي ${customerName}! 🎉
 تم تأكيد تسليم طلبك #${orderNumber} بنجاح.
 رأيك يهمنا بزاف لتحسين خدماتنا! كيف كانت تجربتك مع جودة المنتج وسرعة التوصيل؟

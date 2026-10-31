@@ -20,12 +20,14 @@ import {
 } from 'lucide-react';
 
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
+import { PhysicalReturnModal } from '@/components/orders/PhysicalReturnModal';
 
 export default function ReturnsOrdersPage() {
   const { orders, reintegrateStock, reactivateOrder, returnedCount, showToast } = useOrderLifecycle();
   const [search, setSearch] = useState('');
   const [carrierFilter, setCarrierFilter] = useState('ALL');
   const [returnStatusFilter, setReturnStatusFilter] = useState('ALL');
+  const [inspectReturnOrder, setInspectReturnOrder] = useState<LifecycleOrder | null>(null);
 
   // Filter orders in RETURNED stage or with delivery failures
   const returnedOrders = useMemo(() => {
@@ -102,7 +104,7 @@ export default function ReturnsOrdersPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/dashboard/orders/in-transit"
+              href="/dashboard/tracking"
               className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors inline-flex items-center gap-1.5"
             >
               <Truck className="w-3.5 h-3.5 text-indigo-600" />
@@ -292,7 +294,7 @@ export default function ReturnsOrdersPage() {
                             {/* Reintegrate Stock Button */}
                             {!isStockRestored && (
                               <button
-                                onClick={() => reintegrateStock(order.id)}
+                                onClick={() => setInspectReturnOrder(order)}
                                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-all active:scale-95"
                                 title="Valider la réception du colis au hub et remettre les articles en stock"
                               >
@@ -330,6 +332,16 @@ export default function ReturnsOrdersPage() {
         </div>
 
       </div>
-    </div>
+    
+      <PhysicalReturnModal
+        order={inspectReturnOrder}
+        isOpen={!!inspectReturnOrder}
+        onClose={() => setInspectReturnOrder(null)}
+        onReceived={(orderId) => {
+          reintegrateStock(orderId);
+          showToast('Colis inspecté et articles réintégrés au stock avec succès!', 'success');
+        }}
+      />
+</div>
   );
 }

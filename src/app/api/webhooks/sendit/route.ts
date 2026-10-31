@@ -171,7 +171,11 @@ export async function POST(req: NextRequest) {
             `UPDATE order_leads SET status = 'DELIVERY_FAILED', updated_at = NOW() WHERE id = ?`,
             [orderId]
           );
-          await restoreStockForOrder(orderId, `Retour colis Sendit (${trackingCode})`);
+          // Note: Stock is NOT restored here; it is ONLY restored upon physical scan in warehouse (Retour Reçu en Stock)
+          await pool.execute(
+            `UPDATE shipment_details SET status = 'RETURNED', failed_reason = 'Retour Sendit en cours vers le stock' WHERE order_id = ?`,
+            [orderId]
+          );
           await updateCustomerStatsOnOrderStatus(orderId, 'DELIVERY_FAILED');
         } else if (processed.mappedStatus === 'CANCELED' || (processed.mappedStatus as string) === 'CANCELLED') {
           await pool.execute(

@@ -34,7 +34,11 @@ export function mapStageToDbStatus(stage: string): string {
   }
 }
 
-export function mapDbStatusToStage(status: string, storeSource?: string): LifecycleStage {
+export function mapDbStatusToStage(
+  status: string,
+  storeSource?: string,
+  rescueStatus?: string
+): LifecycleStage {
   switch (status) {
     case 'NEW':
     case 'AI_CHATTING':
@@ -43,13 +47,22 @@ export function mapDbStatusToStage(status: string, storeSource?: string): Lifecy
       return 'PENDING_CONFIRMATION';
     case 'CONFIRMED':
     case 'PACKING':
+      if (storeSource === 'SENDIT_SYNC') return 'IN_TRANSIT';
       return 'PROCESSING';
+    case 'READY_FOR_PICKUP':
     case 'IN_TRANSIT':
     case 'OUT_FOR_DELIVERY':
       return 'IN_TRANSIT';
     case 'DELIVERED_PAID':
       return 'COMPLETED';
     case 'DELIVERY_FAILED':
+      // If return is finalized and parcel sent back to warehouse, treat as RETURNED.
+      // Otherwise, while under rescue/needs attention, keep in IN_TRANSIT with FAILED_ATTEMPT
+      // so it remains active on the live delivery dashboard for rescue outreach.
+      if (rescueStatus === 'RETURN_CONFIRMED' || rescueStatus === 'RETURNED') {
+        return 'RETURNED';
+      }
+      return 'IN_TRANSIT';
     case 'RETURNED':
       return 'RETURNED';
     case 'CANCELED':
@@ -89,7 +102,10 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
           s.sendit_tracking_number,
           s.status as shipment_status,
           s.waybill_url,
-          s.delivery_proof_url
+          s.delivery_proof_url,
+          s.failed_reason,
+          s.delivery_attempts_count,
+          s.last_status_update_at
         FROM order_leads l
         LEFT JOIN shipment_details s ON l.id = s.order_id
         ORDER BY l.created_at DESC
@@ -117,13 +133,35 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
 
     const mappedOrders: LifecycleOrder[] = leads.map((lead: any): LifecycleOrder => {
       const orderItems = itemsByOrderId[lead.id] || [];
-      let stage = mapDbStatusToStage(lead.status, lead.store_source);
+      let stage = mapDbStatusToStage(lead.status, lead.store_source, lead.rescue_status);
       
-      // Strict safeguard: Any parcel from Sendit logistics is already in delivery network, NEVER pending confirmation
+      // Strict safeguard: Any parcel from Sendit logistics is already in delivery network, NEVER pending confirmation or packing
       const isSenditParcel = lead.store_source === 'SENDIT_SYNC' || (lead.id && lead.id.startsWith('snd-'));
+      const hasTracking = Boolean(lead.sendit_tracking_number && String(lead.sendit_tracking_number).trim() !== '');
+      const hasShipmentRecord = Boolean(lead.shipment_status && lead.shipment_status !== '');
+
       if (isSenditParcel && stage === 'PENDING_CONFIRMATION') {
         stage = 'IN_TRANSIT';
       }
+
+      // If the parcel has already been pushed to Sendit (has tracking number or AWB ready for pickup), it is in transit, not packing!
+      if ((isSenditParcel || hasTracking || hasShipmentRecord) && stage === 'PROCESSING') {
+        stage = 'IN_TRANSIT';
+      }
+
+      const isDelivered = lead.status === 'DELIVERED_PAID' || lead.shipment_status === 'DELIVERED_PAID';
+      const isFailedAttempt = lead.status === 'DELIVERY_FAILED' || lead.shipment_status === 'DELIVERY_FAILED';
+      const isOutForDelivery = lead.shipment_status === 'OUT_FOR_DELIVERY' || lead.status === 'OUT_FOR_DELIVERY';
+
+      const liveShippingStatus: 'DISPATCHED' | 'OUT_FOR_DELIVERY' | 'FAILED_ATTEMPT' | 'DELIVERED' = isDelivered
+        ? 'DELIVERED'
+        : isFailedAttempt
+        ? 'FAILED_ATTEMPT'
+        : isOutForDelivery
+        ? 'OUT_FOR_DELIVERY'
+        : 'DISPATCHED';
+
+      const isReturnedConfirmed = lead.rescue_status === 'RETURN_CONFIRMED' || lead.status === 'RETURNED' || lead.shipment_status === 'RETURNED';
 
       return {
         id: lead.id,
@@ -157,7 +195,7 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
           method: 'COD',
           amount: Number(lead.total_amount),
           currency: 'MAD',
-          status: lead.status === 'DELIVERED_PAID' ? 'COLLECTED' : 'PENDING',
+          status: isDelivered ? 'COLLECTED' : 'PENDING',
         },
         aiVerification: {
           status:
@@ -173,20 +211,32 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
           ? {
               courier: lead.carrier || 'Sendit.ma Express',
               trackingNumber: lead.sendit_tracking_number,
-              liveStatus: lead.shipment_status === 'DELIVERED_PAID' ? 'DELIVERED' : 'DISPATCHED',
-              lastUpdated: 'À l’instant',
-              deliveryAttempts: 1,
+              liveStatus: liveShippingStatus,
+              lastUpdated: lead.last_status_update_at
+                ? new Date(lead.last_status_update_at).toLocaleDateString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'À l’instant',
+              failedReason: lead.failed_reason || lead.rescue_notes || undefined,
+              deliveryAttempts: Number(lead.delivery_attempts_count) || (isFailedAttempt ? 1 : 0),
             }
           : undefined,
-        completed:
-          lead.status === 'DELIVERED_PAID'
-            ? {
-                deliveredAt: new Date(lead.updated_at).toLocaleDateString('fr-FR'),
-                podType: 'CUSTOMER_SIGNATURE',
-                settlementStatus: 'PAID_SETTLEMENT',
-                reviewRequested: false,
-              }
-            : undefined,
+        completed: isDelivered
+          ? {
+              deliveredAt: new Date(lead.updated_at).toLocaleDateString('fr-FR'),
+              podType: 'CUSTOMER_SIGNATURE',
+              settlementStatus: 'PAID_SETTLEMENT',
+              reviewRequested: false,
+            }
+          : isReturnedConfirmed
+          ? {
+              deliveredAt: new Date(lead.updated_at).toLocaleDateString('fr-FR'),
+              podType: 'CUSTOMER_SIGNATURE',
+              settlementStatus: 'PENDING_TRANSFER',
+              returnStatus: 'RETURNED',
+            }
+          : undefined,
         source: {
           name: lead.store_source || 'Direct Funnel',
         },
@@ -441,7 +491,7 @@ export async function recordCodRemittance(orderId: string): Promise<boolean> {
 
     await pool.execute(
       `UPDATE shipment_details 
-       SET cod_amount_collected = ?, is_cod_reconciled = TRUE, status = 'DELIVERED_PAID', last_status_update_at = CURRENT_TIMESTAMP
+       SET cod_amount_collected = ?, shipping_fee = 35, is_cod_reconciled = FALSE, status = 'DELIVERED_PAID', last_status_update_at = CURRENT_TIMESTAMP
        WHERE order_id = ?`,
       [amount, lead.id]
     );
@@ -451,8 +501,8 @@ export async function recordCodRemittance(orderId: string): Promise<boolean> {
 
     await pool.execute(
       `INSERT INTO finance_transactions (id, reference, transaction_type, amount, carrier, order_count, status, created_at)
-       VALUES (?, ?, 'COD_REMITTANCE', ?, 'Sendit.ma', 1, 'PROCESSED', CURRENT_TIMESTAMP)
-       ON DUPLICATE KEY UPDATE amount = VALUES(amount), status = 'PROCESSED'`,
+       VALUES (?, ?, 'COD_REMITTANCE', ?, 'Sendit.ma', 1, 'PENDING', CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE amount = VALUES(amount), status = 'PENDING'`,
       [txId, ref, amount]
     );
 
@@ -1116,56 +1166,4 @@ export async function executeAiAutoPilotAll(): Promise<{
   }
 }
 
-/**
- * 10. Create and instantly confirm a live test lead to demo AI Agent capabilities
- */
-export async function createAndConfirmTestLead(): Promise<any> {
-  const pool = getMysqlPool();
-  const id = `lead-test-${Date.now()}`;
-  const orderNumber = `#MA-${Math.floor(10000 + Math.random() * 90000)}`;
-
-  const moroccanSamples = [
-    { name: 'يوسف العمراني', city: 'الدار البيضاء', address: 'بوركون، شارع الزيراوي، إقامة السلام، الدار البيضاء', product: 'ساعة ذكية Smart Watch Ultra Pro S2', price: 299, sku: 'SW2-AMOLED-BLK' },
-    { name: 'سلمى الإدريسي', city: 'مراكش', address: 'داوديات، الوحدة 3، مراكش', product: 'قفطان عصري كتان خالص مطرز', price: 459, sku: 'KFT-LIN-01' },
-    { name: 'طارق العلمي', city: 'طنجة', address: 'شارع محمد الخامس، مجمع البوغاز، طنجة', product: 'حذاء سنيكرز جلد أصلي أبيض', price: 399, sku: 'SNK-WHT-LTHR' },
-    { name: 'مريم التازي', city: 'فاس', address: 'طريق عين الشقف، إقامة الفردوس، فاس', product: 'عطر رويال عنبر الملكي 50 مل', price: 349, sku: 'PRF-AMB-50' },
-  ];
-
-  const sample = moroccanSamples[Math.floor(Math.random() * moroccanSamples.length)];
-  const phone = `06${Math.floor(10000000 + Math.random() * 89999999)}`;
-
-  // Insert lead
-  await pool.execute(
-    `
-    INSERT INTO order_leads 
-      (id, order_number, customer_name, phone_number, city, address, total_amount, status, risk_score, ai_confirmation_status, store_source, notes)
-    VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 5, 'PENDING', 'Simulation Funnel', 'Test de qualification automatique en direct')
-  `,
-    [id, orderNumber, sample.name, phone, sample.city, sample.address, sample.price]
-  );
-
-  // Insert item
-  await pool.execute(
-    `
-    INSERT INTO order_items (id, order_id, product_id, product_name, sku, quantity, price)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `,
-    [`it-${id}`, id, 'prod-sample', sample.product, sample.sku, 1, sample.price]
-  );
-
-  // Immediately execute AI agent confirmation
-  const confirmResult = await executeAiLeadConfirmation(id);
-
-  return {
-    success: true,
-    orderId: id,
-    orderNumber,
-    customerName: sample.name,
-    city: sample.city,
-    product: sample.product,
-    price: sample.price,
-    phone,
-    aiResult: confirmResult,
-  };
-}
 

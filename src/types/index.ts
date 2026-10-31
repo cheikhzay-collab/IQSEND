@@ -4,7 +4,8 @@ export type ShipmentStatus =
   | 'OUT_FOR_DELIVERY'
   | 'DELIVERY_FAILED'
   | 'DELIVERED_PAID'
-  | 'RETURNED';
+  | 'RETURNED'
+  | 'CANCELED';
 
 export type LeadStatus =
   | 'NEW'
@@ -65,3 +66,20 @@ export interface TrackingKpis {
   totalCodCollected: number; // in MAD
   pendingCodAmount: number; // in MAD
 }
+
+export type DateFilterOption =
+  | 'ALL'
+  | 'TODAY'
+  | 'YESTERDAY'
+  | 'LAST_7_DAYS'
+  | 'LAST_14_DAYS'
+  | 'LAST_30_DAYS'
+  | 'CUSTOM';
+
+export type TrackingSortOption =
+  | 'DATE_DESC'
+  | 'DATE_ASC'
+  | 'STATUS'
+  | 'AMOUNT_DESC'
+  | 'AMOUNT_ASC';
+

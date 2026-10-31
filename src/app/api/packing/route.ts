@@ -15,6 +15,8 @@ export async function GET() {
         l.id,
         l.order_number,
         l.customer_name,
+        l.phone_number,
+        l.address,
         l.city,
         l.total_amount,
         l.status,
@@ -28,6 +30,9 @@ export async function GET() {
       LEFT JOIN order_items i ON l.id = i.order_id
       LEFT JOIN shipment_details s ON l.id = s.order_id
       LEFT JOIN products p ON (i.product_name = p.name OR i.sku = p.sku)
+      WHERE l.status IN ('CONFIRMED', 'PACKING')
+        AND (s.sendit_tracking_number IS NULL OR s.sendit_tracking_number = '')
+        AND (s.status IS NULL OR s.status NOT IN ('READY_FOR_PICKUP', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'DELIVERED_PAID', 'RETURNED'))
       ORDER BY l.created_at DESC
     `);
 
@@ -49,15 +54,17 @@ export async function GET() {
         id: r.id,
         orderNumber: cleanNum,
         customerName: r.customer_name || 'Client',
+        phone: r.phone_number || '',
+        address: r.address || '',
         city: r.city || 'Maroc',
         productName: r.product_name || 'Produit COD Sendit',
         sku: r.sku || 'SKU-GEN',
         quantity: r.quantity || 1,
         totalAmount: Number(r.total_amount) || 299,
         stockAvailable: r.stock_quantity !== null && r.stock_quantity !== undefined ? Number(r.stock_quantity) : 24,
-        isPacked,
-        senditStatus: isPushed ? 'PUSHED' : 'PENDING',
-        trackingCode: r.sendit_tracking_number || undefined,
+        isPacked: r.status === 'PACKING',
+        senditStatus: 'PENDING',
+        trackingCode: undefined,
       });
     }
 
@@ -146,83 +153,70 @@ export async function PATCH(request: Request) {
     }
 
     if (action === 'PUSH_SENDIT') {
-      let tracking = trackingCode || '';
-      let waybillUrl = '';
+      const [ordRows]: any = await pool.execute(
+        `SELECT id, order_number, customer_name, phone_number, city, address, total_amount FROM order_leads WHERE id = ? OR order_number = ? LIMIT 1`,
+        [orderId, orderId]
+      );
 
-      // Check if real order exists in MySQL to push to Sendit API
-      try {
-        const [ordRows]: any = await pool.execute(
-          `SELECT id, order_number, customer_name, phone_number, city, address, total_amount FROM order_leads WHERE id = ? OR order_number = ? LIMIT 1`,
-          [orderId, orderId]
-        );
-        if (Array.isArray(ordRows) && ordRows.length > 0) {
-          const ord = ordRows[0];
-          if (!tracking) {
-            // Find Sendit district
-            const districts = await senditService.getDistricts();
-            const orderCity = (ord.city || '').trim().toLowerCase();
-            const matched = districts.find(
-              (d) =>
-                d.name.toLowerCase() === orderCity ||
-                d.ville.toLowerCase() === orderCity ||
-                (d.arabic_name && ord.city && ord.city.includes(d.arabic_name))
-            ) || districts[0];
-
-            if (matched && ord.customer_name && ord.phone_number && ord.address) {
-              const parcelRes = await senditService.createParcel({
-                district_id: matched.id,
-                name: ord.customer_name,
-                phone: ord.phone_number,
-                address: ord.address,
-                amount: Number(ord.total_amount) || 0,
-                reference: ord.order_number || ord.id,
-                allow_open: 1,
-                allow_try: 1,
-              });
-
-              if (parcelRes.success && parcelRes.trackingCode) {
-                tracking = parcelRes.trackingCode;
-                waybillUrl = parcelRes.waybillPdfUrl || '';
-              }
-            }
-          }
-        }
-      } catch (senditErr: any) {
-        console.warn('[PUSH_SENDIT] Live Sendit creation warning:', senditErr.message);
+      if (!Array.isArray(ordRows) || ordRows.length === 0) {
+        return NextResponse.json({ success: false, error: 'Commande introuvable dans la base de données' }, { status: 404 });
       }
 
-      if (!tracking) {
-        tracking = `SND-${Math.floor(100000 + Math.random() * 900000)}`;
+      const ord = ordRows[0];
+      const resolved = senditService.resolveDistrict(ord.city || ord.address);
+
+      // Appel réel à l'API officielle Sendit.ma
+      const parcelRes = await senditService.createParcel({
+        district_id: resolved.id,
+        name: ord.customer_name || 'Client',
+        phone: ord.phone_number || '',
+        address: ord.address || 'Adresse à confirmer',
+        amount: Number(ord.total_amount) || 0,
+        reference: ord.order_number || ord.id,
+        allow_open: 1,
+        allow_try: 1,
+      });
+
+      if (!parcelRes.success || !parcelRes.trackingCode) {
+        return NextResponse.json({
+          success: false,
+          error: parcelRes.errorMessage || 'Échec de transmission du colis à Sendit.ma. Vérifiez les informations du client (téléphone, ville).',
+        }, { status: 502 });
       }
+
+      const tracking = parcelRes.trackingCode;
+      const waybillUrl = parcelRes.waybillPdfUrl || '';
+      const fee = parcelRes.fee || 35;
 
       // Update in-memory store
       updateOrderTracking(orderId, tracking, 'Sendit.ma Express');
-      updateOrderStatus(orderId, 'IN_TRANSIT');
+      updateOrderStatus(orderId, 'PACKING');
 
-      // Update lead to IN_TRANSIT
+      // Update lead to READY_FOR_PICKUP
       await pool.execute(
-        `UPDATE order_leads SET status = 'IN_TRANSIT', updated_at = CURRENT_TIMESTAMP WHERE id = ? OR order_number = ?`,
+        `UPDATE order_leads SET status = 'READY_FOR_PICKUP', updated_at = CURRENT_TIMESTAMP WHERE id = ? OR order_number = ?`,
         [orderId, orderId]
       );
 
       // Upsert shipment_details
       await pool.execute(
         `
-        INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, waybill_url, status, last_status_update_at)
-        VALUES (?, ?, 'Sendit.ma Express', ?, ?, 'READY_FOR_PICKUP', CURRENT_TIMESTAMP)
+        INSERT INTO shipment_details (id, order_id, carrier, sendit_tracking_number, waybill_url, shipping_fee, status, last_status_update_at)
+        VALUES (?, ?, 'Sendit.ma Express', ?, ?, ?, 'READY_FOR_PICKUP', CURRENT_TIMESTAMP)
         ON DUPLICATE KEY UPDATE
           carrier = 'Sendit.ma Express',
           sendit_tracking_number = VALUES(sendit_tracking_number),
           waybill_url = COALESCE(VALUES(waybill_url), waybill_url),
+          shipping_fee = VALUES(shipping_fee),
           status = 'READY_FOR_PICKUP',
           last_status_update_at = CURRENT_TIMESTAMP
       `,
-        [`ship-${orderId}`, orderId, tracking, waybillUrl || null]
+        [`ship-${orderId}`, orderId, tracking, waybillUrl || null, fee]
       );
 
-      // Update packing task status to DISPATCHED
+      // Update packing task status to PACKED
       await pool.execute(
-        `UPDATE packing_tasks SET status = 'DISPATCHED', updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
+        `UPDATE packing_tasks SET status = 'PACKED', updated_at = CURRENT_TIMESTAMP WHERE order_id = ?`,
         [orderId]
       );
 
@@ -235,8 +229,8 @@ export async function PATCH(request: Request) {
       await addTimelineEventToDb({
         orderId,
         action: 'SENDIT_PUSHED',
-        title: 'Bordereau Sendit.ma généré',
-        details: `Colis étiqueté avec le code de suivi ${tracking} et prêt pour ramassage Hub Express`,
+        title: '📦 Bordereau Sendit.ma généré',
+        details: `Colis transmis avec succès à Sendit. N° de suivi officiel: ${tracking}. Frais: ${fee} MAD. En attente du passage du chauffeur.`,
         actor: 'SENDIT',
       });
 
@@ -245,8 +239,8 @@ export async function PATCH(request: Request) {
         eventType: 'SHIPMENT_STATUS_UPDATED',
         entityType: 'PARCEL',
         entityId: tracking,
-        title: `Bordereau Sendit généré: ${tracking} (${orderId})`,
-        payload: { orderId, tracking, waybillUrl, status: 'READY_FOR_PICKUP' },
+        title: `Colis transmis à Sendit: ${tracking} (${ord.order_number || orderId})`,
+        payload: { orderId, tracking, waybillUrl, fee, status: 'READY_FOR_PICKUP' },
         source: 'PACKING_STATION',
       }).catch(() => {});
 
@@ -254,7 +248,9 @@ export async function PATCH(request: Request) {
         success: true,
         trackingCode: tracking,
         waybillUrl,
+        fee,
         senditStatus: 'PUSHED',
+        message: `✅ Colis transmis avec succès à Sendit.ma (${tracking})`,
       });
     }
 

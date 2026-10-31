@@ -39,6 +39,12 @@ import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
 type ConfirmationSubFilter = 'ALL' | 'NEW' | 'UNREACHABLE' | 'RESCHEDULED';
 
+function isValidMoroccanPhone(phone?: string): boolean {
+  if (!phone) return false;
+  const clean = phone.replace(/[^\d+]/g, '');
+  return /^(?:0|\+?212)[5-7]\d{8}$/.test(clean);
+}
+
 function getConfirmationSubStatus(order: LifecycleOrder): 'NEW' | 'UNREACHABLE' | 'RESCHEDULED' {
   const notes = (order.customer.notes || '').toLowerCase();
   if (
@@ -524,6 +530,20 @@ export default function PendingOrdersPage() {
                             {/* Phone + Action buttons: Call / WhatsApp */}
                             <div className="flex items-center gap-2 text-[11px] font-medium">
                               <span className="text-slate-800 font-semibold">{order.customer.phone}</span>
+                              {isValidMoroccanPhone(order.customer.phone) ? (
+                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                                  06/07 Valide ✓
+                                </span>
+                              ) : (
+                                <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                  Format invalide ⚠️
+                                </span>
+                              )}
+                              {(order.customer.notes || '').toUpperCase().includes('DOUBLON') && (
+                                <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 animate-pulse">
+                                  Doublon 48h ⚠️
+                                </span>
+                              )}
                               
                               <a
                                 href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(

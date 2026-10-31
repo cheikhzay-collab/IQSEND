@@ -9,7 +9,8 @@ import {
   Truck,
   CheckCircle2,
   Kanban,
-  RotateCcw
+  RotateCcw,
+  XCircle
 } from 'lucide-react';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
@@ -24,7 +25,8 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     processingCount,
     inTransitCount,
     completedCount,
-    returnedCount
+    returnedCount,
+    canceledCount,
   } = useOrderLifecycle();
 
   const tabs = [
@@ -32,20 +34,20 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       id: 'pending',
       href: '/dashboard/orders/pending',
       step: '1',
-      label: 'En attente de confirmation',
-      mediumLabel: 'En attente',
-      shortLabel: '1. Confirmation',
+      label: '1. Confirmation',
+      mediumLabel: '1. Confirmation',
+      shortLabel: '1. Confir.',
       icon: ClipboardCheck,
       badge: pendingCount,
       badgeColor: 'bg-[#F59E0B] text-white',
     },
     {
       id: 'processing',
-      href: '/dashboard/orders/processing',
+      href: '/dashboard/packing',
       step: '2',
-      label: 'En préparation',
-      mediumLabel: 'En préparation',
-      shortLabel: '2. Préparation',
+      label: '2. En préparation (AWB)',
+      mediumLabel: '2. Préparation (AWB)',
+      shortLabel: '2. Prép.',
       icon: Package,
       badge: processingCount,
       badgeColor: 'bg-[#3B82F6] text-white',
@@ -54,9 +56,9 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       id: 'in-transit',
       href: '/dashboard/tracking',
       step: '3',
-      label: 'En cours de livraison (Sendit)',
-      mediumLabel: 'En livraison (Sendit)',
-      shortLabel: '3. En livraison',
+      label: '3. En livraison (Sendit)',
+      mediumLabel: '3. En livraison',
+      shortLabel: '3. Livr.',
       icon: Truck,
       badge: inTransitCount,
       badgeColor: 'bg-[#6366F1] text-white',
@@ -65,9 +67,9 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       id: 'completed',
       href: '/dashboard/orders/completed',
       step: '4',
-      label: 'Livrées & Encaissées',
-      mediumLabel: 'Livrées & Encaissées',
-      shortLabel: '4. Livrées',
+      label: '4. Livrées & Encaissées',
+      mediumLabel: '4. Livrées',
+      shortLabel: '4. Livr.',
       icon: CheckCircle2,
       badge: completedCount,
       badgeColor: 'bg-[#10B981] text-white',
@@ -78,10 +80,18 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     {
       id: 'returns',
       href: '/dashboard/orders/returns',
-      label: 'Retours & Refusés',
+      label: '5. Retours & Refusés',
       icon: RotateCcw,
       badge: returnedCount,
-      badgeColor: 'bg-amber-600 text-white',
+      badgeColor: 'bg-rose-600 text-white',
+    },
+    {
+      id: 'canceled',
+      href: '/dashboard/orders/canceled',
+      label: '6. Annulées',
+      icon: XCircle,
+      badge: canceledCount,
+      badgeColor: 'bg-slate-500 text-white',
     },
   ];
 
@@ -115,9 +125,12 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       <div className="flex items-center gap-1 shrink-0">
         {tabs.map((tab, idx) => {
           const Icon = tab.icon;
-          const isActive = tab.id === 'in-transit'
-            ? (pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit')
-            : pathname === tab.href;
+          const isActive =
+            tab.id === 'in-transit'
+              ? (pathname === '/dashboard/tracking' || pathname === '/dashboard/orders/in-transit')
+              : tab.id === 'processing'
+              ? (pathname === '/dashboard/packing' || pathname === '/dashboard/orders/processing')
+              : pathname === tab.href;
 
           return (
             <React.Fragment key={tab.id}>
@@ -168,7 +181,7 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
       {/* Divider */}
       <div className="w-px h-5 bg-slate-200 mx-0.5 shrink-0" />
 
-      {/* 3. Secondary Tabs (Brouillons, etc.) */}
+      {/* 3. Secondary Tabs (Retours, Annulées) */}
       <div className="flex items-center gap-1 shrink-0">
         {secondaryTabs.map((tab) => {
           const Icon = tab.icon;
@@ -202,4 +215,3 @@ export function OrderLifecycleTabs({ inHeader = false }: OrderLifecycleTabsProps
     </div>
   );
 }
-

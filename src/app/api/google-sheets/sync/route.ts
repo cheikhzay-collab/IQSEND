@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     const pool = getMysqlPool();
 
     // If no sheetUrl provided in request, check if one was saved in store_settings
-    if (!sheetUrl && !body.isDemo) {
+    if (!sheetUrl) {
       const [rows]: any = await pool.execute(
         `SELECT setting_value FROM store_settings WHERE setting_key = 'GOOGLE_SHEET_URL'`
       );
@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!sheetUrl && !body.isDemo) {
+    if (!sheetUrl) {
       return NextResponse.json(
         { success: false, error: 'رابط Google Sheet مفقود. يرجى لصق الرابط وحفظه أولاً.' },
         { status: 400 }
@@ -238,7 +238,7 @@ export async function POST(req: NextRequest) {
 
     // If client only requested saving settings without running sync
     if (body.saveOnly) {
-      if (sheetUrl && sheetUrl !== 'DEMO') {
+      if (sheetUrl) {
         await pool.execute(
           `INSERT INTO store_settings (setting_key, setting_value, updated_at)
            VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
@@ -254,57 +254,48 @@ export async function POST(req: NextRequest) {
     }
 
     let csvData = '';
-    let sheetIdTag = 'demo';
+    let sheetIdTag = 'gs';
 
-    if (body.isDemo || sheetUrl === 'DEMO' || sheetUrl?.toLowerCase().includes('demo')) {
-      csvData = `Date,Nom Client,Téléphone,Ville,Adresse,Produit,Quantité,Prix COD (MAD),Remarques
-2026-10-20,Youssef El Amrani,0661998877,Marrakech,"Guéliz, Immeuble Atlas, Appt 6",Montre Luxe Or Noir,1,349,Appeler avant 14h
-2026-10-20,Amina Benjelloun,0672112233,Fès,"Route Ain Chkef, Résidence Narjiss",Pack Caftan Moderne,1,490,Livraison express
-2026-10-20,Tariq Alami,0654334455,Casablanca,"Bd Zerktouni, Quartier Maârif",Sneakers Sport Élite,2,598,Espèces COD
-2026-10-20,Houda Tazi,0663778899,Tanger,"Tanger Balia, Complexe Ennasr",Sac Cuir Artisanal,1,380,Confirmation WhatsApp
-2026-10-20,Karim Bennani,0611223344,Rabat,"Agdal, Rue Oukaimeden, Imm 12",Pack Soins Bio Maroc,1,299,Livrer l'après-midi`;
-    } else {
-      const extracted = extractSheetId(sheetUrl);
-      if (!extracted) {
-        return NextResponse.json(
-          { success: false, error: 'صيغة رابط Google Sheet غير صالحة. تأكد من أن الرابط يحتوي على https://docs.google.com/spreadsheets/d/...' },
-          { status: 400 }
-        );
-      }
-      sheetIdTag = extracted.sheetId.slice(0, 6);
-
-      // Direct Google Sheets CSV export endpoint
-      const csvExportUrl = extracted.gid
-        ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
-        : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
-
-      const response = await fetch(csvExportUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
-        },
-        cache: 'no-store',
-      });
-
-      if (!response.ok) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'تعذر الوصول إلى Google Sheet. تأكد من ضبط إمكانية الوصول إلى "Tous les utilisateurs disposant du lien (Lecteur)" في Google Sheets.',
-          },
-          { status: 403 }
-        );
-      }
-
-      csvData = await response.text();
-
-      // Persist the valid URL into store_settings
-      await pool.execute(
-        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
-         VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
-         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
-        [sheetUrl]
+    const extracted = extractSheetId(sheetUrl);
+    if (!extracted) {
+      return NextResponse.json(
+        { success: false, error: 'صيغة رابط Google Sheet غير صالحة. تأكد من أن الرابط يحتوي على https://docs.google.com/spreadsheets/d/...' },
+        { status: 400 }
       );
     }
+    sheetIdTag = extracted.sheetId.slice(0, 6);
+
+    // Direct Google Sheets CSV export endpoint
+    const csvExportUrl = extracted.gid
+      ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
+      : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
+
+    const response = await fetch(csvExportUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
+      },
+      cache: 'no-store',
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'تعذر الوصول إلى Google Sheet. تأكد من ضبط إمكانية الوصول إلى "Tous les utilisateurs disposant du lien (Lecteur)" في Google Sheets.',
+        },
+        { status: 403 }
+      );
+    }
+
+    csvData = await response.text();
+
+    // Persist the valid URL into store_settings
+    await pool.execute(
+      `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+       VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+      [sheetUrl]
+    );
 
     const rows = parseCSV(csvData);
 
@@ -329,6 +320,7 @@ export async function POST(req: NextRequest) {
     const priceIdx = findIndex(['prix', 'montant', 'total', 'price', 'amount', 'الثمن', 'المبلغ', 'سعر']);
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
     const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات']);
+    const dateIdx = findIndex(['date', 'time', 'horodateur', 'timestamp', 'تاريخ', 'وقت', 'heure']);
 
     // Fetch existing phone numbers and order numbers from order_leads to DEDUPLICATE
     const existingPhones = new Set<string>();
@@ -380,6 +372,14 @@ export async function POST(req: NextRequest) {
       const quantity = (qtyIdx !== -1 && row[qtyIdx]) ? parseInt(row[qtyIdx], 10) || 1 : 1;
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'Importé automatiquement via Google Sheet';
 
+      let sheetCreatedAt = new Date();
+      if (dateIdx !== -1 && row[dateIdx]) {
+        const parsed = new Date(row[dateIdx]);
+        if (!isNaN(parsed.getTime())) {
+          sheetCreatedAt = parsed;
+        }
+      }
+
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
       const orderId = `gs-${sheetIdTag}-r${r}`;
       const orderNumber = `#GS${randomSuffix}`;
@@ -388,7 +388,7 @@ export async function POST(req: NextRequest) {
         id: orderId,
         orderNumber,
         stage: 'PENDING_CONFIRMATION',
-        createdAt: new Date().toISOString(),
+        createdAt: sheetCreatedAt.toISOString(),
         source: 'GOOGLE_SHEETS',
         customer: {
           name: customerName,
@@ -428,10 +428,10 @@ export async function POST(req: NextRequest) {
         await pool.execute(
           `INSERT INTO order_leads (
             id, order_number, customer_name, phone_number, city, address, total_amount, status,
-            risk_score, risk_level, ai_confirmation_status, store_source, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Sync', ?)
+            risk_score, risk_level, ai_confirmation_status, store_source, created_at, notes
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Sync', ?, ?)
           ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
-          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, notes]
+          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, sheetCreatedAt, notes]
         );
 
         await pool.execute(
