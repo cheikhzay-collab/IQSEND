@@ -45,23 +45,22 @@ export function getEffectiveGeminiKey(): string {
 }
 
 export function getEffectiveGeminiModel(): string {
-  const deprecated = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemma-4-26b-a4b-it'];
-  
-  if (process.env.GEMINI_MODEL_NAME && !deprecated.includes(process.env.GEMINI_MODEL_NAME)) {
-    return process.env.GEMINI_MODEL_NAME;
+  const custom = process.env.GEMINI_MODEL_NAME?.trim();
+  if (custom && custom !== 'gemini-3.8-flash') {
+    return custom;
   }
   try {
     const configPath = path.join(process.cwd(), 'ai_config.json');
     if (fs.existsSync(configPath)) {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (data.model && !deprecated.includes(data.model)) {
+      if (data.model && data.model !== 'gemini-3.8-flash') {
         process.env.GEMINI_MODEL_NAME = data.model;
         return data.model;
       }
     }
   } catch (e) {}
 
-  return 'gemini-3.8-flash';
+  return 'gemini-1.5-flash';
 }
 
 /**
@@ -552,7 +551,7 @@ export async function processCustomerWhatsAppMessage(
       response = await chat.sendMessage(promptToSend);
     } catch (sendErr: any) {
       // If error is 503 (high demand) or 404, fallback to alternate model immediately
-      const altModel = activeModelName === 'gemini-3.8-flash' ? 'gemini-flash-latest' : 'gemini-3.8-flash';
+      const altModel = activeModelName === 'gemini-1.5-flash' ? 'gemini-1.5-pro' : 'gemini-1.5-flash';
       console.warn(`[AI Agent] Model ${activeModelName} failed (${sendErr.message}), falling back to ${altModel}...`);
       const fallbackModel = genAI.getGenerativeModel({
         model: altModel,

@@ -7,8 +7,6 @@ import {
   processCustomerImage,
   OrderContext,
 } from '@/lib/gemini-agent';
-import { processSaraMessage } from '@/lib/sara-live-agent';
-import { getSaraWhatsAppConfig } from '@/lib/sara-whatsapp-config';
 import { getMysqlPool } from '@/lib/db';
 import {
   logWhatsAppMessageToDb,
@@ -114,14 +112,6 @@ export async function POST(request: Request) {
         console.warn('[WhatsApp Webhook] MySQL lead lookup notice:', dbErr);
       }
     }
-
-    // ─────────────────────────────────────────────────────────────
-    // 0. Load Sara Live & WhatsApp AI Configuration (Turn ON / OFF / Switch Agent)
-    // ─────────────────────────────────────────────────────────────
-    const saraConfig = await getSaraWhatsAppConfig();
-    const isSaraActive = saraConfig.enabled && saraConfig.mode === 'sara_live';
-    const isClassicActive = saraConfig.enabled && saraConfig.mode === 'classic_agent';
-    const isAiDisabled = !saraConfig.enabled || saraConfig.mode === 'disabled';
 
     // ─────────────────────────────────────────────────────────────
     // 1. Handle Interactive Buttons Click (Confirm / Modify / Upsell)
@@ -250,52 +240,6 @@ export async function POST(request: Request) {
           totalAmount: order?.payment?.amount,
         });
       } catch (inboxErr) {}
-
-      // If AI is disabled or voice notes disabled in settings: skip automated reply (manual agent takeover)
-      if (isAiDisabled || !saraConfig.voiceEnabled) {
-        console.log('[WhatsApp Webhook] Voice note reply skipped (AI is disabled or voice notes disabled in settings).');
-        return new NextResponse('EVENT_RECEIVED', { status: 200 });
-      }
-
-      // If Sara Live is active: handle with Sara Live Multimodal Audio Engine
-      if (isSaraActive) {
-        try {
-          const saraRes = await processSaraMessage({
-            sessionId: `wa_${cleanedFrom || rawFrom}`,
-            customerPhone: cleanedFrom || rawFrom,
-            customerName: order?.customer?.name || msg.senderName,
-            userAudioBase64: msg.audio.base64,
-            userAudioMimeType: msg.audio.mimetype || 'audio/ogg',
-          });
-
-          if (saraRes.text) {
-            await sendWhatsAppMessage(rawFrom, saraRes.text);
-            await logWhatsAppMessageToDb({
-              orderId: order?.id,
-              phone: rawFrom,
-              sender: 'AI_BOT',
-              body: saraRes.text,
-            });
-            try {
-              recordOutboundMessage({
-                phone: rawFrom,
-                text: saraRes.text,
-                sender: 'AI_BOT',
-              });
-            } catch (e) {}
-          }
-
-          if (saraRes.productImages && saraRes.productImages.length > 0 && saraConfig.autoSendProductImages) {
-            for (const pImg of saraRes.productImages.slice(0, 2)) {
-              await sendWhatsAppImage(rawFrom, pImg.url, pImg.caption);
-            }
-          }
-
-          return new NextResponse('EVENT_RECEIVED', { status: 200 });
-        } catch (saraVoiceErr) {
-          console.error('[WhatsApp Webhook] Sara Voice Note processing error:', saraVoiceErr);
-        }
-      }
 
       const orderContext: OrderContext = {
         orderId: order?.id || 'lead_temp',
@@ -426,53 +370,6 @@ export async function POST(request: Request) {
         });
       } catch (inboxErr) {}
 
-      // If AI is disabled or vision is disabled in settings: skip automated reply (manual agent takeover)
-      if (isAiDisabled || !saraConfig.visionEnabled) {
-        console.log('[WhatsApp Webhook] Photo reply skipped (AI is disabled or vision disabled in settings).');
-        return new NextResponse('EVENT_RECEIVED', { status: 200 });
-      }
-
-      // If Sara Live is active: handle with Sara Live Vision Engine
-      if (isSaraActive) {
-        try {
-          const saraRes = await processSaraMessage({
-            sessionId: `wa_${cleanedFrom || rawFrom}`,
-            customerPhone: cleanedFrom || rawFrom,
-            customerName: order?.customer?.name || msg.senderName,
-            userText: msg.image.caption || 'شوف هاد الصورة ديال المنتج وعطيني التفاصيل ديالها والمقاسات والأثمنة المتوفرة',
-            userImageBase64: msg.image.base64,
-            userImageMimeType: msg.image.mimetype || 'image/jpeg',
-          });
-
-          if (saraRes.text) {
-            await sendWhatsAppMessage(rawFrom, saraRes.text);
-            await logWhatsAppMessageToDb({
-              orderId: order?.id,
-              phone: rawFrom,
-              sender: 'AI_BOT',
-              body: saraRes.text,
-            });
-            try {
-              recordOutboundMessage({
-                phone: rawFrom,
-                text: saraRes.text,
-                sender: 'AI_BOT',
-              });
-            } catch (e) {}
-          }
-
-          if (saraRes.productImages && saraRes.productImages.length > 0 && saraConfig.autoSendProductImages) {
-            for (const pImg of saraRes.productImages.slice(0, 2)) {
-              await sendWhatsAppImage(rawFrom, pImg.url, pImg.caption);
-            }
-          }
-
-          return new NextResponse('EVENT_RECEIVED', { status: 200 });
-        } catch (saraVisionErr) {
-          console.error('[WhatsApp Webhook] Sara Vision processing error:', saraVisionErr);
-        }
-      }
-
       const orderContext: OrderContext = {
         orderId: order?.id || 'lead_temp',
         orderNumber: order?.orderNumber || 'MA-TEMP',
@@ -575,55 +472,6 @@ export async function POST(request: Request) {
             totalAmount: order?.payment?.amount,
           });
         } catch (inboxErr) {}
-
-        // If AI is disabled in settings: skip automated reply (manual agent takeover)
-        if (isAiDisabled) {
-          console.log('[WhatsApp Webhook] AI auto-reply disabled in settings. Skipping automated reply.');
-          return new NextResponse('EVENT_RECEIVED', { status: 200 });
-        }
-
-        // If Sara Live is active: handle with Sara Live Darija Sales & Catalog Engine
-        if (isSaraActive) {
-          try {
-            const saraRes = await processSaraMessage({
-              sessionId: `wa_${cleanedFrom || rawFrom}`,
-              customerPhone: cleanedFrom || rawFrom,
-              customerName: order?.customer?.name || msg.senderName,
-              userText: incomingText,
-            });
-
-            if (saraRes.text) {
-              await logWhatsAppMessageToDb({
-                orderId: order?.id,
-                phone: rawFrom,
-                sender: 'AI_BOT',
-                body: saraRes.text,
-              });
-
-              await sendWhatsAppMessage(rawFrom, saraRes.text);
-
-              try {
-                recordOutboundMessage({
-                  phone: rawFrom,
-                  text: saraRes.text,
-                  sender: 'AI_BOT',
-                });
-              } catch (e) {}
-            }
-
-            if (saraRes.productImages && saraRes.productImages.length > 0 && saraConfig.autoSendProductImages) {
-              for (const pImg of saraRes.productImages.slice(0, 2)) {
-                await sendWhatsAppImage(rawFrom, pImg.url, pImg.caption);
-              }
-            }
-
-            return new NextResponse('EVENT_RECEIVED', { status: 200 });
-          } catch (saraErr: any) {
-            console.error('[WhatsApp Webhook] Sara Live processing error:', saraErr);
-            await sendWhatsAppMessage(rawFrom, 'شكراً على رسالتكم! توصلنا بطلبكم وسيتواصل معكم فريقنا لتأكيد التفاصيل.');
-            return new NextResponse('EVENT_RECEIVED', { status: 200 });
-          }
-        }
 
         // 1. Fetch real session state from MySQL by customer phone
         const currentSession = await getWhatsAppSessionFromDb(cleanedFrom || rawFrom);

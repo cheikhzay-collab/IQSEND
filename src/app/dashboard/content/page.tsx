@@ -5,7 +5,7 @@ import {
   Folder,
   MessageSquare,
   Mic,
-  Image,
+  Image as ImageIcon,
   Copy,
   Check,
   Plus,
@@ -122,7 +122,7 @@ export default function ContentPage() {
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
-          <Image className="w-4 h-4" />
+          <ImageIcon className="w-4 h-4" />
           Galerie Médias & Preuves Sociales
         </button>
       </div>

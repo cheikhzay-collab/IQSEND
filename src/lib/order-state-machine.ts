@@ -347,15 +347,7 @@ export async function executeAwbGeneration(
 
   // Call official Sendit API
   try {
-    const districts = await senditService.getDistricts();
-    const orderCity = (order.city || '').trim().toLowerCase();
-    const matched = districts.find(
-      (d) =>
-        d.name.toLowerCase() === orderCity ||
-        d.ville.toLowerCase() === orderCity ||
-        (d.arabic_name && order.city && order.city.includes(d.arabic_name))
-    ) || districts[0];
-
+    const matched = await senditService.resolveDistrict(order.city || '');
     if (matched && order.customer_name && order.phone_number && order.address) {
       const parcelRes = await senditService.createParcel({
         district_id: matched.id,
@@ -371,15 +363,31 @@ export async function executeAwbGeneration(
       if (parcelRes.success && parcelRes.trackingCode) {
         trackingCode = parcelRes.trackingCode;
         waybillUrl = parcelRes.waybillPdfUrl || '';
+      } else if (parcelRes.errorMessage) {
+        return {
+          success: false,
+          error: `Sendit API: ${parcelRes.errorMessage}`,
+        };
       }
+    } else {
+      return {
+        success: false,
+        error: `بيانات الطلب غير مكتملة أو تعذر مطابقة المدينة (${order.city}) مع مدن شركة التوصيل.`,
+      };
     }
   } catch (err: any) {
-    console.warn('[State Machine] Sendit API offline or test mode:', err.message);
+    console.error('[State Machine] Sendit API Error:', err.message);
+    return {
+      success: false,
+      error: `فشل الاتصال بشركة التوصيل Sendit: ${err.message}`,
+    };
   }
 
   if (!trackingCode) {
-    trackingCode = `SND-${Math.floor(100000 + Math.random() * 900000)}`;
-    waybillUrl = `https://sendit.ma/awb/${trackingCode}.pdf`;
+    return {
+      success: false,
+      error: 'لم تقم شركة التوصيل بإرجاع رقم تتبع صالح.',
+    };
   }
 
   // 1. Deduct physical stock
@@ -388,7 +396,7 @@ export async function executeAwbGeneration(
   // 2. Set internal status to PACKING and shipment status to READY_FOR_PICKUP
   await pool.execute(
     `UPDATE order_leads 
-     SET status = 'PACKING', updated_at = CURRENT_TIMESTAMP 
+     SET status = 'READY_FOR_PICKUP', updated_at = CURRENT_TIMESTAMP 
      WHERE id = ?`,
     [order.id]
   );

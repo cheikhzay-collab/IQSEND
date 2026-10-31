@@ -470,11 +470,11 @@ export default function PendingOrdersPage() {
                 <table className="w-full text-left text-xs text-slate-700">
                   <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                     <tr>
-                      <th className="py-3.5 px-4">N° Commande</th>
-                      <th className="py-3.5 px-4">Client & Coordonnées</th>
-                      <th className="py-3.5 px-4">Articles & Total (COD)</th>
-                      <th className="py-3.5 px-4">Vérification Risque IA</th>
-                      <th className="py-3.5 px-4 text-right">Actions & Transfert</th>
+                      <th className="py-3 px-4">N° Commande</th>
+                      <th className="py-3 px-4">Client & Coordonnées</th>
+                      <th className="py-3 px-4">Article & Total</th>
+                      <th className="py-3 px-4">Vérification IA</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -483,8 +483,8 @@ export default function PendingOrdersPage() {
                         key={order.id}
                         className="hover:bg-slate-50/70 transition-colors group"
                       >
-                        {/* 1. Order ID */}
-                        <td className="py-4 px-4 font-bold text-slate-900 whitespace-nowrap">
+                        {/* 1. Order ID & Date */}
+                        <td className="py-3.5 px-4 font-bold text-slate-900 whitespace-nowrap">
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-black text-slate-900">
@@ -517,69 +517,43 @@ export default function PendingOrdersPage() {
                           </div>
                         </td>
 
-                        {/* 2. Customer Info (Name, Phone, Address) */}
-                        <td className="py-4 px-4">
+                        {/* 2. Customer Info (Cleaned from clutter) */}
+                        <td className="py-3.5 px-4">
                           <div className="space-y-1">
                             <div className="font-bold text-slate-900 flex items-center gap-1.5">
                               <span>{order.customer.name}</span>
-                              <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-slate-100 text-slate-600 font-semibold">
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 font-semibold">
                                 {order.customer.city}
                               </span>
                             </div>
 
-                            {/* Phone + Action buttons: Call / WhatsApp */}
                             <div className="flex items-center gap-2 text-[11px] font-medium">
                               <span className="text-slate-800 font-semibold">{order.customer.phone}</span>
-                              {isValidMoroccanPhone(order.customer.phone) ? (
-                                <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
-                                  06/07 Valide ✓
-                                </span>
-                              ) : (
+                              {!isValidMoroccanPhone(order.customer.phone) && (
                                 <span className="text-[9px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                                  Format invalide ⚠️
+                                  Invalide ⚠️
                                 </span>
                               )}
                               {(order.customer.notes || '').toUpperCase().includes('DOUBLON') && (
                                 <span className="text-[9px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200 animate-pulse">
-                                  Doublon 48h ⚠️
+                                  Doublon ⚠️
                                 </span>
                               )}
-                              
-                              <a
-                                href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
-                                  `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
-                                )}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 text-[10px] bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200 transition-colors"
-                              >
-                                <MessageSquare className="w-2.5 h-2.5" />
-                                WhatsApp Darija
-                              </a>
-
-                              <button
-                                onClick={() => setCallingOrder(order)}
-                                className="text-blue-700 hover:text-blue-800 font-bold flex items-center gap-1 text-[10px] bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition-colors"
-                                title="Enregistrer le résultat de l'appel"
-                              >
-                                <PhoneCall className="w-2.5 h-2.5" />
-                                Appel
-                              </button>
                             </div>
 
                             <p className="text-[11px] text-slate-500 line-clamp-1 max-w-xs">
                               {order.customer.address}
                             </p>
                             {order.customer.notes && (
-                              <p className="text-[10px] text-amber-700 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200/60 max-w-xs">
+                              <p className="text-[10px] text-amber-800 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60 max-w-xs font-medium inline-block">
                                 Note : {order.customer.notes}
                               </p>
                             )}
                           </div>
                         </td>
 
-                        {/* 3. Items / Total (Strictly COD) */}
-                        <td className="py-4 px-4">
+                        {/* 3. Article & Total (Cleaned - Removed redundant COD banner) */}
+                        <td className="py-3.5 px-4">
                           <div className="flex items-center gap-2.5">
                             <img
                               src={order.items[0]?.thumbnail}
@@ -596,83 +570,71 @@ export default function PendingOrdersPage() {
                                   {order.payment.amount} MAD
                                 </span>
                               </p>
-                              <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200/60 mt-0.5">
-                                <Banknote className="w-2.5 h-2.5" />
-                                Paiement à la livraison (COD)
-                              </span>
                             </div>
                           </div>
                         </td>
 
-                        {/* 4. AI / Risk Verification */}
-                        <td className="py-4 px-4">
+                        {/* 4. AI Risk Verification (Cleaned - Removed duplicate naked notes) */}
+                        <td className="py-3.5 px-4">
                           {order.aiVerification ? (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-1.5">
-                                {order.aiVerification.status === 'CONFIRMED_BY_AI' ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                    <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
-                                    Confirmé par IA
-                                  </span>
-                                ) : order.aiVerification.status === 'VERIFIED' ? (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                                    <Check className="w-2.5 h-2.5 text-blue-600" />
-                                    Coordonnées Validées
-                                  </span>
-                                ) : (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                                    <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
-                                    Appel Recommandé
-                                  </span>
-                                )}
-                                <span className="text-[10px] font-semibold text-slate-400">
-                                  Risque {order.aiVerification.riskScore}%
+                            <div className="flex items-center gap-1.5">
+                              {order.aiVerification.status === 'CONFIRMED_BY_AI' ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
+                                  Confirmé IA
                                 </span>
-                              </div>
-                              <p className="text-[10px] text-slate-500 line-clamp-1 max-w-xs">
-                                {order.aiVerification.notes}
-                              </p>
+                              ) : order.aiVerification.status === 'VERIFIED' ? (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                                  <Check className="w-2.5 h-2.5 text-blue-600" />
+                                  Coordonnées OK
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                                  <AlertCircle className="w-2.5 h-2.5 text-amber-600" />
+                                  Appel Recommandé
+                                </span>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-400">
+                                {order.aiVerification.riskScore}%
+                              </span>
                             </div>
                           ) : (
                             <span className="text-[11px] text-slate-400">Manuel</span>
                           )}
                         </td>
 
-                        {/* 5. Actions with 3 Quick Buttons (Call, WhatsApp, Agent IA) */}
-                        <td className="py-4 px-4 text-right whitespace-nowrap">
+                        {/* 5. Unified Actions (Call, WhatsApp, AI Agent, Confirm, Edit, Delete) */}
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1.5">
-                            {/* 1. Bouton Appel Rapide */}
+                            {/* Call button */}
                             <button
                               type="button"
-                              onClick={() => setQuickCallOrder(lifecycleToOrderItem(order))}
-                              className="p-1.5 rounded-lg text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 transition-colors"
-                              title={`Appel téléphonique rapide à ${order.customer.name} (${order.customer.phone})`}
+                              onClick={() => setCallingOrder(order)}
+                              className="p-1.5 rounded-lg text-slate-600 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 transition-colors"
+                              title={`Appel téléphonique & enregistrement du résultat (${order.customer.phone})`}
                             >
-                              <Phone className="w-3.5 h-3.5 text-slate-500 hover:text-emerald-600" />
+                              <Phone className="w-3.5 h-3.5 text-slate-600" />
                             </button>
 
-                            {/* 2. Bouton Message WhatsApp selon Statut */}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const item = lifecycleToOrderItem(order);
-                                const conf = getStageMessageConfig(item.status);
-                                safeOpenExternalUrl(
-                                  `https://wa.me/${formatPhoneForWhatsApp(item.phone)}?text=${encodeURIComponent(conf.french(item))}`
-                                );
-                              }}
-                              className="p-1.5 rounded-lg text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-300 transition-colors"
-                              title="Envoyer le message WhatsApp de confirmation (En attente)"
+                            {/* WhatsApp button with Darija confirmation */}
+                            <a
+                              href={`https://wa.me/212${order.customer.phone.replace(/^0/, '')}?text=${encodeURIComponent(
+                                `Salam ${order.customer.name}, choukran 3la talab dialk mn lmetjar dialna. Bghina n-akkdo m3ak talab dial ${order.items[0]?.name} b mablagh ${order.payment.amount} DH w livraison l ${order.customer.city}. Wach l3onwan w talab s7i7?`
+                              )}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-1.5 rounded-lg text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50 border border-emerald-200 hover:border-emerald-300 transition-colors inline-flex items-center justify-center"
+                              title="Message WhatsApp Darija"
                             >
                               <MessageSquare className="w-3.5 h-3.5" />
-                            </button>
+                            </a>
 
-                            {/* 3. Bouton Intervention Agent IA */}
+                            {/* Bouton Intervention Agent IA */}
                             <button
                               type="button"
                               onClick={() => setAgentInterventionOrder(lifecycleToOrderItem(order))}
                               className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-violet-50 hover:bg-violet-100 text-violet-800 border border-violet-200 text-xs font-bold transition-colors shadow-2xs"
-                              title="Intervention Agent IA (Génération personnalisée & tonalités)"
+                              title="Intervention Agent IA"
                             >
                               <Bot className="w-3.5 h-3.5 text-violet-600" />
                               <span>Agent IA</span>
@@ -685,7 +647,7 @@ export default function PendingOrdersPage() {
                               title="Confirmer la commande et la transmettre en préparation"
                             >
                               <Check className="w-3.5 h-3.5" />
-                              <span>Confirmer ➔ Préparation</span>
+                              <span>Confirmer</span>
                             </button>
 
                             <button

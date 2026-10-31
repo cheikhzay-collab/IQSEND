@@ -104,6 +104,7 @@ export default function WhatsAppInboxPage() {
       fetchConversations();
     }, 4000);
     return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChatId]);
 
   useEffect(() => {

@@ -124,7 +124,7 @@ export default function CallCenterPage() {
     if (tasks.length > 0 && (!activeTask || !tasks.some((t) => t.id === activeTask.id))) {
       setActiveTask(tasks[0]);
     }
-  }, [tasks]);
+  }, [tasks, activeTask]);
 
   const handleOutcome = async (outcome: 'CONFIRMED' | 'RAPPEL' | 'CANCELED') => {
     if (!activeTask) return;
