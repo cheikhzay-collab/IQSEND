@@ -120,7 +120,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       iconColor: 'text-emerald-600',
     },
     {
-      label: '5. Retours & Refusés',
+      label: '5. Retours (Transporteur Sendit)',
       href: '/dashboard/orders/returns',
       icon: RotateCcw,
       count: returnedCount,
@@ -129,7 +129,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       iconColor: 'text-amber-600',
     },
     {
-      label: '6. Annulées',
+      label: '6. Annulées (Confirmation - 0 DH)',
       href: '/dashboard/orders/canceled',
       icon: XCircle,
       count: canceledCount,

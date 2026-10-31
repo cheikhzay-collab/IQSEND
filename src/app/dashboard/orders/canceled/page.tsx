@@ -23,6 +23,7 @@ export default function CanceledOrdersPage() {
   const { orders, reactivateOrder, canceledCount } = useOrderLifecycle();
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
+  const [selectedProduct, setSelectedProduct] = useState('ALL');
   const [reasonFilter, setReasonFilter] = useState('ALL');
 
   // Filter only CANCELED orders (pre-shipping)
@@ -39,17 +40,37 @@ export default function CanceledOrdersPage() {
 
         const matchesCity = selectedCity === 'ALL' || o.customer.city === selectedCity;
 
+        const matchesProduct =
+          selectedProduct === 'ALL' ||
+          (o.items || []).some(
+            (it) =>
+              (it.name || '').toLowerCase().includes(selectedProduct.toLowerCase()) ||
+              (it.sku || '').toLowerCase().includes(selectedProduct.toLowerCase())
+          );
+
         const matchesReason =
           reasonFilter === 'ALL' ||
           (o.customer.notes && o.customer.notes.toLowerCase().includes(reasonFilter.toLowerCase()));
 
-        return matchesSearch && matchesCity && matchesReason;
+        return matchesSearch && matchesCity && matchesProduct && matchesReason;
       });
-  }, [orders, search, selectedCity, reasonFilter]);
+  }, [orders, search, selectedCity, selectedProduct, reasonFilter]);
 
   const cities = useMemo(() => {
     const list = orders.filter((o) => o.stage === 'CANCELED').map((o) => o.customer.city);
     return Array.from(new Set(list));
+  }, [orders]);
+
+  const productsList = useMemo(() => {
+    const prods = new Set<string>();
+    orders
+      .filter((o) => o.stage === 'CANCELED')
+      .forEach((o) => {
+        (o.items || []).forEach((it) => {
+          if (it.name) prods.add(it.name);
+        });
+      });
+    return Array.from(prods);
   }, [orders]);
 
   // Statistics
@@ -94,13 +115,44 @@ export default function CanceledOrdersPage() {
 
           <div className="flex items-center gap-2">
             <Link
+              href="/dashboard/orders/returns"
+              className="px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 hover:bg-amber-100 text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+            >
+              <RotateCcw className="w-3.5 h-3.5 text-amber-700" />
+              <span>Voir Retours Transporteur (Sendit)</span>
+            </Link>
+            <Link
               href="/dashboard/orders/pending"
               className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors inline-flex items-center gap-1.5"
             >
-              <span>Voir commandes à confirmer</span>
+              <span>Commandes à confirmer</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
+        </div>
+
+        {/* Distinction Banner: Annulation Confirmation vs Retours Transporteur */}
+        <div className="bg-gradient-to-r from-rose-50 via-rose-50/60 to-slate-50 border border-rose-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold shrink-0">
+              <XCircle className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-rose-950">
+                الطلبيات الملغاة أثناء التأكيد (قبل تجهيز الشحنة - 0 درهم مصاريف شحن)
+              </h3>
+              <p className="text-[11px] text-rose-800 mt-0.5">
+                هذه الطلبيات أُلغيت هاتفياً أو عبر واتساب قبل خروجها من المستودع. المخزون محمي بالكامل ومصاريف الشحن = 0 درهم. للطرود المرجعة عند الموزع، راجع قسم Retours.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/orders/returns"
+            className="px-3 py-1.5 rounded-xl bg-white border border-rose-300 hover:bg-rose-100/50 text-rose-900 text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 shrink-0"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
+            <span>انتقل إلى طرود الموزع المرجعة</span>
+          </Link>
         </div>
 
         {/* 2. Top KPI Cards */}
@@ -170,7 +222,20 @@ export default function CanceledOrdersPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={selectedProduct}
+              onChange={(e) => setSelectedProduct(e.target.value)}
+              className="bg-white border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-rose-400"
+            >
+              <option value="ALL">Tous les produits</option>
+              {productsList.map((prod) => (
+                <option key={prod} value={prod}>
+                  {prod}
+                </option>
+              ))}
+            </select>
+
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}

@@ -553,7 +553,7 @@ function testConnection() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 md:p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
+      <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         
         {/* Modal Header */}
         <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 via-emerald-700 to-slate-900 text-white flex items-center justify-between shrink-0">
@@ -630,28 +630,28 @@ function testConnection() {
           {activeTab === 'template' && (
             <div className="space-y-5 animate-in fade-in duration-150">
               {/* Introduction Banner */}
-              <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-emerald-950 text-sm">
+              <div className="p-4 sm:p-5 bg-gradient-to-r from-emerald-50 via-teal-50/40 to-slate-50 rounded-2xl border border-emerald-200/90 shadow-2xs space-y-3.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-black text-emerald-950 text-sm sm:text-base">
                       Modèle Google Sheets Officiel pour Expédition & Confirmation COD Maroc
                     </span>
-                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full">
+                    <span className="bg-emerald-600 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xs shrink-0">
                       Recommandé
                     </span>
                   </div>
-                  <p className="text-[11px] text-emerald-800 leading-relaxed">
-                    Ouvrez une nouvelle feuille Google Sheets ou téléchargez le fichier Excel/CSV préconfiguré avec les colonnes standards COD pour démarrer immédiatement.
-                  </p>
                 </div>
+                <p className="text-xs text-emerald-800 leading-relaxed max-w-3xl">
+                  Ouvrez une nouvelle feuille Google Sheets ou téléchargez le fichier Excel/CSV préconfiguré avec les colonnes standards COD pour démarrer immédiatement.
+                </p>
 
                 {/* Primary Action Buttons */}
-                <div className="flex flex-wrap items-center gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2.5 pt-2 border-t border-emerald-200/60">
                   <a
                     href="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/copy"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-transform active:scale-95"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition-all active:scale-95 hover:shadow-sm"
                     title="Crée automatiquement une copie du modèle officiel dans votre Google Drive"
                   >
                     <Copy className="w-3.5 h-3.5" />
@@ -662,7 +662,7 @@ function testConnection() {
                     href="https://sheets.new"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold shadow-2xs transition-transform active:scale-95"
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white border border-emerald-300 hover:bg-emerald-50 text-emerald-800 text-xs font-bold shadow-2xs transition-all active:scale-95"
                     title="Ouvre une nouvelle feuille Google Sheets vierge dans votre navigateur"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
@@ -672,7 +672,7 @@ function testConnection() {
                   <a
                     href="/api/google-sheets/template"
                     download="Modele_Commandes_SENDIT_Maroc.csv"
-                    className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-transform active:scale-95"
+                    className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition-all active:scale-95"
                     title="Télécharger le fichier .csv pré-rempli pour Excel et Google Sheets"
                   >
                     <Download className="w-3.5 h-3.5" />

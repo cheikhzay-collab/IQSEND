@@ -221,11 +221,12 @@ export function OrderDetailsModal({
                 onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
                 className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-emerald-600"
               >
-                <option value="PENDING_CONFIRMATION">1. En attente (Pending)</option>
-                <option value="PROCESSING">2. En préparation (Processing)</option>
-                <option value="IN_TRANSIT">3. En livraison (In Transit)</option>
+                <option value="PENDING_CONFIRMATION">1. En attente (À confirmer)</option>
+                <option value="PROCESSING">2. En préparation (Stock réservé)</option>
+                <option value="IN_TRANSIT">3. En livraison (Sendit)</option>
                 <option value="COMPLETED">4. Livré & Encaissé (Completed)</option>
-                <option value="CANCELED">Annulée (Canceled)</option>
+                <option value="CANCELED">5. Annulé à la confirmation (0 DH)</option>
+                <option value="RETURNED">6. Retourné chez transporteur (Sendit)</option>
               </select>
             </div>
           </div>

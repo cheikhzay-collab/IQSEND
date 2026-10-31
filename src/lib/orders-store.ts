@@ -320,14 +320,20 @@ export function getUnifiedDashboardStats() {
   const confirmedCount = orders.filter((o) => o.stage === 'CONFIRMED' || o.stage === 'PACKING' || o.stage === 'IN_TRANSIT' || o.stage === 'DELIVERED').length;
   const pendingCount = orders.filter((o) => o.stage === 'PENDING_CONFIRMATION' || o.stage === 'NEW_ORDERS' || o.stage === 'NEEDS_ATTENTION').length;
   const inTransitCount = orders.filter((o) => o.stage === 'IN_TRANSIT' || o.stage === 'DISPATCHED').length;
-  const canceledCount = orders.filter((o) => o.stage === 'CANCELLED').length;
+  
+  // Strict separation: Canceled during confirmation (0 DH) vs Returned at delivery company (Sendit return fee)
+  const canceledConfirmationCount = orders.filter((o) => o.stage === 'CANCELLED' || o.stage === ('CANCELED' as any)).length;
+  const returnedDeliveryCount = orders.filter((o) => o.stage === ('RETURNED' as any) || (o.tracking as any)?.status === 'RETURNED').length;
 
   const confirmationRate = totalOrders > 0 ? Math.round((confirmedCount / totalOrders) * 100 * 10) / 10 : 85.0;
-  const deliveryRate = (deliveredCount + canceledCount) > 0 
-    ? Math.round((deliveredCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+  const confirmationCancelRate = totalOrders > 0 ? Math.round((canceledConfirmationCount / totalOrders) * 100 * 10) / 10 : 12.0;
+
+  const shippedTotal = deliveredCount + returnedDeliveryCount + inTransitCount;
+  const deliveryRate = shippedTotal > 0 
+    ? Math.round((deliveredCount / shippedTotal) * 100 * 10) / 10 
     : 85.7;
-  const returnRate = (deliveredCount + canceledCount) > 0 
-    ? Math.round((canceledCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+  const deliveryReturnRate = shippedTotal > 0 
+    ? Math.round((returnedDeliveryCount / shippedTotal) * 100 * 10) / 10 
     : 14.3;
 
   return {
@@ -337,12 +343,17 @@ export function getUnifiedDashboardStats() {
     deliveredCount,
     confirmedCount,
     pendingCount,
-    canceledCount,
+    canceledCount: canceledConfirmationCount,
+    canceledConfirmationCount,
+    confirmationCancelRate,
+    returnedCount: returnedDeliveryCount,
+    returnedDeliveryCount,
+    deliveryReturnRate,
+    returnRate: deliveryReturnRate,
     inTransitCount,
     totalProducts: 4,
     confirmationRate,
     deliveryRate,
-    returnRate,
   };
 }
 

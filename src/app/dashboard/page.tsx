@@ -26,6 +26,11 @@ interface DashboardStats {
   confirmedCount: number;
   pendingCount: number;
   canceledCount: number;
+  canceledConfirmationCount?: number;
+  confirmationCancelRate?: number;
+  returnedCount?: number;
+  returnedDeliveryCount?: number;
+  deliveryReturnRate?: number;
   inTransitCount: number;
   totalProducts: number;
   confirmationRate: number;
@@ -42,11 +47,16 @@ export default function DashboardOverviewPage() {
     confirmedCount: 19,
     pendingCount: 2,
     canceledCount: 3,
+    canceledConfirmationCount: 3,
+    confirmationCancelRate: 13.6,
+    returnedCount: 1,
+    returnedDeliveryCount: 1,
+    deliveryReturnRate: 5.2,
     inTransitCount: 1,
     totalProducts: 1,
     confirmationRate: 86.4,
     deliveryRate: 85.7,
-    returnRate: 14.3,
+    returnRate: 5.2,
   });
   const [loading, setLoading] = useState(false);
   const [isLiveDb, setIsLiveDb] = useState(false);
@@ -119,13 +129,13 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Primary KPI Grid (2 cols on mobile, 4 cols on desktop) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* Primary KPI Grid (5 metrics: Revenue, Confirmation, Annulation 0 DH, Livraison, Retours Sendit) */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
         <div className="bg-white border border-slate-200/90 p-3.5 sm:p-4 rounded-2xl shadow-app-card">
-          <span className="text-[10px] sm:text-xs text-slate-400 font-medium block truncate">Revenu Total (Livré & Encaissé)</span>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium block truncate">Revenu Total Encaissé</span>
           <p className="text-lg sm:text-2xl font-black text-slate-900 mt-1">{stats.deliveredRevenueFormatted}</p>
-          <div className="mt-2 flex items-center gap-1 text-[10px] sm:text-xs text-emerald-600 font-semibold">
-            <TrendingUp className="w-3 h-3" /> {stats.deliveredCount} colis encaissés
+          <div className="mt-2 flex items-center gap-1 text-[10px] sm:text-xs text-emerald-600 font-semibold truncate">
+            <TrendingUp className="w-3 h-3 shrink-0" /> {stats.deliveredCount} colis encaissés
           </div>
         </div>
 
@@ -137,19 +147,37 @@ export default function DashboardOverviewPage() {
           </div>
         </div>
 
+        <div className="bg-white border border-amber-200/80 bg-amber-50/20 p-3.5 sm:p-4 rounded-2xl shadow-app-card">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-xs text-amber-900 font-bold truncate">Annulés Confirmation</span>
+            <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">0 DH Frais</span>
+          </div>
+          <p className="text-lg sm:text-2xl font-black text-amber-600 mt-1">
+            {stats.confirmationCancelRate ?? stats.returnRate ?? 0}%
+          </p>
+          <div className="mt-2 text-[10px] sm:text-xs text-slate-500 truncate">
+            {stats.canceledConfirmationCount ?? stats.canceledCount} annulés avant envoi
+          </div>
+        </div>
+
         <div className="bg-white border border-slate-200/90 p-3.5 sm:p-4 rounded-2xl shadow-app-card">
-          <span className="text-[10px] sm:text-xs text-slate-400 font-medium block truncate">Taux de Livraison Sendit</span>
+          <span className="text-[10px] sm:text-xs text-slate-400 font-medium block truncate">Taux Livraison Sendit</span>
           <p className="text-lg sm:text-2xl font-black text-emerald-600 mt-1">{stats.deliveryRate}%</p>
           <div className="mt-2 text-[10px] sm:text-xs text-emerald-700 font-medium truncate">
             {stats.deliveredCount} livrés avec succès
           </div>
         </div>
 
-        <div className="bg-white border border-slate-200/90 p-3.5 sm:p-4 rounded-2xl shadow-app-card">
-          <span className="text-[10px] sm:text-xs text-slate-400 font-medium block truncate">Taux d'Annulation / Retour</span>
-          <p className="text-lg sm:text-2xl font-black text-rose-600 mt-1">{stats.returnRate}%</p>
-          <div className="mt-2 text-[10px] sm:text-xs text-slate-500 truncate">
-            {stats.canceledCount} annulés / refusés
+        <div className="bg-white border border-rose-200/80 bg-rose-50/20 p-3.5 sm:p-4 rounded-2xl shadow-app-card col-span-2 md:col-span-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] sm:text-xs text-rose-900 font-bold truncate">Retours Transporteur</span>
+            <span className="text-[9px] bg-rose-100 text-rose-800 font-bold px-1.5 py-0.5 rounded">Frais Sendit</span>
+          </div>
+          <p className="text-lg sm:text-2xl font-black text-rose-600 mt-1">
+            {stats.deliveryReturnRate ?? stats.returnRate}%
+          </p>
+          <div className="mt-2 text-[10px] sm:text-xs text-rose-600 font-medium truncate">
+            {stats.returnedDeliveryCount ?? stats.returnedCount ?? 0} colis retournés / refusés
           </div>
         </div>
       </div>

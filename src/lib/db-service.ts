@@ -28,7 +28,7 @@ export function mapStageToDbStatus(stage: string): string {
       return 'CANCELED';
     case 'RETURNED':
     case 'REFUSED':
-      return 'DELIVERY_FAILED';
+      return 'RETURNED';
     default:
       return 'NEW';
   }

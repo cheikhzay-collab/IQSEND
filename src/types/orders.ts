@@ -4,6 +4,7 @@ export type OrderStatus =
   | 'IN_TRANSIT'
   | 'COMPLETED'
   | 'CANCELED'
+  | 'RETURNED'
   | 'NEW_ORDERS'
   | 'CONFIRMED'
   | 'PACKING'

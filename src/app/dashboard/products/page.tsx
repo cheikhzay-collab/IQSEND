@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Package,
@@ -24,10 +24,15 @@ import {
   Check,
   Tag,
   Image as ImageIcon,
-  MessageSquare
+  MessageSquare,
+  XCircle,
+  RotateCcw,
+  TrendingDown,
+  ShieldAlert
 } from 'lucide-react';
 import { ProductItem, CATALOG_PRODUCTS } from '@/lib/products-store';
 import { ProductEditModal } from '@/components/products/ProductEditModal';
+import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<ProductItem[]>([]);
@@ -143,6 +148,66 @@ export default function ProductsPage() {
     }
   };
 
+  const { orders } = useOrderLifecycle();
+  const [cancellationFilter, setCancellationFilter] = useState<'ALL' | 'CANCELED_CONFIRMATION' | 'RETURNED_DELIVERY' | 'LOW_STOCK'>('ALL');
+
+  // Strict separation of Confirmation Cancellations (0 DH shipping) vs Delivery Returns (Sendit fees)
+  const productOrderMetrics = useMemo(() => {
+    const map: Record<string, {
+      totalOrders: number;
+      deliveredCount: number;
+      canceledAtConfirmation: number; // Annulés lors de l'appel de confirmation (avant expédition)
+      returnedAtDelivery: number;     // Colis refusés / retournés chez le transporteur Sendit
+    }> = {};
+
+    orders.forEach((o) => {
+      (o.items || []).forEach((item) => {
+        const skuKey = (item.sku || '').toUpperCase().trim();
+        const nameKey = (item.name || '').toLowerCase().trim();
+
+        const recordMetric = (key: string) => {
+          if (!key) return;
+          if (!map[key]) {
+            map[key] = { totalOrders: 0, deliveredCount: 0, canceledAtConfirmation: 0, returnedAtDelivery: 0 };
+          }
+          map[key].totalOrders += (item.quantity || 1);
+          if (o.stage === 'CANCELED') {
+            map[key].canceledAtConfirmation += (item.quantity || 1);
+          } else if (o.stage === 'RETURNED' || (o.stage === 'IN_TRANSIT' && o.shipping?.liveStatus === 'FAILED_ATTEMPT')) {
+            map[key].returnedAtDelivery += (item.quantity || 1);
+          } else if (o.stage === 'COMPLETED') {
+            map[key].deliveredCount += (item.quantity || 1);
+          }
+        };
+
+        if (skuKey) recordMetric(skuKey);
+        if (nameKey) recordMetric(nameKey);
+      });
+    });
+
+    return map;
+  }, [orders]);
+
+  const getMetricsForProduct = (p: ProductItem) => {
+    const bySku = p.sku ? productOrderMetrics[p.sku.toUpperCase().trim()] : null;
+    const byName = p.name ? productOrderMetrics[p.name.toLowerCase().trim()] : null;
+    return bySku || byName || { totalOrders: 0, deliveredCount: 0, canceledAtConfirmation: 0, returnedAtDelivery: 0 };
+  };
+
+  const totalCanceledConfirmationUnits = useMemo(() => {
+    return orders.filter((o) => o.stage === 'CANCELED').reduce((sum, o) => {
+      const q = (o.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+      return sum + (q || 1);
+    }, 0);
+  }, [orders]);
+
+  const totalReturnedDeliveryUnits = useMemo(() => {
+    return orders.filter((o) => o.stage === 'RETURNED' || (o.stage === 'IN_TRANSIT' && o.shipping?.liveStatus === 'FAILED_ATTEMPT')).reduce((sum, o) => {
+      const q = (o.items || []).reduce((acc, it) => acc + (it.quantity || 1), 0);
+      return sum + (q || 1);
+    }, 0);
+  }, [orders]);
+
   // Calculations
   const totalStockValue = products.reduce((acc, p) => acc + p.totalStock * p.costPrice, 0);
   const totalPotentialRevenue = products.reduce((acc, p) => acc + p.totalStock * p.sellingPrice, 0);
@@ -155,7 +220,18 @@ export default function ProductsPage() {
       (p.nameAr || '').toLowerCase().includes(q) ||
       p.sku.toLowerCase().includes(q);
     const matchesCategory = categoryFilter === 'ALL' || p.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+
+    const metrics = getMetricsForProduct(p);
+    let matchesCancellation = true;
+    if (cancellationFilter === 'CANCELED_CONFIRMATION') {
+      matchesCancellation = metrics.canceledAtConfirmation > 0;
+    } else if (cancellationFilter === 'RETURNED_DELIVERY') {
+      matchesCancellation = metrics.returnedAtDelivery > 0;
+    } else if (cancellationFilter === 'LOW_STOCK') {
+      matchesCancellation = p.status === 'LOW_STOCK' || p.status === 'OUT_OF_STOCK';
+    }
+
+    return matchesSearch && matchesCategory && matchesCancellation;
   });
 
   return (
@@ -217,8 +293,8 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Cards: Stock & Strict Separation between Confirmation Cancellations vs Delivery Returns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3.5">
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500">Références Actives</span>
@@ -232,14 +308,14 @@ export default function ProductsPage() {
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500">Valeur d&apos;Achat en Stock</span>
+            <span className="text-xs font-semibold text-slate-500">Valeur d&apos;Achat Stock</span>
             <DollarSign className="w-4 h-4 text-emerald-600" />
           </div>
-          <p className="text-2xl font-black text-slate-900 mt-2">
+          <p className="text-xl font-black text-slate-900 mt-2 truncate">
             {totalStockValue.toLocaleString()} MAD
           </p>
-          <div className="text-[11px] text-emerald-700 font-medium mt-1">
-            Potentiel vente: {totalPotentialRevenue.toLocaleString()} MAD
+          <div className="text-[11px] text-emerald-700 font-medium mt-1 truncate">
+            Vente: {totalPotentialRevenue.toLocaleString()} MAD
           </div>
         </div>
 
@@ -252,7 +328,7 @@ export default function ProductsPage() {
             {products.reduce((acc, p) => acc + p.totalStock, 0)}
           </p>
           <div className="text-[11px] text-slate-500 mt-1">
-            Réparties sur 4 hubs Sendit
+            En stock dans les Hubs
           </div>
         </div>
 
@@ -266,35 +342,112 @@ export default function ProductsPage() {
             Stock critique ou épuisé
           </div>
         </div>
-      </div>
 
-      {/* Filters & Search */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="relative w-full md:w-80">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Rechercher par nom, arabe, SKU..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-emerald-600 bg-slate-50/50"
-          />
+        {/* 1. SEPARATED: Annulations à la confirmation (0 DH de frais Sendit) */}
+        <div className="bg-gradient-to-br from-rose-50/70 to-white border border-rose-200 p-4 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-rose-900">Annulés Confirmation</span>
+            <XCircle className="w-4 h-4 text-rose-600" />
+          </div>
+          <p className="text-2xl font-black text-rose-700 mt-2">{totalCanceledConfirmationUnits}</p>
+          <div className="text-[11px] text-rose-800 font-semibold mt-1">
+            0 DH frais • Avant expédition
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <select
-            value={categoryFilter}
-            onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-emerald-600 text-slate-700"
+        {/* 2. SEPARATED: Retours chez le transporteur Sendit (Frais de retour engagés) */}
+        <div className="bg-gradient-to-br from-amber-50/70 to-white border border-amber-200 p-4 rounded-2xl shadow-2xs">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-amber-900">Retours Transporteur</span>
+            <RotateCcw className="w-4 h-4 text-amber-600" />
+          </div>
+          <p className="text-2xl font-black text-amber-700 mt-2">{totalReturnedDeliveryUnits}</p>
+          <div className="text-[11px] text-amber-800 font-semibold mt-1">
+            Colis refusés • Frais Sendit
+          </div>
+        </div>
+      </div>
+
+      {/* Distinction Filter Tabs & Search */}
+      <div className="space-y-3">
+        {/* Quick Filter Tabs for Cancellations vs Returns */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
+          <button
+            onClick={() => setCancellationFilter('ALL')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer whitespace-nowrap ${
+              cancellationFilter === 'ALL'
+                ? 'bg-slate-900 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
           >
-            <option value="ALL">Toutes les catégories</option>
-            <option value="High-Tech">High-Tech</option>
-            <option value="Mode & Habillement">Mode & Habillement</option>
-            <option value="Parfumerie">Parfumerie</option>
-            <option value="Artisanat & Mode">Artisanat & Mode</option>
-            <option value="Beauté & Soins">Beauté & Soins</option>
-            <option value="Chaussures">Chaussures</option>
-          </select>
+            Tous les Produits ({products.length})
+          </button>
+
+          <button
+            onClick={() => setCancellationFilter('CANCELED_CONFIRMATION')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              cancellationFilter === 'CANCELED_CONFIRMATION'
+                ? 'bg-rose-600 text-white shadow-xs'
+                : 'bg-rose-50 border border-rose-200 text-rose-800 hover:bg-rose-100'
+            }`}
+          >
+            <XCircle className="w-3.5 h-3.5" />
+            <span>Articles Annulés à la Confirmation ({products.filter(p => getMetricsForProduct(p).canceledAtConfirmation > 0).length})</span>
+          </button>
+
+          <button
+            onClick={() => setCancellationFilter('RETURNED_DELIVERY')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              cancellationFilter === 'RETURNED_DELIVERY'
+                ? 'bg-amber-600 text-white shadow-xs'
+                : 'bg-amber-50 border border-amber-200 text-amber-900 hover:bg-amber-100'
+            }`}
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            <span>Articles avec Retours Transporteur Sendit ({products.filter(p => getMetricsForProduct(p).returnedAtDelivery > 0).length})</span>
+          </button>
+
+          <button
+            onClick={() => setCancellationFilter('LOW_STOCK')}
+            className={`px-3.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
+              cancellationFilter === 'LOW_STOCK'
+                ? 'bg-amber-500 text-white shadow-xs'
+                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+            <span>Stock Faible ({lowStockCount})</span>
+          </button>
+        </div>
+
+        {/* Filters & Search Bar */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
+          <div className="relative w-full md:w-80">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Rechercher par nom, arabe, SKU..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-emerald-600 bg-slate-50/50"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            <select
+              value={categoryFilter}
+              onChange={(e) => setCategoryFilter(e.target.value)}
+              className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-emerald-600 text-slate-700"
+            >
+              <option value="ALL">Toutes les catégories</option>
+              <option value="High-Tech">High-Tech</option>
+              <option value="Mode & Habillement">Mode & Habillement</option>
+              <option value="Parfumerie">Parfumerie</option>
+              <option value="Artisanat & Mode">Artisanat & Mode</option>
+              <option value="Beauté & Soins">Beauté & Soins</option>
+              <option value="Chaussures">Chaussures</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -311,6 +464,7 @@ export default function ProductsPage() {
                 <th className="py-3 px-3">Marge Nette</th>
                 <th className="py-3 px-3 text-center">Stock Global</th>
                 <th className="py-3 px-3">Répartition Hubs</th>
+                <th className="py-3 px-3">Annulations vs Retours</th>
                 <th className="py-3 px-3">Statut</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
@@ -318,7 +472,7 @@ export default function ProductsPage() {
             <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
               {isLoading && products.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={10} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Package className="w-8 h-8 animate-bounce text-slate-400" />
                       <p className="text-xs font-semibold text-slate-600">Chargement du catalogue produits…</p>
@@ -328,11 +482,11 @@ export default function ProductsPage() {
                 </tr>
               ) : filteredProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-16 text-center text-slate-400">
+                  <td colSpan={10} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <Package className="w-8 h-8 text-slate-300" />
-                      <p className="text-xs font-semibold text-slate-600">Aucun produit dans le catalogue.</p>
-                      <p className="text-[11px] text-slate-400">Cliquez sur &quot;Nouveau Produit&quot; pour ajouter votre premier article.</p>
+                      <p className="text-xs font-semibold text-slate-600">Aucun produit dans cette sélection.</p>
+                      <p className="text-[11px] text-slate-400">Modifiez vos filtres ou ajoutez un nouveau produit.</p>
                     </div>
                   </td>
                 </tr>
@@ -343,6 +497,7 @@ export default function ProductsPage() {
                 const totalOptions = (p.variants || []).reduce((acc, v) => acc + (v.options?.length || 0), 0);
                 const offersCount = p.offers?.length || 0;
                 const hasAdditionalImages = p.additionalImages && p.additionalImages.length > 0;
+                const metrics = getMetricsForProduct(p);
 
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/60 transition-colors">
@@ -458,6 +613,39 @@ export default function ProductsPage() {
                         <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-600 font-semibold" title="Marrakech Hub">
                           Kech: {p.hubs?.marrakech ?? 0}
                         </span>
+                      </div>
+                    </td>
+
+                    {/* Annulations Confirmation vs Retours Transporteur */}
+                    <td className="py-3.5 px-3">
+                      <div className="flex flex-col gap-1.5 min-w-[170px]">
+                        <div className={`flex items-center justify-between text-[10px] px-2 py-1 rounded-lg border ${
+                          metrics.canceledAtConfirmation > 0 
+                            ? 'bg-rose-50 text-rose-800 border-rose-200' 
+                            : 'bg-slate-50/80 text-slate-400 border-slate-100'
+                        }`}>
+                          <span className="flex items-center gap-1 font-semibold">
+                            <XCircle className={`w-3 h-3 ${metrics.canceledAtConfirmation > 0 ? 'text-rose-600' : 'text-slate-300'}`} />
+                            <span>Annulé Confirmation:</span>
+                          </span>
+                          <span className="font-black bg-white px-1.5 py-0.2 rounded border border-slate-200">
+                            {metrics.canceledAtConfirmation} <span className="text-[9px] font-normal text-slate-400">(0 DH)</span>
+                          </span>
+                        </div>
+
+                        <div className={`flex items-center justify-between text-[10px] px-2 py-1 rounded-lg border ${
+                          metrics.returnedAtDelivery > 0 
+                            ? 'bg-amber-50 text-amber-900 border-amber-200' 
+                            : 'bg-slate-50/80 text-slate-400 border-slate-100'
+                        }`}>
+                          <span className="flex items-center gap-1 font-semibold">
+                            <RotateCcw className={`w-3 h-3 ${metrics.returnedAtDelivery > 0 ? 'text-amber-600' : 'text-slate-300'}`} />
+                            <span>Retour Transporteur:</span>
+                          </span>
+                          <span className="font-black bg-white px-1.5 py-0.2 rounded border border-slate-200">
+                            {metrics.returnedAtDelivery} <span className="text-[9px] font-normal text-amber-700">(Sendit)</span>
+                          </span>
+                        </div>
                       </div>
                     </td>
 

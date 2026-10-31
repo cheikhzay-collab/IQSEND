@@ -16,7 +16,8 @@ import {
   Clock,
   ArrowRight,
   Filter,
-  Layers
+  Layers,
+  XCircle
 } from 'lucide-react';
 
 import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
@@ -26,6 +27,7 @@ export default function ReturnsOrdersPage() {
   const { orders, reintegrateStock, reactivateOrder, returnedCount, showToast } = useOrderLifecycle();
   const [search, setSearch] = useState('');
   const [carrierFilter, setCarrierFilter] = useState('ALL');
+  const [selectedProduct, setSelectedProduct] = useState('ALL');
   const [returnStatusFilter, setReturnStatusFilter] = useState('ALL');
   const [inspectReturnOrder, setInspectReturnOrder] = useState<LifecycleOrder | null>(null);
 
@@ -44,12 +46,32 @@ export default function ReturnsOrdersPage() {
 
         const matchesCarrier = carrierFilter === 'ALL' || o.shipping?.courier === carrierFilter;
 
+        const matchesProduct =
+          selectedProduct === 'ALL' ||
+          (o.items || []).some(
+            (it) =>
+              (it.name || '').toLowerCase().includes(selectedProduct.toLowerCase()) ||
+              (it.sku || '').toLowerCase().includes(selectedProduct.toLowerCase())
+          );
+
         const currentReturnStatus = o.completed?.returnStatus || 'REQUESTED';
         const matchesStatus = returnStatusFilter === 'ALL' || currentReturnStatus === returnStatusFilter;
 
-        return matchesSearch && matchesCarrier && matchesStatus;
+        return matchesSearch && matchesCarrier && matchesProduct && matchesStatus;
       });
-  }, [orders, search, carrierFilter, returnStatusFilter]);
+  }, [orders, search, carrierFilter, selectedProduct, returnStatusFilter]);
+
+  const productsList = useMemo(() => {
+    const prods = new Set<string>();
+    orders
+      .filter((o) => o.stage === 'RETURNED' || (o.stage === 'IN_TRANSIT' && o.shipping?.liveStatus === 'FAILED_ATTEMPT'))
+      .forEach((o) => {
+        (o.items || []).forEach((it) => {
+          if (it.name) prods.add(it.name);
+        });
+      });
+    return Array.from(prods);
+  }, [orders]);
 
   // Statistics
   const totalUncollectedCod = useMemo(() => {
@@ -104,13 +126,44 @@ export default function ReturnsOrdersPage() {
 
           <div className="flex items-center gap-2">
             <Link
+              href="/dashboard/orders/canceled"
+              className="px-3.5 py-2 rounded-xl bg-rose-50 border border-rose-300 text-rose-900 hover:bg-rose-100 text-xs font-bold transition-colors inline-flex items-center gap-1.5 shadow-2xs"
+            >
+              <XCircle className="w-3.5 h-3.5 text-rose-600" />
+              <span>Voir Annulations Confirmation (0 DH)</span>
+            </Link>
+            <Link
               href="/dashboard/tracking"
               className="px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition-colors inline-flex items-center gap-1.5"
             >
               <Truck className="w-3.5 h-3.5 text-indigo-600" />
-              <span>Voir les expéditions en cours</span>
+              <span>Expéditions en cours</span>
             </Link>
           </div>
+        </div>
+
+        {/* Distinction Banner: Retours Transporteur vs Annulations Confirmation */}
+        <div className="bg-gradient-to-r from-amber-50 via-amber-50/60 to-slate-50 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold shrink-0">
+              <Truck className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-black text-amber-950">
+                الطرود المرجعة عند شركة التوصيل (بعد الشحن الفعلي - Sendit Express)
+              </h3>
+              <p className="text-[11px] text-amber-800 mt-0.5">
+                هذه الطرود خرجت مع الموزع ورُفضت عند التسليم أو تعذر الوصول للزبون. يتم احتساب مصاريف الإرجاع وتتطلب فحصاً لإعادة السلعة إلى رفوف المستودع. للطلبيات الملغاة قبل الشحن (0 درهم)، راجع قسم Annulations.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/orders/canceled"
+            className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 shrink-0"
+          >
+            <XCircle className="w-3.5 h-3.5 text-rose-600" />
+            <span>انتقل إلى ملغيات التأكيد (0 DH)</span>
+          </Link>
         </div>
 
         {/* 2. Top KPI Cards */}
@@ -180,7 +233,20 @@ export default function ReturnsOrdersPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={selectedProduct}
+              onChange={(e) => setSelectedProduct(e.target.value)}
+              className="bg-white border border-slate-200 text-xs font-semibold text-slate-700 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+            >
+              <option value="ALL">Tous les produits</option>
+              {productsList.map((prod) => (
+                <option key={prod} value={prod}>
+                  {prod}
+                </option>
+              ))}
+            </select>
+
             <select
               value={carrierFilter}
               onChange={(e) => setCarrierFilter(e.target.value)}

@@ -7,7 +7,7 @@ export async function GET() {
   try {
     const pool = getMysqlPool();
 
-    // 1. Total Delivered Revenue & Order Counts
+    // 1. Total Delivered Revenue & Order Counts (Strictly separating Confirmation Cancellations vs Delivery Returns)
     const [statsRows]: any = await pool.execute(`
       SELECT 
         COUNT(*) as totalOrders,
@@ -15,7 +15,8 @@ export async function GET() {
         SUM(CASE WHEN status = 'DELIVERED_PAID' THEN 1 ELSE 0 END) as deliveredCount,
         SUM(CASE WHEN status = 'CONFIRMED' OR ai_confirmation_status = 'CONFIRMED' THEN 1 ELSE 0 END) as confirmedCount,
         SUM(CASE WHEN status IN ('NEW', 'AI_CHATTING', 'PENDING') THEN 1 ELSE 0 END) as pendingCount,
-        SUM(CASE WHEN status IN ('CANCELED', 'DELIVERY_FAILED') THEN 1 ELSE 0 END) as canceledCount,
+        SUM(CASE WHEN status = 'CANCELED' THEN 1 ELSE 0 END) as canceledConfirmationCount,
+        SUM(CASE WHEN status IN ('DELIVERY_FAILED', 'RETURNED') THEN 1 ELSE 0 END) as returnedDeliveryCount,
         SUM(CASE WHEN status IN ('IN_TRANSIT', 'OUT_FOR_DELIVERY', 'PACKING') THEN 1 ELSE 0 END) as inTransitCount
       FROM order_leads
     `);
@@ -26,16 +27,20 @@ export async function GET() {
     const deliveredCount = Number(stats.deliveredCount) || 0;
     const confirmedCount = Number(stats.confirmedCount) || 0;
     const pendingCount = Number(stats.pendingCount) || 0;
-    const canceledCount = Number(stats.canceledCount) || 0;
+    const canceledConfirmationCount = Number(stats.canceledConfirmationCount) || 0;
+    const returnedDeliveryCount = Number(stats.returnedDeliveryCount) || 0;
     const inTransitCount = Number(stats.inTransitCount) || 0;
 
-    // Rates
+    // Rates: Confirmation phase (commercial) vs Delivery phase (logistics)
     const confirmationRate = totalOrders > 0 ? Math.round((confirmedCount / totalOrders) * 100 * 10) / 10 : 78.5;
-    const deliveryRate = (deliveredCount + canceledCount) > 0 
-      ? Math.round((deliveredCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+    const confirmationCancelRate = totalOrders > 0 ? Math.round((canceledConfirmationCount / totalOrders) * 100 * 10) / 10 : 12.0;
+
+    const shippedTotal = deliveredCount + returnedDeliveryCount + inTransitCount;
+    const deliveryRate = shippedTotal > 0 
+      ? Math.round((deliveredCount / shippedTotal) * 100 * 10) / 10 
       : 84.6;
-    const returnRate = (deliveredCount + canceledCount) > 0 
-      ? Math.round((canceledCount / (deliveredCount + canceledCount)) * 100 * 10) / 10 
+    const deliveryReturnRate = shippedTotal > 0 
+      ? Math.round((returnedDeliveryCount / shippedTotal) * 100 * 10) / 10 
       : 11.2;
 
     // 2. Recent live orders from DB
@@ -62,12 +67,19 @@ export async function GET() {
         deliveredCount,
         confirmedCount,
         pendingCount,
-        canceledCount,
+        // Canceled at confirmation (pre-shipping, 0 DH shipping cost)
+        canceledCount: canceledConfirmationCount,
+        canceledConfirmationCount,
+        confirmationCancelRate,
+        // Returned / failed at delivery company (courier return fees)
+        returnedCount: returnedDeliveryCount,
+        returnedDeliveryCount,
+        deliveryReturnRate,
+        returnRate: deliveryReturnRate,
         inTransitCount,
         totalProducts,
         confirmationRate,
         deliveryRate,
-        returnRate,
       },
       recentOrders: recentOrders.map((o: any) => ({
         id: o.id,
