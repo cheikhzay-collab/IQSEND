@@ -96,6 +96,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchUsers();
+    // Live presence polling every 30 seconds
+    const interval = setInterval(() => {
+      fetchUsers();
+    }, 30000);
+    return () => clearInterval(interval);
   }, [fetchUsers]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -142,10 +147,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const switchUser = useCallback((userId: string) => {
     const user = allUsers.find((u) => u.id === userId);
     if (user) {
-      setCurrentUser(user);
+      const updatedUser = { ...user, isOnline: true };
+      setCurrentUser(updatedUser);
+      setAllUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, isOnline: true } : u))
+      );
       if (typeof window !== 'undefined') {
         localStorage.setItem(LOCAL_STORAGE_KEY, user.id);
       }
+      // Update in database
+      fetch('/api/team', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userId, isOnline: true }),
+      }).catch((err) => console.warn('Could not update user presence on switch:', err));
     }
   }, [allUsers]);
 
