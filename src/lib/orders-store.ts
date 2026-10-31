@@ -90,14 +90,23 @@ if (!global.__inboundOrders || global.__inboundOrders.length === 0) {
 
 export function cleanMoroccanPhone(rawPhone: string): string {
   if (!rawPhone) return '';
-  let str = rawPhone;
+  let str = String(rawPhone).trim();
+  if (str.endsWith('.0')) str = str.slice(0, -2);
   if (str.includes('@')) str = str.split('@')[0];
   if (str.includes(':')) str = str.split(':')[0];
   let cleaned = str.replace(/[^\d+]/g, '');
   if (cleaned.startsWith('+212')) {
     cleaned = '0' + cleaned.slice(4);
-  } else if (cleaned.startsWith('212')) {
+  } else if (cleaned.startsWith('00212')) {
+    cleaned = '0' + cleaned.slice(5);
+  } else if (cleaned.startsWith('212') && cleaned.length >= 11) {
     cleaned = '0' + cleaned.slice(3);
+  } else if (cleaned.startsWith('+')) {
+    cleaned = cleaned.slice(1);
+  }
+  // Auto-prefix missing leading zero when Google Sheets or Excel strips it as an integer (e.g. 611223347 -> 0611223347)
+  if (cleaned.length === 9 && /^[567]\d{8}$/.test(cleaned)) {
+    cleaned = '0' + cleaned;
   }
   return cleaned;
 }

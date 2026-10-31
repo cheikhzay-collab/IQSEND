@@ -170,15 +170,39 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   }, []);
 
-  // Initial load on mount + sensible lightweight fallback polling (every 30s only when active tab)
+  const showToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 4000);
+  }, []);
+
+  const clearToast = () => setToast(null);
+
+  // ⚡ Continuous Autonomous Auto-Sync from Google Sheets URL (Auto-detects and drops new rows into platform)
+  const checkGoogleSheetsAutoSync = useCallback(async () => {
+    try {
+      const res = await fetch('/api/google-sheets/auto-sync');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.newOrdersCount > 0) {
+        await fetchDbOrders(true);
+        showToast(`⚡ ${data.newOrdersCount} nouvelle(s) commande(s) synchronisée(s) automatiquement depuis Google Sheets !`, 'success');
+      }
+    } catch {
+      // Ignore background sync errors
+    }
+  }, [fetchDbOrders, showToast]);
+
+  // Initial load on mount + sensible lightweight fallback polling (every 25s only when active tab)
   useEffect(() => {
     fetchDbOrders();
+    checkGoogleSheetsAutoSync();
     const interval = setInterval(() => {
       if (typeof document !== 'undefined' && document.hidden) return;
       fetchDbOrders(true);
-    }, 30000);
+      checkGoogleSheetsAutoSync();
+    }, 25000);
     return () => clearInterval(interval);
-  }, [fetchDbOrders]);
+  }, [fetchDbOrders, checkGoogleSheetsAutoSync]);
 
   // 🔴 Real-Time Synchronization via SSE Stream from Hostinger MySQL
   useRealtimeSync({
@@ -190,13 +214,6 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       }
     },
   });
-
-    const showToast = (message: string, type: 'success' | 'info' | 'error' = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 4000);
-  };
-
-  const clearToast = () => setToast(null);
 
   // Computed Counts (Strict separation: pendingCount ONLY counts incoming leads awaiting confirmation, never Sendit logistics parcels)
   const pendingCount = useMemo(
@@ -637,20 +654,7 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
     }
   };
 
-  // 14.1 Continuous Auto-Sync from Google Sheets URL (Auto-drops new rows into platform)
-  const checkGoogleSheetsAutoSync = useCallback(async () => {
-    try {
-      const res = await fetch('/api/google-sheets/auto-sync');
-      if (!res.ok) return;
-      const data = await res.json();
-      if (data.success && data.newOrdersCount > 0) {
-        await fetchDbOrders(true);
-        showToast(`⚡ ${data.newOrdersCount} nouvelle(s) commande(s) synchronisée(s) automatiquement depuis Google Sheets !`, 'success');
-      }
-    } catch {
-      // Ignore background sync errors
-    }
-  }, [fetchDbOrders]);
+
 
 
 

@@ -140,6 +140,8 @@ export async function GET(req: NextRequest) {
       return headers.findIndex(h => possibleNames.some(p => h.includes(p)));
     };
 
+    const orderIdIdx = findIndex(['id', 'commande', 'n°', 'order', 'numero', 'ref', 'الطلب', 'رقم الطلب', 'معرف']);
+    const dateIdx = findIndex(['date', 'time', 'horodateur', 'timestamp', 'تاريخ', 'وقت', 'heure']);
     const nameIdx = findIndex(['nom', 'client', 'name', 'prenom', 'الاسم', 'اسم']);
     const phoneIdx = findIndex(['tel', 'téléphone', 'telephone', 'phone', 'mobile', 'gsm', 'الهاتف', 'هاتف', 'رقم']);
     const cityIdx = findIndex(['ville', 'city', 'المدينة', 'مدينة', 'destination']);
@@ -150,16 +152,18 @@ export async function GET(req: NextRequest) {
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
     const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات', 'remarques']);
 
-    // 4. Query existing phone numbers and order IDs in order_leads for deduplication
+    // 4. Query existing phone numbers, order IDs and numbers in order_leads for deduplication
     const existingPhones = new Set<string>();
     const existingOrderIds = new Set<string>();
+    const existingOrderNumbers = new Set<string>();
     const [existingLeads]: any = await pool.execute(
-      `SELECT id, phone_number FROM order_leads`
+      `SELECT id, order_number, phone_number FROM order_leads`
     );
     if (Array.isArray(existingLeads)) {
       existingLeads.forEach((l: any) => {
         if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
-        if (l.id) existingOrderIds.add(l.id);
+        if (l.id) existingOrderIds.add(String(l.id).trim().toLowerCase());
+        if (l.order_number) existingOrderNumbers.add(String(l.order_number).trim().toLowerCase());
       });
     }
 
@@ -171,9 +175,14 @@ export async function GET(req: NextRequest) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
+      const rawOrderId = (orderIdIdx !== -1 && row[orderIdIdx]) ? row[orderIdIdx].trim() : '';
       const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : '';
       const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx].trim() : '';
-      const phone = cleanMoroccanPhone(rawPhone);
+      let phone = cleanMoroccanPhone(rawPhone);
+
+      if (phone.length === 9 && /^[567]\d{8}$/.test(phone)) {
+        phone = '0' + phone;
+      }
 
       // Strict validation: A valid Moroccan phone number (at least 9 digits, e.g. 06..., 07..., 05...) is MANDATORY
       const isValidMoroccanPhone = phone && phone.length >= 9 && phone !== '0600000000' && /^(0[567]\d{8}|\+?212[567]\d{8})$/.test(phone);
@@ -182,20 +191,29 @@ export async function GET(req: NextRequest) {
         continue;
       }
 
-      // Already imported previously by phone?
+      // 1. By Order Number / ID from Sheet
+      if (rawOrderId) {
+        const cleanOId = rawOrderId.toLowerCase();
+        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId)) {
+          skippedCount++;
+          continue;
+        }
+      }
+
+      // 2. Already imported previously by phone?
       if (existingPhones.has(phone)) {
         skippedCount++;
         continue;
       }
 
       // Deterministic order ID and number per sheet row to prevent duplicate insertions
-      const orderId = `gs-${sheetIdTag}-r${r}`;
-      if (existingOrderIds.has(orderId)) {
+      const orderId = rawOrderId ? `gs-${rawOrderId.replace(/[^\w-]/g, '')}` : `gs-${sheetIdTag}-r${r}`;
+      if (existingOrderIds.has(orderId.toLowerCase())) {
         skippedCount++;
         continue;
       }
 
-      const orderNumber = `#GS${1000 + (r % 9000)}`;
+      const orderNumber = rawOrderId ? (rawOrderId.startsWith('#') ? rawOrderId : `#${rawOrderId}`) : `#GS${1000 + (r % 9000)}`;
       const finalCustomerName = customerName || `Client ${phone.slice(-4)}`;
 
       const rawCity = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
@@ -275,8 +293,9 @@ export async function GET(req: NextRequest) {
 
         await pool.execute(
           `INSERT INTO order_items (id, order_id, product_name, sku, quantity, price)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [`it-${order.id}`, order.id, productName, `GS-${productName.slice(0, 3).toUpperCase()}-01`, quantity, amount]
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE product_name = VALUES(product_name), sku = VALUES(sku), quantity = VALUES(quantity), price = VALUES(price)`,
+          [`it-${order.id}`, order.id, productName, productSku, quantity, amount]
         );
 
         await pool.execute(

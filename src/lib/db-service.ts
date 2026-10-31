@@ -127,7 +127,12 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
         if (!itemsByOrderId[it.order_id]) {
           itemsByOrderId[it.order_id] = [];
         }
-        itemsByOrderId[it.order_id].push(it);
+        const exists = itemsByOrderId[it.order_id].some(
+          (existing) => (existing.id && existing.id === it.id) || (existing.sku && it.sku && existing.sku === it.sku)
+        );
+        if (!exists) {
+          itemsByOrderId[it.order_id].push(it);
+        }
       });
     }
 

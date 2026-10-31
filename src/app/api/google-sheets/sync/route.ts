@@ -369,9 +369,13 @@ export async function POST(req: NextRequest) {
       const rawOrderId = (orderIdIdx !== -1 && row[orderIdIdx]) ? row[orderIdIdx].trim() : '';
       const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : `Client #${r}`;
       const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx].trim() : '';
-      const phone = cleanMoroccanPhone(rawPhone);
+      let phone = cleanMoroccanPhone(rawPhone);
 
-      // Skip invalid / empty rows
+      if (phone.length === 9 && /^[567]\d{8}$/.test(phone)) {
+        phone = '0' + phone;
+      }
+
+      // Skip invalid / empty rows (Supports standard 06/07/05 or auto-prefixed integer cells from Google Sheets)
       const isValidMoroccanPhone = phone && phone.length >= 9 && phone !== '0600000000' && /^(0[567]\d{8}|\+?212[567]\d{8})$/.test(phone);
       if (!isValidMoroccanPhone) {
         skippedCount++;
