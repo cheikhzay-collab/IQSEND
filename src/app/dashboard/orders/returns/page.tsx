@@ -79,11 +79,11 @@ export default function ReturnsOrdersPage() {
   }, [returnedOrders]);
 
   const inReturnTransitCount = useMemo(() => {
-    return returnedOrders.filter((o) => (o.completed?.returnStatus || 'REQUESTED') !== 'RETURNED').length;
+    return returnedOrders.filter((o) => !o.stockReintegrated && (o.completed?.returnStatus || 'REQUESTED') !== 'RETURNED').length;
   }, [returnedOrders]);
 
   const stockReintegratedCount = useMemo(() => {
-    return returnedOrders.filter((o) => o.completed?.returnStatus === 'RETURNED').length;
+    return returnedOrders.filter((o) => o.stockReintegrated || o.completed?.returnStatus === 'RETURNED').length;
   }, [returnedOrders]);
 
   const handleRescueWhatsApp = (order: LifecycleOrder) => {
@@ -281,7 +281,7 @@ export default function ReturnsOrdersPage() {
               </div>
             ) : (
               returnedOrders.map((order) => {
-                const isStockRestored = order.completed?.returnStatus === 'RETURNED';
+                const isStockRestored = Boolean(order.stockReintegrated) || order.completed?.returnStatus === 'RETURNED';
 
                 return (
                   <div key={order.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
@@ -402,7 +402,7 @@ export default function ReturnsOrdersPage() {
                   </tr>
                 ) : (
                   returnedOrders.map((order) => {
-                    const isStockRestored = order.completed?.returnStatus === 'RETURNED';
+                    const isStockRestored = Boolean(order.stockReintegrated) || order.completed?.returnStatus === 'RETURNED';
 
                     return (
                       <tr key={order.id} className="hover:bg-slate-50/70 transition-colors">

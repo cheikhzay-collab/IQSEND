@@ -6,9 +6,26 @@ export const dynamic = 'force-dynamic';
 
 import { UserPermissions, DEFAULT_ROLE_PERMISSIONS, TeamMemberDto } from '@/types/rbac';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const pool = getMysqlPool();
+    const heartbeat = req.nextUrl.searchParams.get('heartbeat');
+
+    // 1. If a heartbeat ID is provided, mark that user active right now
+    if (heartbeat) {
+      await pool.execute(
+        `UPDATE users SET is_online = TRUE, last_active_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [heartbeat]
+      ).catch(() => {});
+    }
+
+    // 2. Mark any users inactive if no activity in the last 15 minutes
+    await pool.execute(`
+      UPDATE users 
+      SET is_online = FALSE 
+      WHERE is_online = TRUE AND (last_active_at IS NULL OR last_active_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE))
+    `).catch(() => {});
+
     const [rows]: any = await pool.execute(`
       SELECT id, name, email, role, phone, avatar_url, job_title, permissions, is_online, is_active, last_active_at, created_at
       FROM users
@@ -33,6 +50,10 @@ export async function GET() {
           parsedPermissions = DEFAULT_ROLE_PERMISSIONS[r.role] || DEFAULT_ROLE_PERMISSIONS.CONFIRMATION_AGENT;
         }
 
+        const lastActive = r.last_active_at ? new Date(r.last_active_at).getTime() : 0;
+        const isRecent = lastActive > 0 && (Date.now() - lastActive < 15 * 60 * 1000);
+        const isOnline = (Boolean(r.is_online) && isRecent) || (Boolean(heartbeat) && r.id === heartbeat);
+
         return {
           id: r.id,
           name: r.name,
@@ -44,7 +65,7 @@ export async function GET() {
           assignedCity: r.role === 'ADMIN' ? 'Toutes les régions' : r.role === 'PACKER' ? 'Hub Central Casablanca' : 'Casablanca, Rabat & Régions',
           confirmedCount: r.role === 'CONFIRMATION_AGENT' ? 312 : r.role === 'PACKER' ? 520 : r.role === 'TRACKING_AGENT' ? 198 : 420,
           isActive: Boolean(r.is_active),
-          isOnline: Boolean(r.is_online),
+          isOnline: Boolean(isOnline),
           permissions: parsedPermissions,
           lastActiveAt: r.last_active_at,
           createdAt: r.created_at,

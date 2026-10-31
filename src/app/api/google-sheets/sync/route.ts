@@ -339,19 +339,50 @@ export async function POST(req: NextRequest) {
     const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات', 'remarques']);
     const dateIdx = findIndex(['date', 'time', 'horodateur', 'timestamp', 'تاريخ', 'وقت', 'heure']);
 
+    // Persist configuration to google_sheets_configs table
+    if (!isDemo && sheetUrl) {
+      const extracted = extractSheetId(sheetUrl);
+      if (extracted) {
+        try {
+          await pool.execute(
+            `INSERT INTO google_sheets_configs (id, sheet_name, spreadsheet_id, sheet_url, is_active, column_mapping, last_synced_at)
+             VALUES (?, ?, ?, ?, TRUE, ?, CURRENT_TIMESTAMP)
+             ON DUPLICATE KEY UPDATE 
+               sheet_url = VALUES(sheet_url), 
+               is_active = TRUE, 
+               column_mapping = VALUES(column_mapping), 
+               last_synced_at = CURRENT_TIMESTAMP`,
+            [
+              `cfg-${extracted.sheetId}`,
+              'Feuille Commandes COD',
+              extracted.sheetId,
+              sheetUrl,
+              JSON.stringify({ orderIdIdx, skuIdx, nameIdx, phoneIdx, cityIdx, addressIdx, productIdx, priceIdx, qtyIdx, noteIdx, dateIdx })
+            ]
+          );
+        } catch (cfgErr: any) {
+          console.warn('[Sync] Note updating google_sheets_configs:', cfgErr.message);
+        }
+      }
+    }
+
     // Fetch existing phone numbers and order numbers from order_leads to STRICTLY DEDUPLICATE
     const existingPhones = new Set<string>();
     const existingOrderIds = new Set<string>();
     const existingOrderNumbers = new Set<string>();
+    const existingSheetRows = new Set<string>();
+    const existingExternalIds = new Set<string>();
     try {
       const [existingLeads]: any = await pool.execute(
-        `SELECT id, order_number, phone_number FROM order_leads`
+        `SELECT id, order_number, phone_number, sheet_row_id, external_order_id FROM order_leads`
       );
       if (Array.isArray(existingLeads)) {
         existingLeads.forEach((l: any) => {
           if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
           if (l.id) existingOrderIds.add(String(l.id).trim().toLowerCase());
           if (l.order_number) existingOrderNumbers.add(String(l.order_number).trim().toLowerCase());
+          if (l.sheet_row_id) existingSheetRows.add(String(l.sheet_row_id).trim().toLowerCase());
+          if (l.external_order_id) existingExternalIds.add(String(l.external_order_id).trim().toLowerCase());
         });
       }
     } catch (e) {
@@ -382,25 +413,37 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
+      const sheetRowKey = `${sheetIdTag}-r${r}`.toLowerCase();
+
       // Deduplication check:
       // 1. By Order Number / ID from Sheet
       if (rawOrderId) {
         const cleanOId = rawOrderId.toLowerCase();
-        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId)) {
+        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId) || existingExternalIds.has(cleanOId)) {
           skippedCount++;
           continue;
         }
       }
 
-      // 2. By Phone Number: if order with this phone already exists in DB, skip it (unless forceSync is true)
+      // 2. By Row ID from Sheet
+      if (existingSheetRows.has(sheetRowKey)) {
+        skippedCount++;
+        continue;
+      }
+
+      // 3. By Phone Number: if order with this phone already exists in DB, skip it (unless forceSync is true)
       if (!body.forceSync && phone && existingPhones.has(phone)) {
         skippedCount++;
         continue;
       }
 
-      // Mark phone and order ID as seen to prevent duplicates within same sheet
+      // Mark phone, row and order ID as seen to prevent duplicates within same sheet
       if (phone) existingPhones.add(phone);
-      if (rawOrderId) existingOrderNumbers.add(rawOrderId.toLowerCase());
+      if (rawOrderId) {
+        existingOrderNumbers.add(rawOrderId.toLowerCase());
+        existingExternalIds.add(rawOrderId.toLowerCase());
+      }
+      existingSheetRows.add(sheetRowKey);
 
       const rawCity = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
       const city = normalizeMoroccanCity(rawCity);
@@ -484,13 +527,34 @@ export async function POST(req: NextRequest) {
         await pool.execute(
           `INSERT INTO order_leads (
             id, order_number, customer_name, phone_number, city, address, total_amount, status,
+            sku, product_name, quantity, sheet_row_id, external_order_id,
             risk_score, risk_level, ai_confirmation_status, store_source, created_at, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 10, 'LOW', 'PENDING', 'Google Sheets Sync', ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', ?, ?, ?, ?, ?, 10, 'LOW', 'PENDING', 'Google Sheets Sync', ?, ?)
           ON DUPLICATE KEY UPDATE 
             city = VALUES(city),
             address = VALUES(address),
+            sku = VALUES(sku),
+            product_name = VALUES(product_name),
+            quantity = VALUES(quantity),
+            sheet_row_id = VALUES(sheet_row_id),
+            external_order_id = VALUES(external_order_id),
             updated_at = CURRENT_TIMESTAMP`,
-          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, sheetCreatedAt, notes]
+          [
+            order.id, 
+            order.orderNumber, 
+            customerName, 
+            phone, 
+            city, 
+            address, 
+            amount * quantity, 
+            productSku,
+            productName,
+            quantity,
+            sheetRowKey,
+            rawOrderId || null,
+            sheetCreatedAt, 
+            notes
+          ]
         );
 
         await pool.execute(

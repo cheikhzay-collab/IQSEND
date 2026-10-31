@@ -86,7 +86,17 @@ export async function POST(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const body = await req.json();
-    const { orderId, stage } = body;
+    const { 
+      orderId, 
+      stage, 
+      cancellationStage, 
+      cancellationReason, 
+      returnReason, 
+      stockReintegrated, 
+      returnFeeAmount,
+      canceledBy,
+      returnedBy 
+    } = body;
 
     if (!orderId || !stage) {
       return NextResponse.json(
@@ -96,7 +106,15 @@ export async function PATCH(req: Request) {
     }
 
     // Update in MySQL Database & in-memory store
-    const updated = await updateOrderStageInDb(orderId, stage);
+    const updated = await updateOrderStageInDb(orderId, stage, {
+      cancellationStage,
+      cancellationReason,
+      returnReason,
+      stockReintegrated,
+      returnFeeAmount,
+      canceledBy,
+      returnedBy,
+    });
     const { updateOrderStatus } = await import('@/lib/orders-store');
     updateOrderStatus(orderId, stage);
 

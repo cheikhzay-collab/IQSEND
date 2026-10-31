@@ -35,7 +35,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await fetch('/api/team', { cache: 'no-store' });
+      const savedId = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
+      const url = savedId ? `/api/team?heartbeat=${encodeURIComponent(savedId)}` : '/api/team';
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) {
         console.warn('[AuthContext] /api/team returned', res.status, '– skipping user fetch');
         setIsLoading(false);
@@ -49,10 +51,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       const data = await res.json();
       if (data.success && Array.isArray(data.members)) {
-        setAllUsers(data.members);
-        setIsLiveDb(true);
-
-        const savedId = typeof window !== 'undefined' ? localStorage.getItem(LOCAL_STORAGE_KEY) : null;
         let selected: AuthUser | undefined;
 
         if (savedId) {
@@ -86,6 +84,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setCurrentUser(null);
         }
+
+        // Set members list
+        setAllUsers(data.members);
+        setIsLiveDb(true);
       }
     } catch (err) {
       console.warn('Failed to fetch team in AuthContext:', err);

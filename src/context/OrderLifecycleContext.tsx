@@ -81,6 +81,23 @@ export interface LifecycleOrder {
     name: string;
     channel?: string;
   };
+  cancellationStage?: 'CONFIRMATION' | 'DELIVERY' | 'WAREHOUSE';
+  cancellationReason?: string;
+  canceledAt?: string;
+  canceledBy?: string;
+  returnReason?: string;
+  returnedAt?: string;
+  returnedBy?: string;
+  stockReintegrated?: boolean;
+  returnFeeAmount?: number;
+  whatsappCallerName?: string;
+  districtId?: string;
+  districtName?: string;
+  awbCode?: string;
+  confirmedBy?: string;
+  confirmedAt?: string;
+  sheetRowId?: string;
+  externalOrderId?: string;
 }
 
 const INITIAL_LIFECYCLE_ORDERS: LifecycleOrder[] = [];
@@ -124,12 +141,12 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
 
   // Sync stage to MySQL Database
-  const syncStageToDb = (orderId: string, stage: LifecycleStage) => {
+  const syncStageToDb = (orderId: string, stage: LifecycleStage, meta?: Record<string, any>) => {
     try {
       fetch('/api/orders', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ orderId, stage }),
+        body: JSON.stringify({ orderId, stage, ...meta }),
       }).catch((e) => console.warn('[OrderLifecycle] DB patch error:', e));
     } catch {}
   };
@@ -293,22 +310,35 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
   };
 
   // 2. Cancel Order
-  const cancelOrder = (orderId: string, reason?: string) => {
-    syncStageToDb(orderId, 'CANCELED');
+  const cancelOrder = (orderId: string, reason?: string, stage: 'CONFIRMATION' | 'DELIVERY' = 'CONFIRMATION') => {
+    syncStageToDb(orderId, 'CANCELED', {
+      cancellationStage: stage,
+      cancellationReason: reason || 'Annulé par le client',
+      returnFeeAmount: stage === 'DELIVERY' ? 35 : 0,
+    });
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
         return {
           ...order,
           stage: 'CANCELED',
+          cancellationStage: stage,
+          cancellationReason: reason || 'Annulé par le client',
+          canceledAt: new Date().toISOString(),
+          returnFeeAmount: stage === 'DELIVERY' ? 35 : 0,
           customer: {
             ...order.customer,
-            notes: reason ? `Annulé: ${reason}` : order.customer.notes,
+            notes: reason ? `Annulé (${stage === 'CONFIRMATION' ? 'Confirmation' : 'Livraison'}): ${reason}` : order.customer.notes,
           },
         };
       })
     );
-    showToast(`La commande a été marquée comme annulée.`, 'info');
+    showToast(
+      stage === 'CONFIRMATION'
+        ? `Commande annulée en confirmation (0 DH Frais de port, stock conservé).`
+        : `Commande annulée / refusée lors de la livraison (35 DH Sendit).`,
+      'info'
+    );
   };
 
   // 3. Edit Order
@@ -517,13 +547,23 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
 
   // 10. Mark Returned / Refused during delivery
   const markReturned = (orderId: string, reason: string) => {
-    syncStageToDb(orderId, 'RETURNED');
+    syncStageToDb(orderId, 'RETURNED', {
+      cancellationStage: 'DELIVERY',
+      returnReason: reason,
+      returnFeeAmount: 35,
+      stockReintegrated: false,
+    });
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
         return {
           ...order,
           stage: 'RETURNED',
+          cancellationStage: 'DELIVERY',
+          returnReason: reason,
+          returnedAt: new Date().toISOString(),
+          returnFeeAmount: 35,
+          stockReintegrated: false,
           shipping: order.shipping
             ? {
                 ...order.shipping,
@@ -582,13 +622,14 @@ export function OrderLifecycleProvider({ children }: { children: React.ReactNode
       console.warn('[Reintegrate Stock API] error:', e.message);
     }
 
-    syncStageToDb(orderId, 'RETURNED');
+    syncStageToDb(orderId, 'RETURNED', { stockReintegrated: true });
     setOrders((prev) =>
       prev.map((order) => {
         if (order.id !== orderId) return order;
         return {
           ...order,
           stage: 'RETURNED',
+          stockReintegrated: true,
           completed: {
             ...(order.completed || {
               deliveredAt: '',

@@ -245,6 +245,23 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
         source: {
           name: lead.store_source || 'Direct Funnel',
         },
+        cancellationStage: lead.cancellation_stage || (lead.status === 'RETURNED' || lead.store_source === 'SENDIT_SYNC' ? 'DELIVERY' : lead.status === 'CANCELED' ? 'CONFIRMATION' : undefined),
+        cancellationReason: lead.cancellation_reason || lead.failed_reason || lead.rescue_notes || undefined,
+        canceledAt: lead.canceled_at ? new Date(lead.canceled_at).toISOString() : undefined,
+        canceledBy: lead.canceled_by || undefined,
+        returnReason: lead.return_reason || lead.failed_reason || undefined,
+        returnedAt: lead.returned_at ? new Date(lead.returned_at).toISOString() : undefined,
+        returnedBy: lead.returned_by || undefined,
+        stockReintegrated: Boolean(lead.stock_reintegrated),
+        returnFeeAmount: lead.return_fee_amount != null ? Number(lead.return_fee_amount) : (lead.status === 'RETURNED' || lead.cancellation_stage === 'DELIVERY' ? 35 : 0),
+        whatsappCallerName: lead.whatsapp_caller_name || undefined,
+        districtId: lead.district_id || undefined,
+        districtName: lead.district_name || undefined,
+        awbCode: lead.awb_code || undefined,
+        confirmedBy: lead.confirmed_by || undefined,
+        confirmedAt: lead.confirmed_at ? new Date(lead.confirmed_at).toISOString() : undefined,
+        sheetRowId: lead.sheet_row_id || undefined,
+        externalOrderId: lead.external_order_id || undefined,
       };
     });
 
@@ -271,18 +288,26 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
     const notes = 'customer' in order ? order.customer.notes || '' : '';
     const totalAmount = order.payment?.amount || 0;
 
+    const firstItem = Array.isArray(order.items) && order.items.length > 0 ? order.items[0] : null;
+    const itemSku = firstItem?.sku || null;
+    const itemName = firstItem?.name || null;
+    const itemQty = firstItem?.quantity || 1;
+
     // Upsert into order_leads
     await pool.execute(
       `
       INSERT INTO order_leads (
         id, order_number, customer_name, phone_number, city, address, 
-        total_amount, status, ai_confirmation_status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sku, product_name, quantity, total_amount, status, ai_confirmation_status, notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         customer_name = VALUES(customer_name),
         phone_number = VALUES(phone_number),
         city = VALUES(city),
         address = VALUES(address),
+        sku = IFNULL(VALUES(sku), order_leads.sku),
+        product_name = IFNULL(VALUES(product_name), order_leads.product_name),
+        quantity = IFNULL(VALUES(quantity), order_leads.quantity),
         total_amount = VALUES(total_amount),
         status = VALUES(status),
         ai_confirmation_status = VALUES(ai_confirmation_status),
@@ -296,6 +321,9 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
         phone,
         city,
         address,
+        itemSku,
+        itemName,
+        itemQty,
         totalAmount,
         dbStatus,
         order.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'CONFIRMED' : 'PENDING',
@@ -593,19 +621,85 @@ export async function updateCustomerStatsOnOrderStatus(orderId: string, dbStatus
   }
 }
 
-export async function updateOrderStageInDb(orderId: string, stage: LifecycleStage): Promise<boolean> {
+export interface OrderStageUpdateMeta {
+  cancellationStage?: 'CONFIRMATION' | 'DELIVERY' | 'WAREHOUSE';
+  cancellationReason?: string;
+  canceledBy?: string;
+  returnReason?: string;
+  returnedBy?: string;
+  stockReintegrated?: boolean;
+  returnFeeAmount?: number;
+}
+
+export async function updateOrderStageInDb(
+  orderId: string, 
+  stage: LifecycleStage,
+  meta?: OrderStageUpdateMeta
+): Promise<boolean> {
   try {
     const pool = getMysqlPool();
     const dbStatus = mapStageToDbStatus(stage);
 
-    await pool.execute(
-      `
-      UPDATE order_leads 
-      SET status = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ? OR order_number = ?
-    `,
-      [dbStatus, orderId, orderId]
-    );
+    if (stage === 'CANCELED') {
+      const cancelStage = meta?.cancellationStage || 'CONFIRMATION';
+      const cancelReason = meta?.cancellationReason || 'Annulé par le client';
+      const fee = meta?.returnFeeAmount !== undefined ? meta.returnFeeAmount : (cancelStage === 'DELIVERY' ? 35 : 0);
+      await pool.execute(
+        `UPDATE order_leads 
+         SET status = 'CANCELED', 
+             cancellation_stage = ?,
+             cancellation_reason = ?,
+             canceled_at = CURRENT_TIMESTAMP,
+             canceled_by = ?,
+             return_fee_amount = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? OR order_number = ?`,
+        [cancelStage, cancelReason, meta?.canceledBy || 'Agent', fee, orderId, orderId]
+      );
+      if (cancelStage === 'CONFIRMATION') {
+        try {
+          await pool.execute(`
+            UPDATE products p
+            INNER JOIN order_items oi ON oi.sku = p.sku
+            SET p.confirmation_cancel_count = p.confirmation_cancel_count + oi.quantity
+            WHERE oi.order_id = ?
+          `, [orderId]);
+        } catch {}
+      }
+    } else if (stage === 'RETURNED') {
+      const returnReason = meta?.returnReason || meta?.cancellationReason || 'Colis refusé ou non livré';
+      const stockReintegrated = meta?.stockReintegrated ?? false;
+      await pool.execute(
+        `UPDATE order_leads 
+         SET status = 'RETURNED', 
+             cancellation_stage = 'DELIVERY',
+             return_reason = ?,
+             returned_at = CURRENT_TIMESTAMP,
+             returned_by = ?,
+             return_fee_amount = 35.00,
+             stock_reintegrated = ?,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = ? OR order_number = ?`,
+        [returnReason, meta?.returnedBy || 'Livreur Sendit', stockReintegrated ? 1 : 0, orderId, orderId]
+      );
+      try {
+        await pool.execute(`
+          UPDATE products p
+          INNER JOIN order_items oi ON oi.sku = p.sku
+          SET p.courier_return_count = p.courier_return_count + oi.quantity
+          WHERE oi.order_id = ?
+        `, [orderId]);
+      } catch {}
+    } else {
+      await pool.execute(
+        `
+        UPDATE order_leads 
+        SET status = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ? OR order_number = ?
+      `,
+        [dbStatus, orderId, orderId]
+      );
+    }
 
     // 1. Stock Movement Automation
     if (stage === 'PROCESSING' || stage === 'IN_TRANSIT') {

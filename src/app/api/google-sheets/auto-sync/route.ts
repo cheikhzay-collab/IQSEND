@@ -71,7 +71,8 @@ export async function GET(req: NextRequest) {
   try {
     const pool = getMysqlPool();
 
-    // 1. Check settings in store_settings
+    // 1. Check settings in store_settings & google_sheets_configs
+    const isForce = req.nextUrl.searchParams.get('force') === 'true';
     const [settingsRows]: any = await pool.execute(
       `SELECT setting_key, setting_value FROM store_settings WHERE setting_key IN ('GOOGLE_SHEET_URL', 'GOOGLE_SHEET_AUTO_SYNC')`
     );
@@ -86,7 +87,20 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (!autoSync || !sheetUrl) {
+    // Fallback to google_sheets_configs table if not found in store_settings
+    if (!sheetUrl) {
+      try {
+        const [cfgRows]: any = await pool.execute(
+          `SELECT sheet_url, is_active FROM google_sheets_configs WHERE is_active = TRUE ORDER BY updated_at DESC LIMIT 1`
+        );
+        if (Array.isArray(cfgRows) && cfgRows.length > 0 && cfgRows[0].sheet_url) {
+          sheetUrl = cfgRows[0].sheet_url;
+          autoSync = true;
+        }
+      } catch {}
+    }
+
+    if ((!autoSync && !isForce) || !sheetUrl) {
       return NextResponse.json({
         success: true,
         autoSyncEnabled: autoSync,
@@ -156,14 +170,18 @@ export async function GET(req: NextRequest) {
     const existingPhones = new Set<string>();
     const existingOrderIds = new Set<string>();
     const existingOrderNumbers = new Set<string>();
+    const existingSheetRows = new Set<string>();
+    const existingExternalIds = new Set<string>();
     const [existingLeads]: any = await pool.execute(
-      `SELECT id, order_number, phone_number FROM order_leads`
+      `SELECT id, order_number, phone_number, sheet_row_id, external_order_id FROM order_leads`
     );
     if (Array.isArray(existingLeads)) {
       existingLeads.forEach((l: any) => {
         if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
         if (l.id) existingOrderIds.add(String(l.id).trim().toLowerCase());
         if (l.order_number) existingOrderNumbers.add(String(l.order_number).trim().toLowerCase());
+        if (l.sheet_row_id) existingSheetRows.add(String(l.sheet_row_id).trim().toLowerCase());
+        if (l.external_order_id) existingExternalIds.add(String(l.external_order_id).trim().toLowerCase());
       });
     }
 
@@ -194,13 +212,20 @@ export async function GET(req: NextRequest) {
       // 1. By Order Number / ID from Sheet
       if (rawOrderId) {
         const cleanOId = rawOrderId.toLowerCase();
-        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId)) {
+        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId) || existingExternalIds.has(cleanOId)) {
           skippedCount++;
           continue;
         }
       }
 
-      // 2. Already imported previously by phone?
+      // 2. Already imported previously by sheet row?
+      const sheetRowId = `${sheetIdTag}-r${r}`;
+      if (existingSheetRows.has(sheetRowId.toLowerCase())) {
+        skippedCount++;
+        continue;
+      }
+
+      // 3. Already imported previously by phone?
       if (existingPhones.has(phone)) {
         skippedCount++;
         continue;
@@ -285,10 +310,11 @@ export async function GET(req: NextRequest) {
         await pool.execute(
           `INSERT INTO order_leads (
             id, order_number, customer_name, phone_number, city, address, total_amount, status,
-            risk_score, risk_level, ai_confirmation_status, store_source, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Auto-Sync', ?)
+            risk_score, risk_level, ai_confirmation_status, store_source, notes,
+            sheet_row_id, external_order_id, sku, product_name, quantity
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Auto-Sync', ?, ?, ?, ?, ?, ?)
           ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
-          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, notes]
+          [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, notes, sheetRowId, rawOrderId || null, productSku, productName, quantity]
         );
 
         await pool.execute(

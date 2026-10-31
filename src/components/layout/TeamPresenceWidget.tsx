@@ -135,7 +135,7 @@ export function TeamPresenceWidget() {
         {/* Stacked Round Avatars (ONLY ONLINE MEMBERS) */}
         <div className="flex items-center -space-x-1.5">
           {displayOnlineUsers.map((user) => {
-            const isUserOnline = user.isOnline ?? true;
+            const isUserOnline = Boolean(user.isOnline);
             return (
               <div
                 key={user.id}

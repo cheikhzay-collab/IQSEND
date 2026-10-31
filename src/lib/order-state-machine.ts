@@ -638,9 +638,16 @@ export async function executePhysicalReturnReceipt(
 
   await pool.execute(
     `UPDATE order_leads 
-     SET status = 'RETURNED', rescue_status = 'RETURN_CONFIRMED', updated_at = CURRENT_TIMESTAMP 
+     SET status = 'RETURNED', 
+         rescue_status = 'RETURN_CONFIRMED', 
+         cancellation_stage = 'DELIVERY',
+         stock_reintegrated = 1,
+         returned_at = CURRENT_TIMESTAMP,
+         returned_by = ?,
+         return_fee_amount = 35.00,
+         updated_at = CURRENT_TIMESTAMP 
      WHERE id = ?`,
-    [order.id]
+    [inspectorName, order.id]
   );
 
   await pool.execute(

@@ -464,17 +464,18 @@ export function EditOrderModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!customerName.trim() || !productName.trim()) return;
+    if (!customerName.trim()) return;
 
     const totalAmount = parseFloat(amount) || 0;
-    const qty = Number(quantity) || 1;
+    const firstItem = order.items?.[0];
+    const qty = firstItem?.quantity || 1;
     const unitPrice = qty > 0 ? totalAmount / qty : totalAmount;
 
     const updatedItem: OrderItemDetail = {
-      id: order.items?.[0]?.id || `item-${Date.now()}`,
-      name: productName.trim(),
-      sku: sku.trim() || order.items?.[0]?.sku || 'SKU-COD',
-      thumbnail: productThumbnail || order.items?.[0]?.thumbnail || '',
+      id: firstItem?.id || `item-${Date.now()}`,
+      name: firstItem?.name || 'Pack E-commerce',
+      sku: firstItem?.sku || 'SKU-COD',
+      thumbnail: firstItem?.thumbnail || '',
       quantity: qty,
       price: unitPrice,
     };
@@ -486,7 +487,6 @@ export function EditOrderModal({
         phone: phone.trim(),
         city: (city || cityInput).trim(),
         address: address.trim(),
-        notes: note.trim() || undefined,
       },
       items: [updatedItem, ...(order.items?.slice(1) || [])],
       payment: {
@@ -494,87 +494,62 @@ export function EditOrderModal({
         method: 'COD',
         amount: totalAmount,
       },
-      stage,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
-      <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
-        {/* Mobile Drag Indicator */}
-        <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
-
+    <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-4 px-5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0 shadow-xs">
-              <FileEdit className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-black text-slate-900 text-sm">
-                  Modifier la commande — {order.orderNumber}
-                </h3>
-                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> 517 Villes Sendit (A-Z)
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500">Mise à jour des informations client, produit et logistique COD</p>
-            </div>
-          </div>
+        <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between">
+          <h3 className="font-bold text-slate-800 text-sm sm:text-base">
+            Modifier la commande — {order.orderNumber}
+          </h3>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+            type="button"
+            className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
-          {/* Nom du Client */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {/* Nom du client */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">
-              Nom du Client <span className="text-rose-500">*</span>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
+              Nom du client
             </label>
             <input
               type="text"
               required
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ex: Salma R. أو رشيد العلوي"
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-medium text-slate-800"
             />
           </div>
 
+          {/* Téléphone & Ville (Maroc) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Téléphone */}
             <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Téléphone (Maroc) <span className="text-rose-500">*</span>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Téléphone
               </label>
               <input
                 type="text"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="06******** أو 07********"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-medium text-slate-800"
               />
             </div>
 
-            {/* Ville avec Autocomplete A-Z Sendit */}
             <div className="relative" ref={cityDropdownRef}>
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-xs font-bold text-slate-700">
-                  Ville (Maroc) <span className="text-rose-500">*</span>
-                </label>
-                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
-                  A-Z
-                </span>
-              </div>
-
+              <label className="text-xs font-semibold text-slate-700 block mb-1">
+                Ville (Maroc)
+              </label>
               <div className="relative">
                 <input
                   type="text"
@@ -586,215 +561,83 @@ export function EditOrderModal({
                     setIsCityDropdownOpen(true);
                   }}
                   onFocus={() => setIsCityDropdownOpen(true)}
-                  placeholder="Tapez les 1ères lettres (ex: Ca, Fa, Rabat...)"
-                  className="w-full text-xs p-2.5 pr-8 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
+                  className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-medium text-slate-800"
                 />
-                <button
-                  type="button"
-                  onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
-                >
-                  <ChevronDown
-                    className={`w-3.5 h-3.5 transition-transform ${
-                      isCityDropdownOpen ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
               </div>
 
               {/* Autocomplete / Dropdown list */}
               {isCityDropdownOpen && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-52 overflow-y-auto divide-y divide-slate-100">
                   {filteredDistricts.length === 0 ? (
                     <div className="p-3 text-center text-xs text-slate-400">
-                      Aucune ville trouvée. Saisie personnalisée conservée.
+                      Aucune ville trouvée.
                     </div>
                   ) : (
-                    filteredDistricts.slice(0, 80).map((d) => (
+                    filteredDistricts.slice(0, 50).map((d) => (
                       <button
                         key={`city-edit-${d.id}`}
                         type="button"
                         onClick={() => handleSelectCity(d)}
-                        className="w-full text-left p-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between gap-2 group"
+                        className="w-full text-left p-2 hover:bg-slate-50 transition-colors flex items-center justify-between text-xs"
                       >
-                        <div className="min-w-0">
-                          <p className="text-xs font-bold text-slate-800 group-hover:text-[#135d54] truncate">
-                            {d.name}
-                          </p>
-                          {d.arabic_name && (
-                            <p className="text-[11px] text-slate-500 font-sans truncate">
-                              {d.arabic_name}
-                            </p>
-                          )}
-                        </div>
-                        <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold shrink-0">
-                          {d.price} MAD
-                        </span>
+                        <span className="font-bold text-slate-800">{d.name}</span>
+                        {d.price && (
+                          <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded font-semibold">
+                            {d.price} MAD
+                          </span>
+                        )}
                       </button>
                     ))
                   )}
-                  {filteredDistricts.length > 80 && (
-                    <div className="p-2 text-center text-[10px] text-slate-400 bg-slate-50">
-                      + {filteredDistricts.length - 80} autres villes... Tapez plus de lettres pour affiner
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Delivery fee & SLA info */}
-              {selectedDistrictInfo && (
-                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                  <MapPin className="w-2.5 h-2.5 shrink-0" />
-                  <span>
-                    Sendit: {selectedDistrictInfo.price} MAD • Délai: {selectedDistrictInfo.delais}
-                  </span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Adresse Complète */}
+          {/* Adresse de livraison */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">
-              Adresse Complète (Optionnel)
-            </label>
-            <input
-              type="text"
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ex: Boulevard Mohammed V, Immeuble 12, Quartier Agdal"
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
-            />
-          </div>
-
-          {/* NOTE / Instructions */}
-          <div>
-            <label className="text-xs font-bold text-slate-700 flex items-center justify-between mb-1">
-              <span className="flex items-center gap-1">
-                <FileText className="w-3.5 h-3.5 text-emerald-600" />
-                NOTE / Instructions (Optionnel)
-              </span>
-              <span className="text-[10px] text-slate-400">Pour le livreur Sendit ou l'équipe</span>
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
+              Adresse de livraison
             </label>
             <textarea
               rows={2}
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Ex: ملاحظات للطلب أو للمندوب (القياس 42، اللون أسود، يفضل التوصيل بعد العصر، الاتصال قبل المجيء...)"
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium placeholder:text-slate-400 resize-none"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-medium text-slate-800 resize-y"
             />
           </div>
 
-          {/* Sélectionner dans le catalogue */}
+          {/* Montant à Encaisser (MAD - COD) */}
           <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">
-              Sélectionner dans le catalogue
+            <label className="text-xs font-semibold text-slate-700 block mb-1">
+              Montant à Encaisser (MAD - COD)
             </label>
-            <select
-              value={selectedCatalogId}
-              onChange={(e) => handleSelectProduct(e.target.value)}
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
-            >
-              {CATALOG_PRODUCTS.map((prod) => (
-                <option key={prod.id} value={prod.id}>
-                  {prod.name} ({prod.sellingPrice} MAD • Stock: {prod.totalStock})
-                </option>
-              ))}
-              <option value="custom">Autre article personnalisé...</option>
-            </select>
+            <input
+              type="number"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 font-bold text-slate-900"
+            />
+            <p className="text-[10px] text-amber-600 mt-1 font-medium">
+              Mode exclusif : Cash On Delivery (Paiement à la livraison)
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div className="sm:col-span-2">
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Nom de l'Article <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                value={productName}
-                onChange={(e) => setProductName(e.target.value)}
-                placeholder="Ex: Smart Watch S2"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Quantité <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="number"
-                min={1}
-                required
-                value={quantity}
-                onChange={(e) => {
-                  const val = parseInt(e.target.value, 10) || 1;
-                  setQuantity(val);
-                }}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Code SKU (Optionnel)
-              </label>
-              <input
-                type="text"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="Ex: SKU-KHUF-42"
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-mono text-slate-700"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-slate-700 block mb-1">
-                Montant COD (MAD) <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="number"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-black text-slate-900"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold text-slate-700 block mb-1">
-              Étape / Statut du cycle de vente
-            </label>
-            <select
-              value={stage}
-              onChange={(e) => setStage(e.target.value as LifecycleStage)}
-              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
-            >
-              <option value="PENDING_CONFIRMATION">1. En attente de confirmation</option>
-              <option value="PROCESSING">2. En préparation (AWB)</option>
-              <option value="IN_TRANSIT">3. En cours de livraison (Sendit)</option>
-              <option value="COMPLETED">4. Livrées & Encaissées</option>
-              <option value="CANCELED">5. Annulée à la confirmation (0 DH)</option>
-              <option value="RETURNED">6. Retournée chez transporteur (Sendit)</option>
-            </select>
-          </div>
-
-          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
+          {/* Actions */}
+          <div className="pt-2 flex items-center justify-end gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-colors cursor-pointer"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
+              className="px-5 py-2 rounded-xl bg-[#00875a] hover:bg-[#00704a] text-white text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
             >
-              <Save className="w-3.5 h-3.5" />
-              <span>Enregistrer les modifications</span>
+              Enregistrer
             </button>
           </div>
         </form>
@@ -813,14 +656,23 @@ export function CancelOrderModal({
   order: LifecycleOrder | null;
   isOpen: boolean;
   onClose: () => void;
-  onConfirmCancel: (orderId: string, reason: string) => void;
+  onConfirmCancel: (orderId: string, reason: string, stage?: 'CONFIRMATION' | 'DELIVERY') => void;
 }) {
   const [reason, setReason] = useState('Client injoignable au téléphone');
+  const [cancellationStage, setCancellationStage] = useState<'CONFIRMATION' | 'DELIVERY'>(
+    order?.stage === 'IN_TRANSIT' ? 'DELIVERY' : 'CONFIRMATION'
+  );
+
+  useEffect(() => {
+    if (order) {
+      setCancellationStage(order.stage === 'IN_TRANSIT' ? 'DELIVERY' : 'CONFIRMATION');
+    }
+  }, [order]);
 
   if (!isOpen || !order) return null;
 
   const handleCancel = () => {
-    onConfirmCancel(order.id, reason);
+    onConfirmCancel(order.id, reason, cancellationStage);
     onClose();
   };
 
@@ -833,32 +685,66 @@ export function CancelOrderModal({
             Annuler la commande {order.orderNumber} ?
           </h3>
         </div>
-        <p className="text-slate-600">
-          Veuillez préciser le motif de l’annulation pour mettre à jour les statistiques de conversion COD:
-        </p>
+        
+        {/* Stage selection */}
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Stade de l'annulation :</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setCancellationStage('CONFIRMATION')}
+              className={`p-2 rounded-xl text-left border transition-all ${
+                cancellationStage === 'CONFIRMATION'
+                  ? 'border-purple-600 bg-purple-50 text-purple-900 font-black'
+                  : 'border-slate-200 bg-white text-slate-600 font-medium'
+              }`}
+            >
+              <div className="text-[11px]">En Confirmation</div>
+              <div className="text-[10px] text-emerald-600 font-bold">0 DH Frais • Stock intact</div>
+            </button>
 
-        <select
-          value={reason}
-          onChange={(e) => setReason(e.target.value)}
-          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
-        >
-          <option value="Client injoignable au téléphone">Client injoignable au téléphone</option>
-          <option value="Commande en double (Doublon détecté)">Commande en double (Doublon)</option>
-          <option value="Client a refusé la commande au WhatsApp">Client a refusé la commande</option>
-          <option value="Rupture de stock produit">Rupture de stock produit</option>
-          <option value="Faux numéro / Coordonnées erronées">Faux numéro / Coordonnées erronées</option>
-        </select>
+            <button
+              type="button"
+              onClick={() => setCancellationStage('DELIVERY')}
+              className={`p-2 rounded-xl text-left border transition-all ${
+                cancellationStage === 'DELIVERY'
+                  ? 'border-rose-600 bg-rose-50 text-rose-900 font-black'
+                  : 'border-slate-200 bg-white text-slate-600 font-medium'
+              }`}
+            >
+              <div className="text-[11px]">En Livraison</div>
+              <div className="text-[10px] text-rose-600 font-bold">35 DH Frais Sendit</div>
+            </button>
+          </div>
+        </div>
 
-        <div className="flex justify-end gap-2 pt-2">
+        <div>
+          <label className="font-bold text-slate-700 block mb-1">Motif de l'annulation :</label>
+          <select
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 bg-white"
+          >
+            <option value="Client injoignable au téléphone">Client injoignable au téléphone</option>
+            <option value="Client a changé d'avis">Client a changé d'avis</option>
+            <option value="Commande en double (Doublon détecté)">Commande en double (Doublon)</option>
+            <option value="Client a refusé la commande au WhatsApp">Client a refusé la commande au WhatsApp</option>
+            <option value="Client a refusé le colis à la porte (Livreur)">Refus à la porte (Livreur)</option>
+            <option value="Rupture de stock produit">Rupture de stock produit</option>
+            <option value="Faux numéro / Coordonnées erronées">Faux numéro / Coordonnées erronées</option>
+          </select>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
           <button
             onClick={onClose}
-            className="px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50"
+            className="px-3.5 py-1.5 rounded-xl border border-slate-200 font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
           >
             Fermer
           </button>
           <button
             onClick={handleCancel}
-            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold"
+            className="px-3.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold cursor-pointer transition-all shadow-xs"
           >
             Confirmer l’Annulation
           </button>
