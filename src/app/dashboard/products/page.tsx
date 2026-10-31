@@ -184,8 +184,8 @@ export default function ProductsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-2">
-            <Warehouse className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+            <Warehouse className="w-3.5 h-3.5 text-emerald-600" />
             Gestion Multi-Hubs Maroc & Sendit Fulfillment
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -277,7 +277,7 @@ export default function ProductsPage() {
             placeholder="Rechercher par nom, arabe, SKU..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-teal-600 bg-slate-50/50"
+            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-emerald-600 bg-slate-50/50"
           />
         </div>
 
@@ -285,7 +285,7 @@ export default function ProductsPage() {
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-teal-600 text-slate-700"
+            className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-emerald-600 text-slate-700"
           >
             <option value="ALL">Toutes les catégories</option>
             <option value="High-Tech">High-Tech</option>
@@ -395,10 +395,10 @@ export default function ProductsPage() {
 
                             {p.agentInstructions && (
                               <span
-                                className="inline-flex items-center gap-1 text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-full"
+                                className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full"
                                 title="Directives personnalisées pour l'Agent IA WhatsApp"
                               >
-                                <Sparkles className="w-2.5 h-2.5 text-teal-600" />
+                                <Sparkles className="w-2.5 h-2.5 text-emerald-600" />
                                 Directives IA
                               </span>
                             )}

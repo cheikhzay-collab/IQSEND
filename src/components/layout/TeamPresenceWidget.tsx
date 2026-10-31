@@ -175,7 +175,7 @@ export function TeamPresenceWidget() {
           {/* Header */}
           <div className="flex items-center justify-between pb-3 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center font-bold">
+              <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
                 <Users className="w-4 h-4" />
               </div>
               <div>
@@ -191,7 +191,7 @@ export function TeamPresenceWidget() {
             <Link
               href="/dashboard/team"
               onClick={() => setIsOpen(false)}
-              className="text-[11px] font-bold text-teal-700 hover:text-teal-900 bg-teal-50 hover:bg-teal-100 px-2.5 py-1 rounded-lg border border-teal-200/60 transition-colors flex items-center gap-1"
+              className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-lg border border-emerald-200/60 transition-colors flex items-center gap-1"
             >
               <span>Gérer</span>
               <ExternalLink className="w-3 h-3" />
@@ -200,9 +200,9 @@ export function TeamPresenceWidget() {
 
           {/* Active Session Card */}
           {currentUser && (
-            <div className="my-3 p-3 bg-gradient-to-r from-slate-900 to-teal-950 text-white rounded-xl shadow-xs">
+            <div className="my-3 p-3 bg-gradient-to-r from-slate-900 to-emerald-950 text-white rounded-xl shadow-xs">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold tracking-wider uppercase text-teal-300">
+                <span className="text-[10px] font-bold tracking-wider uppercase text-emerald-300">
                   Compte Actuellement Actif
                 </span>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getRoleBadgeStyle(currentUser.role)}`}>
@@ -211,7 +211,7 @@ export function TeamPresenceWidget() {
               </div>
 
               <div className="flex items-center gap-2.5 mt-2">
-                <div className="w-9 h-9 rounded-full bg-teal-600 text-white font-black text-sm flex items-center justify-center border-2 border-teal-300/40 shrink-0">
+                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-black text-sm flex items-center justify-center border-2 border-emerald-300/40 shrink-0">
                   {currentUser.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -219,7 +219,7 @@ export function TeamPresenceWidget() {
                     <span>{currentUser.name}</span>
                     <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" title="En ligne" />
                   </div>
-                  <div className="text-[10px] text-teal-200 truncate">{currentUser.jobTitle}</div>
+                  <div className="text-[10px] text-emerald-200 truncate">{currentUser.jobTitle}</div>
                   <div className="text-[9px] text-slate-400 truncate">{currentUser.email}</div>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export function TeamPresenceWidget() {
                     }}
                     className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
                       isSelected
-                        ? 'bg-teal-50/80 border border-teal-200'
+                        ? 'bg-emerald-50/80 border border-emerald-200'
                         : 'hover:bg-slate-50 border border-transparent'
                     }`}
                   >
@@ -287,7 +287,7 @@ export function TeamPresenceWidget() {
                       <div className="min-w-0">
                         <div className="text-xs font-bold text-slate-900 truncate flex items-center gap-1">
                           <span>{user.name}</span>
-                          {isSelected && <span className="text-[9px] text-teal-700 bg-teal-100 px-1 rounded font-black">Actif</span>}
+                          {isSelected && <span className="text-[9px] text-emerald-700 bg-emerald-100 px-1 rounded font-black">Actif</span>}
                         </div>
                         <div className="text-[10px] text-slate-500 truncate">{user.jobTitle}</div>
                       </div>
@@ -306,7 +306,7 @@ export function TeamPresenceWidget() {
 
           {/* Footer notice */}
           <div className="mt-3 pt-2 border-t border-slate-100 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1 font-medium">
-            <Shield className="w-3 h-3 text-teal-600" />
+            <Shield className="w-3 h-3 text-emerald-600" />
             <span>Chaque utilisateur ne voit que les modules autorisés dans ses permissions</span>
           </div>
         </div>

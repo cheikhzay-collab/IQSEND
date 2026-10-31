@@ -44,7 +44,7 @@ export function ShippingLabelModal({
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="px-3 py-1.5 rounded-lg bg-teal-700 hover:bg-teal-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
+              className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors"
             >
               <Printer className="w-3.5 h-3.5" />
               Imprimer
@@ -212,7 +212,7 @@ export function InvoiceModal({
       <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
           <div className="flex items-center gap-2">
-            <FileText className="w-4 h-4 text-teal-700" />
+            <FileText className="w-4 h-4 text-emerald-700" />
             <h3 className="text-sm font-bold text-slate-800">
               Facture / Bon de Vente — {order.orderNumber}
             </h3>
@@ -280,12 +280,12 @@ export function InvoiceModal({
               </tr>
               <tr className="text-sm font-black text-slate-900">
                 <td colSpan={3} className="py-2 text-right">Total Net TTC:</td>
-                <td className="py-2 text-right text-teal-800">{order.payment.amount} MAD</td>
+                <td className="py-2 text-right text-emerald-800">{order.payment.amount} MAD</td>
               </tr>
             </tfoot>
           </table>
 
-          <div className="p-3 rounded-xl bg-teal-50 border border-teal-200 text-teal-900 text-center font-medium">
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-center font-medium">
             Statut du Règlement: <span className="font-bold">{order.payment.status === 'SETTLED' ? 'Encaissé & Clôturé (Paid)' : 'Paiement à la réception (COD)'}</span>
           </div>
         </div>
@@ -367,7 +367,7 @@ export function EditOrderModal({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               required
             />
           </div>
@@ -379,7 +379,7 @@ export function EditOrderModal({
                 type="text"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 required
               />
             </div>
@@ -389,7 +389,7 @@ export function EditOrderModal({
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 required
               />
             </div>
@@ -401,7 +401,7 @@ export function EditOrderModal({
               rows={2}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               required
             />
           </div>
@@ -412,7 +412,7 @@ export function EditOrderModal({
               type="number"
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               required
             />
             <span className="text-[10px] text-amber-700 mt-1 block font-medium">
@@ -430,7 +430,7 @@ export function EditOrderModal({
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold"
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
             >
               Enregistrer
             </button>

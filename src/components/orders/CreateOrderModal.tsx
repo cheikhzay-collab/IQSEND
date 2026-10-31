@@ -212,7 +212,7 @@ export function CreateOrderModal({
         {/* Header */}
         <div className="p-4 px-5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#135d54] text-white flex items-center justify-center font-black shrink-0 shadow-xs">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0 shadow-xs">
               <Plus className="w-4 h-4" />
             </div>
             <div>
@@ -227,7 +227,7 @@ export function CreateOrderModal({
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 rounded-md flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -245,7 +245,7 @@ export function CreateOrderModal({
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               placeholder="Ex: Salma R. أو رشيد العلوي"
-              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
             />
           </div>
 
@@ -260,7 +260,7 @@ export function CreateOrderModal({
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="06******** أو 07********"
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
             </div>
 
@@ -287,7 +287,7 @@ export function CreateOrderModal({
                   }}
                   onFocus={() => setIsCityDropdownOpen(true)}
                   placeholder="Tapez les 1ères lettres (ex: Ca, Fa, Rabat...)"
-                  className="w-full text-xs p-2.5 pr-8 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium bg-white"
+                  className="w-full text-xs p-2.5 pr-8 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
                 />
                 <button
                   type="button"
@@ -362,7 +362,7 @@ export function CreateOrderModal({
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Ex: Boulevard Mohammed V, Immeuble 12, Quartier Agdal"
-              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
             />
           </div>
 
@@ -370,7 +370,7 @@ export function CreateOrderModal({
           <div>
             <label className="text-xs font-bold text-slate-700 flex items-center justify-between mb-1">
               <span className="flex items-center gap-1">
-                <FileText className="w-3.5 h-3.5 text-[#135d54]" />
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
                 NOTE / Instructions (Optionnel)
               </span>
               <span className="text-[10px] text-slate-400">Pour le livreur Sendit ou l'équipe</span>
@@ -380,7 +380,7 @@ export function CreateOrderModal({
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="Ex: ملاحظات للطلب أو للمندوب (القياس 42، اللون أسود، يفضل التوصيل بعد العصر، الاتصال قبل المجيء...)"
-              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium placeholder:text-slate-400 resize-none"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium placeholder:text-slate-400 resize-none"
             />
           </div>
 
@@ -391,7 +391,7 @@ export function CreateOrderModal({
             <select
               value={selectedCatalogId}
               onChange={(e) => handleSelectProduct(e.target.value)}
-              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium bg-white"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
             >
               {CATALOG_PRODUCTS.map((prod) => (
                 <option key={prod.id} value={prod.id}>
@@ -413,7 +413,7 @@ export function CreateOrderModal({
                 value={productName}
                 onChange={(e) => setProductName(e.target.value)}
                 placeholder="Ex: Smart Watch S2"
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
             </div>
             <div>
@@ -425,7 +425,7 @@ export function CreateOrderModal({
                 required
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
             </div>
           </div>
@@ -437,7 +437,7 @@ export function CreateOrderModal({
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as OrderStatus)}
-              className="w-full text-xs p-2.5 rounded-lg border border-slate-200 focus:outline-[#135d54] font-medium bg-white"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
             >
               <option value="PENDING_CONFIRMATION">1. En attente de confirmation</option>
               <option value="PROCESSING">2. En préparation (AWB)</option>
@@ -450,13 +450,13 @@ export function CreateOrderModal({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              className="btn-secondary"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-black bg-[#135d54] hover:bg-[#0f4a42] text-white rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+              className="btn-primary"
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Enregistrer Commande</span>

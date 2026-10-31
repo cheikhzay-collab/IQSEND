@@ -38,7 +38,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr" dir="ltr">
-      <body className="min-h-screen bg-[#F8FAFC] font-sans antialiased selection:bg-teal-500 selection:text-white">
+      <body className="min-h-screen bg-[#F8FAFC] font-sans antialiased selection:bg-emerald-500 selection:text-white">
         <AppProviders>{children}</AppProviders>
       </body>
     </html>

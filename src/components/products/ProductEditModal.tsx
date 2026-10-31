@@ -278,7 +278,7 @@ export function ProductEditModal({
         {/* Modal Header */}
         <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/20 border border-teal-400/40 flex items-center justify-center text-teal-300 font-black">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 font-black">
               <Package className="w-5 h-5" />
             </div>
             <div>
@@ -286,7 +286,7 @@ export function ProductEditModal({
                 <h2 className="text-base sm:text-lg font-black tracking-tight">
                   {product ? 'Modifier la Fiche Produit & Directives IA' : 'Nouveau Produit & Configuration COD'}
                 </h2>
-                <span className="text-[10px] font-mono bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded-full border border-teal-400/30">
+                <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-400/30">
                   {sku || 'SKU'}
                 </span>
               </div>

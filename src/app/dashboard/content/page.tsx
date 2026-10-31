@@ -70,8 +70,8 @@ export default function ContentPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-2">
-            <Folder className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+            <Folder className="w-3.5 h-3.5 text-emerald-600" />
             Bibliothèque Multimédia & Scripts COD Maroc
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -96,7 +96,7 @@ export default function ContentPage() {
           onClick={() => setActiveTab('SCRIPTS')}
           className={`pb-3 flex items-center gap-2 transition-colors border-b-2 ${
             activeTab === 'SCRIPTS'
-              ? 'border-teal-600 text-teal-700'
+              ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -107,7 +107,7 @@ export default function ContentPage() {
           onClick={() => setActiveTab('VOICE')}
           className={`pb-3 flex items-center gap-2 transition-colors border-b-2 ${
             activeTab === 'VOICE'
-              ? 'border-teal-600 text-teal-700'
+              ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -118,7 +118,7 @@ export default function ContentPage() {
           onClick={() => setActiveTab('MEDIA')}
           className={`pb-3 flex items-center gap-2 transition-colors border-b-2 ${
             activeTab === 'MEDIA'
-              ? 'border-teal-600 text-teal-700'
+              ? 'border-emerald-600 text-emerald-700'
               : 'border-transparent text-slate-400 hover:text-slate-700'
           }`}
         >
@@ -133,7 +133,7 @@ export default function ContentPage() {
           {TEMPLATES.map((tmpl) => (
             <div key={tmpl.id} className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                   {tmpl.category} • {tmpl.language}
                 </span>
                 <button
@@ -174,7 +174,7 @@ export default function ContentPage() {
                   <span className="text-[11px] text-slate-400">Durée: 0:24 • Darija marocaine</span>
                 </div>
               </div>
-              <button className="px-2.5 py-1 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg">
+              <button className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
                 Utiliser
               </button>
             </div>
@@ -189,7 +189,7 @@ export default function ContentPage() {
                   <span className="text-[11px] text-slate-400">Durée: 0:18 • Darija marocaine</span>
                 </div>
               </div>
-              <button className="px-2.5 py-1 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 rounded-lg">
+              <button className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg">
                 Utiliser
               </button>
             </div>

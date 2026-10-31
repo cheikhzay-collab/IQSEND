@@ -348,7 +348,7 @@ export function AgentInterventionModal({
               onClick={() => setSelectedTone('upsell')}
               className={`px-2 py-0.5 rounded-lg border text-[10.5px] font-bold transition-colors ${
                 selectedTone === 'upsell'
-                  ? 'bg-teal-700 text-white border-teal-700'
+                  ? 'bg-emerald-700 text-white border-emerald-700'
                   : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
               }`}
             >
@@ -467,7 +467,7 @@ export function AgentInterventionModal({
             <button
               onClick={handleSendDirectWhatsApp}
               disabled={isSending || !messageText.trim()}
-              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all disabled:opacity-50"
+              className="flex-1 sm:flex-none px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 active:scale-98 transition-all disabled:opacity-50"
             >
               {isSending ? (
                 <>

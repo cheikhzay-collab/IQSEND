@@ -265,9 +265,9 @@ export default function ProcessingOrdersPage() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => setInvoiceOrder(order)}
-                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100/80 py-2 px-3 rounded-xl border border-teal-200 transition-colors"
+                          className="flex-1 inline-flex items-center justify-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 py-2 px-3 rounded-xl border border-emerald-200 transition-colors"
                         >
-                          <FileText className="w-3.5 h-3.5 text-teal-600" />
+                          <FileText className="w-3.5 h-3.5 text-emerald-600" />
                           <span>Facture ({order.payment.amount} DH)</span>
                         </button>
 
@@ -382,9 +382,9 @@ export default function ProcessingOrdersPage() {
                             <div className="flex flex-col gap-1.5 items-start">
                               <button
                                 onClick={() => setInvoiceOrder(order)}
-                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 hover:text-teal-800 bg-teal-50 hover:bg-teal-100/80 px-2.5 py-1 rounded-lg border border-teal-200/80 transition-colors"
+                                className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200/80 transition-colors"
                               >
-                                <FileText className="w-3 h-3 text-teal-600" />
+                                <FileText className="w-3 h-3 text-emerald-600" />
                                 <span>Facture {order.fulfillment?.invoiceNumber || '#INV'}</span>
                               </button>
                               <span className="text-[10px] text-slate-400">

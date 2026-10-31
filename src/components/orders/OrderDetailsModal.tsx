@@ -117,7 +117,7 @@ export function OrderDetailsModal({
         {/* Modal Header */}
         <div className="p-4 px-5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-800 font-black text-sm shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-800 font-black text-sm shrink-0">
               COD
             </div>
             <div>
@@ -171,7 +171,7 @@ export function OrderDetailsModal({
               <select
                 value={order.status}
                 onChange={(e) => onStatusChange(order.id, e.target.value as OrderStatus)}
-                className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-teal-600"
+                className="text-xs font-bold bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-emerald-600"
               >
                 <option value="PENDING_CONFIRMATION">1. En attente (Pending)</option>
                 <option value="PROCESSING">2. En préparation (Processing)</option>
@@ -192,7 +192,7 @@ export function OrderDetailsModal({
             <div className="flex-1">
               <span className="text-xs font-bold text-slate-900 block">{order.productName}</span>
               <div className="mt-1 flex items-center gap-2">
-                <span className="text-xs font-black text-teal-700">
+                <span className="text-xs font-black text-emerald-700">
                   {order.amount} {order.currency}
                 </span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">
@@ -214,7 +214,7 @@ export function OrderDetailsModal({
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
                 <span className="text-slate-400 text-[11px] block">Téléphone</span>
-                <a href={`tel:${order.phone}`} className="font-bold text-teal-700 hover:underline">
+                <a href={`tel:${order.phone}`} className="font-bold text-emerald-700 hover:underline">
                   {order.phone}
                 </a>
               </div>
@@ -275,7 +275,7 @@ export function OrderDetailsModal({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onSendWhatsApp(order, customMsg)}
-                className="flex-1 bg-[#25D366] hover:bg-[#20be5a] text-white font-bold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 shadow-xs transition-colors"
+                className="btn-whatsapp flex-1"
               >
                 <Send className="w-3.5 h-3.5" />
                 Envoyer sur WhatsApp ({order.phone})
@@ -287,7 +287,7 @@ export function OrderDetailsModal({
                     onClose();
                     onOpenAgentIntervention(order);
                   }}
-                  className="px-3 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
+                  className="px-3.5 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-700 active:scale-[0.98] text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all"
                   title="Ouvrir l'intervention Agent IA pour contrôle complet"
                 >
                   <Bot className="w-3.5 h-3.5" />
@@ -303,7 +303,7 @@ export function OrderDetailsModal({
           <div className="flex items-center gap-2">
             <button
               onClick={() => window.print()}
-              className="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+              className="btn-secondary btn-sm"
             >
               <Printer className="w-3.5 h-3.5" />
               Imprimer Bon
@@ -314,7 +314,7 @@ export function OrderDetailsModal({
                 href={waybillLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl hover:bg-blue-100 transition-colors shadow-2xs"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3.5 py-2 rounded-xl hover:bg-blue-100 transition-colors shadow-2xs"
               >
                 <FileText className="w-3.5 h-3.5 text-blue-600" />
                 Bordereau Sendit ({pushSuccess})
@@ -325,7 +325,7 @@ export function OrderDetailsModal({
               <button
                 onClick={handlePushToSendit}
                 disabled={isPushing}
-                className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-1.5 rounded-xl shadow-xs transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 px-3.5 py-2 rounded-xl shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
               >
                 <Truck className="w-3.5 h-3.5" />
                 {isPushing ? 'Génération AWB...' : 'Pousser vers Sendit (AWB)'}
@@ -335,7 +335,7 @@ export function OrderDetailsModal({
 
           <button
             onClick={onClose}
-            className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors"
+            className="btn-dark"
           >
             Fermer
           </button>

@@ -86,8 +86,8 @@ export default function MarketingPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-2">
-            <Megaphone className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+            <Megaphone className="w-3.5 h-3.5 text-emerald-600" />
             Marketing WhatsApp Broadcast & Rentabilité COD
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -145,12 +145,12 @@ export default function MarketingPage() {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-teal-600" />
+            <BarChart3 className="w-5 h-5 text-emerald-600" />
             <h3 className="font-bold text-sm text-slate-900">
               Calculateur de Rentabilité COD Maroc (Facebook/TikTok Ads + Sendit)
             </h3>
           </div>
-          <span className="text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-lg">
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">
             Simulation en direct
           </span>
         </div>
@@ -223,7 +223,7 @@ export default function MarketingPage() {
           </div>
           <div>
             <span className="text-[10px] text-slate-400 block uppercase">Retour sur Dépense (ROI)</span>
-            <strong className="text-lg font-black text-teal-300">+{roiPercent}%</strong>
+            <strong className="text-lg font-black text-emerald-300">+{roiPercent}%</strong>
           </div>
         </div>
       </div>

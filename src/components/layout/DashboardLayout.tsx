@@ -142,7 +142,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const isRouteAllowed = canAccessRoute(pathname);
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-800 antialiased selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col text-slate-800 antialiased selection:bg-emerald-500 selection:text-white">
 
       {/* ───────────────────────────────────────────────────────────── */}
       {/* 1. TOP GLOBAL NAVIGATION BAR (DESKTOP + MOBILE)              */}
@@ -153,12 +153,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {/* Left: Brand Logo & Search */}
         <div className="flex items-center gap-4 shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2.5 group shrink-0">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-600 to-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs group-hover:scale-105 transition-transform">
               IQ
             </div>
             <div className="flex flex-col">
               <span className="font-black text-base tracking-tight text-slate-900 leading-none">
-                IQ<span className="text-teal-600 font-extrabold text-xs ml-0.5">SEND</span>
+                IQ<span className="text-emerald-600 font-extrabold text-xs ml-0.5">SEND</span>
               </span>
               <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
                 COD Suite Maroc • Sendit.ma
@@ -170,7 +170,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div
             className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all w-80 bg-slate-50/70 ${
               searchFocused
-                ? 'border-teal-500 bg-white ring-2 ring-teal-500/20 shadow-xs'
+                ? 'border-emerald-500 bg-white ring-2 ring-emerald-500/20 shadow-xs'
                 : 'border-slate-200 hover:border-slate-300'
             }`}
           >
@@ -201,10 +201,10 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           {hasPermission('canAccessAiAgents') && (
             <Link
               href="/dashboard/ai-agents"
-              className="p-1.5 rounded-xl text-slate-400 hover:text-teal-600 hover:bg-teal-50 transition-colors"
+              className="p-1.5 rounded-xl text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
               title="Assistant IA Gemini"
             >
-              <Sparkles className="w-4 h-4 text-slate-500 hover:text-teal-600" />
+              <Sparkles className="w-4 h-4 text-slate-500 hover:text-emerald-600" />
             </Link>
           )}
 
@@ -238,7 +238,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <img
                   src={currentUser.avatarUrl}
                   alt={currentUser.name}
-                  className="w-7 h-7 rounded-full object-cover ring-2 ring-teal-500/20"
+                  className="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-500/20"
                 />
               ) : (
                 <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
@@ -249,7 +249,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px]">
                   {currentUser?.name || 'Admin'}
                 </span>
-                <span className="text-[9px] font-bold text-teal-600 uppercase tracking-wider">
+                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
                   {currentUser?.role === 'ADMIN' ? 'Directeur Admin' : currentUser?.role || 'Agent'}
                 </span>
               </div>
@@ -281,14 +281,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
               IQ
             </div>
             <div className="flex items-center gap-1.5">
               <span className="font-black text-sm tracking-tight text-slate-900">
                 IQSEND
               </span>
-              <span className="text-[10px] font-black text-teal-600 bg-teal-50 px-1.5 py-0.2 rounded">
+              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded">
                 COD
               </span>
             </div>
@@ -317,7 +317,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 max-w-lg w-full mx-auto space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2">
               <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-teal-600" />
+                <Search className="w-4 h-4 text-emerald-600" />
                 <h3 className="font-bold text-xs text-slate-900">Recherche Mobile Rapide</h3>
               </div>
               <button
@@ -336,7 +336,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="N° commande, client, ville, téléphone..."
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-teal-600 focus:bg-white"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-emerald-600 focus:bg-white"
               />
             </div>
 
@@ -403,7 +403,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2"
                 >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-teal-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
                     IQ
                   </div>
                   <div>
@@ -448,12 +448,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       onClick={() => setMobileMenuOpen(false)}
                       className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
                         isOrdersActive
-                          ? 'bg-teal-50 text-teal-950 font-black border border-teal-200/80'
+                          ? 'bg-emerald-50 text-emerald-950 font-black border border-emerald-200/80'
                           : 'text-slate-700 hover:bg-slate-100'
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <ShoppingBag className="w-4 h-4 text-teal-700 shrink-0" />
+                        <ShoppingBag className="w-4 h-4 text-emerald-700 shrink-0" />
                         <span>Toutes les Commandes</span>
                       </div>
                       {pendingCount > 0 && (
@@ -540,9 +540,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Link
                     href="/dashboard/ai-agents"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-teal-800 hover:bg-teal-50"
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
                   >
-                    <Bot className="w-4 h-4 text-teal-600" />
+                    <Bot className="w-4 h-4 text-emerald-600" />
                     <span>Agents IA (Gemini)</span>
                   </Link>
                 )}
@@ -654,12 +654,12 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   href="/dashboard/orders"
                   className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                     isOrdersActive
-                      ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200/60'
+                      ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/60'
                       : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <ShoppingBag className="w-4 h-4 text-teal-700" />
+                    <ShoppingBag className="w-4 h-4 text-emerald-700" />
                     <span>Commandes</span>
                   </div>
                   {pendingCount > 0 && (
@@ -780,11 +780,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 href="/dashboard/ai-agents"
                 className={`flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   pathname === '/dashboard/ai-agents'
-                    ? 'bg-teal-50 text-teal-950 font-bold border border-teal-200'
+                    ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <Bot className="w-4 h-4 text-teal-600" />
+                <Bot className="w-4 h-4 text-emerald-600" />
                 <span>Agents IA (Gemini Darija)</span>
               </Link>
             )}
@@ -913,7 +913,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <div className="p-3 space-y-2 border-t border-slate-100 bg-slate-50/40">
             <div className="bg-[#135d54] text-white p-3.5 rounded-2xl shadow-sm">
               <h4 className="font-bold text-xs">Assistance & Support Dédié</h4>
-              <p className="text-[10px] text-teal-100 mt-1 leading-tight">
+              <p className="text-[10px] text-emerald-100 mt-1 leading-tight">
                 Accompagnement expert pour votre logistique COD Maroc
               </p>
             </div>
@@ -996,7 +996,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             href="/dashboard/orders"
             className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
               isOrdersActive
-                ? 'text-teal-700 font-bold scale-105'
+                ? 'text-emerald-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -1044,7 +1044,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             href="/dashboard/ai-agents"
             className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
               pathname === '/dashboard/ai-agents'
-                ? 'text-teal-700 font-bold scale-105'
+                ? 'text-emerald-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
@@ -1069,7 +1069,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       {/* ───────────────────────────────────────────────────────────── */}
       {toast && (
         <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-900 text-white shadow-2xl text-xs font-medium border border-slate-700 animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
-          <div className="w-2 h-2 rounded-full bg-teal-400 animate-pulse shrink-0" />
+          <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
           <span className="line-clamp-2">{toast.message}</span>
           <button
             onClick={clearToast}

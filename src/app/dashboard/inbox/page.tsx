@@ -278,7 +278,7 @@ export default function WhatsAppInboxPage() {
               <input
                 type="text"
                 placeholder="Rechercher une conversation..."
-                className="w-full bg-slate-100 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:bg-white"
+                className="w-full bg-slate-100 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:bg-white"
               />
             </div>
             <div className="flex gap-1 text-[11px]">
@@ -693,7 +693,7 @@ export default function WhatsAppInboxPage() {
                 value={inputMessage}
                 onChange={(e) => setInputMessage(e.target.value)}
                 placeholder="Écrire un message en Darija ou Français..."
-                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-hidden focus:bg-white focus:ring-2 focus:ring-blue-500"
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500"
               />
               <button
                 type="submit"
@@ -711,7 +711,7 @@ export default function WhatsAppInboxPage() {
               <div className="w-80 lg:w-88 border-l border-slate-200 bg-white flex flex-col shrink-0 overflow-y-auto p-4 space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <div className="flex items-center gap-2">
-                    <ShoppingBag className="w-4 h-4 text-teal-600" />
+                    <ShoppingBag className="w-4 h-4 text-emerald-600" />
                     <h3 className="font-black text-xs text-slate-900 uppercase tracking-wider">
                       Commande & Logistique
                     </h3>

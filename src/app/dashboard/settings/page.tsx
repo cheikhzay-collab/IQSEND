@@ -370,7 +370,7 @@ export default function SettingsPage() {
         <button
           onClick={handleSaveAllSettings}
           disabled={isSavingAll}
-          className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer shadow-sm"
+          className="btn-primary"
         >
           <Save className="w-3.5 h-3.5" />
           {isSavingAll ? 'Enregistrement...' : 'Enregistrer les Paramètres'}
@@ -581,7 +581,7 @@ export default function SettingsPage() {
                 placeholder="Ex: AIzaSyD39kL89_Z1xxxxxxxxxxxxxxxxxxxxxx"
                 value={geminiKey}
                 onChange={(e) => setGeminiKey(e.target.value)}
-                className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 text-xs focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                className="flex-1 p-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-slate-800 text-xs focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-none"
               />
               <button
                 onClick={handleSaveGeminiKey}
@@ -1047,7 +1047,7 @@ export default function SettingsPage() {
                   placeholder="اكتب مسح أو DELETE للتأكيد"
                   value={wipeConfirmationInput}
                   onChange={(e) => setWipeConfirmationInput(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-mono text-center text-xs font-bold text-slate-800 focus:bg-white focus:border-rose-500 focus:outline-hidden"
+                  className="w-full p-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-mono text-center text-xs font-bold text-slate-800 focus:bg-white focus:border-rose-500 focus:outline-none"
                   autoFocus
                 />
               </div>

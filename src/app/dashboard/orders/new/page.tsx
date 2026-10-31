@@ -223,7 +223,7 @@ export default function NewOrderPage() {
                 <h1 className="text-xl font-black text-slate-900 tracking-tight">
                   Formulaire de Commande COD
                 </h1>
-                <span className="bg-teal-100 text-teal-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-teal-200">
+                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
                   STANDARD EXPÉDITION MAROC
                 </span>
               </div>
@@ -246,7 +246,7 @@ export default function NewOrderPage() {
         </div>
 
         {/* 3. GOOGLE SHEETS 1-CLICK SYNC BANNER (L'option la plus simple) */}
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-white rounded-2xl border border-emerald-200/90 p-5 shadow-xs space-y-4">
+        <div className="bg-gradient-to-r from-emerald-50 via-emerald-50 to-white rounded-2xl border border-emerald-200/90 p-5 shadow-xs space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div className="flex items-start gap-3">
               <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
@@ -368,7 +368,7 @@ export default function NewOrderPage() {
                   </span>
                   <button
                     onClick={copyWebhookUrl}
-                    className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200 hover:bg-teal-100 shrink-0"
+                    className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 shrink-0"
                   >
                     {copiedWebhook ? 'Copié ✓' : 'Copier Webhook'}
                   </button>
@@ -414,7 +414,7 @@ export default function NewOrderPage() {
                 <select
                   value={hasLabels}
                   onChange={(e) => setHasLabels(e.target.value)}
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors"
                 >
                   <option value="NON">Non (Générer les bordereaux Sendit automatiquement)</option>
                   <option value="OUI">Oui (J'ai déjà imprimé mes étiquettes)</option>
@@ -429,7 +429,7 @@ export default function NewOrderPage() {
                 <select
                   value={clientCity}
                   onChange={(e) => setClientCity(e.target.value)}
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors"
                 >
                   {MOROCCAN_CITIES.map((c) => (
                     <option key={c} value={c}>
@@ -447,7 +447,7 @@ export default function NewOrderPage() {
                 <select
                   value={pickupCity}
                   onChange={(e) => setPickupCity(e.target.value)}
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors"
                 >
                   {PICKUP_HUBS.map((hub) => (
                     <option key={hub} value={hub}>
@@ -468,7 +468,7 @@ export default function NewOrderPage() {
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Ex: Yassine Bennani"
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors placeholder-slate-400"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors placeholder-slate-400"
                 />
               </div>
 
@@ -483,7 +483,7 @@ export default function NewOrderPage() {
                   value={totalAmount}
                   onChange={(e) => setTotalAmount(e.target.value)}
                   placeholder="299"
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block italic">
                   Montant total avec frais de livraison inclus (Paiement COD à la livraison).
@@ -506,7 +506,7 @@ export default function NewOrderPage() {
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="0612345678"
-                    className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl pl-16 pr-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors placeholder-slate-400 font-mono"
+                    className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl pl-16 pr-3.5 py-2.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors placeholder-slate-400 font-mono"
                   />
                 </div>
                 <span className="text-[10px] text-slate-400 mt-1 block">
@@ -524,7 +524,7 @@ export default function NewOrderPage() {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="Ex: Quartier Maârif, Rue Abou Bakr, Immeuble 14, Appt 5"
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors placeholder-slate-400"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors placeholder-slate-400"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
                   Veuillez indiquer une adresse complète afin de prévenir les retards.
@@ -546,7 +546,7 @@ export default function NewOrderPage() {
                   value={vendorRef}
                   onChange={(e) => setVendorRef(e.target.value)}
                   placeholder="Référence vendeur (#ORD-...)"
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-mono font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors"
                 />
               </div>
 
@@ -560,7 +560,7 @@ export default function NewOrderPage() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Note pour le livreur ou call center..."
-                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs transition-colors placeholder-slate-400"
+                  className="w-full bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs transition-colors placeholder-slate-400"
                 />
                 <span className="text-[10px] text-slate-400 mt-1 block">
                   Des informations supplémentaires (2ème numéro de téléphone, créneau horaire...)
@@ -652,7 +652,7 @@ export default function NewOrderPage() {
                       },
                     ])
                   }
-                  className="text-xs font-bold text-teal-700 hover:text-teal-800 inline-flex items-center gap-1"
+                  className="text-xs font-bold text-emerald-700 hover:text-emerald-800 inline-flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>Ajouter un article</span>
@@ -675,7 +675,7 @@ export default function NewOrderPage() {
                           setProducts(updated);
                         }}
                         placeholder="Nom du produit..."
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
                     <div className="w-28">
@@ -688,7 +688,7 @@ export default function NewOrderPage() {
                           setProducts(updated);
                         }}
                         placeholder="SKU"
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-mono font-medium focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-800 font-mono font-medium focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
                     <div className="w-20">
@@ -701,7 +701,7 @@ export default function NewOrderPage() {
                           updated[index].quantity = parseInt(e.target.value, 10) || 1;
                           setProducts(updated);
                         }}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-bold text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
+                        className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-bold text-center focus:outline-none focus:ring-1 focus:ring-emerald-500"
                       />
                     </div>
                     <div className="w-28">
@@ -714,7 +714,7 @@ export default function NewOrderPage() {
                             updated[index].price = parseFloat(e.target.value) || 0;
                             setProducts(updated);
                           }}
-                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-teal-500"
+                          className="w-full bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-emerald-500"
                         />
                         <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400 font-bold">
                           MAD

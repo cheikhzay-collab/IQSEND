@@ -70,9 +70,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070D18] flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-teal-500 selection:text-white">
+    <div className="min-h-screen bg-[#070D18] flex flex-col justify-center items-center p-4 relative overflow-hidden font-sans selection:bg-emerald-500 selection:text-white">
       {/* Background Ambient Glows & Mesh Gradients */}
-      <div className="absolute top-[-20%] left-[-10%] w-[550px] h-[550px] rounded-full bg-teal-600/15 blur-[120px] pointer-events-none" />
+      <div className="absolute top-[-20%] left-[-10%] w-[550px] h-[550px] rounded-full bg-emerald-600/15 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-emerald-600/10 blur-[140px] pointer-events-none" />
       <div className="absolute top-[40%] right-[30%] w-[400px] h-[400px] rounded-full bg-indigo-600/10 blur-[130px] pointer-events-none" />
 
@@ -90,15 +90,15 @@ export default function LoginPage() {
         {/* Brand Header */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center justify-center gap-3 bg-slate-900/90 border border-slate-800/80 px-4 py-2 rounded-2xl shadow-xl backdrop-blur-md">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-emerald-700 text-white flex items-center justify-center font-black text-base shadow-lg shadow-teal-500/20">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 text-white flex items-center justify-center font-black text-base shadow-lg shadow-emerald-500/20">
               IQ
             </div>
             <div className="text-left">
               <div className="flex items-center gap-1.5">
                 <span className="font-black text-xl tracking-tight text-white leading-none">
-                  IQ<span className="text-teal-400 font-extrabold text-sm ml-0.5">SEND</span>
+                  IQ<span className="text-emerald-400 font-extrabold text-sm ml-0.5">SEND</span>
                 </span>
-                <span className="text-[10px] font-black uppercase tracking-wider text-teal-400 bg-teal-500/10 border border-teal-500/20 px-2 py-0.5 rounded-full">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">
                   COD MAROC
                 </span>
               </div>
@@ -119,23 +119,23 @@ export default function LoginPage() {
         </div>
 
         {/* Admin Credentials Quick Info Banner */}
-        <div className="bg-gradient-to-r from-teal-950/60 via-slate-900/80 to-slate-900/60 border border-teal-500/30 rounded-2xl p-3.5 backdrop-blur-md shadow-xl text-left relative overflow-hidden group">
-          <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-teal-400 to-emerald-500" />
+        <div className="bg-gradient-to-r from-emerald-950/60 via-slate-900/80 to-slate-900/60 border border-emerald-500/30 rounded-2xl p-3.5 backdrop-blur-md shadow-xl text-left relative overflow-hidden group">
+          <div className="absolute right-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-400 to-emerald-500" />
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1 text-xs">
-              <div className="flex items-center gap-1.5 font-bold text-teal-300">
-                <KeyRound className="w-4 h-4 text-teal-400" />
+              <div className="flex items-center gap-1.5 font-bold text-emerald-300">
+                <KeyRound className="w-4 h-4 text-emerald-400" />
                 <span>Identifiants Administrateur (Admin Credentials)</span>
               </div>
               <div className="text-[11px] text-slate-300 space-y-0.5 pl-5 font-mono">
-                <div>Email : <span className="text-teal-200 font-bold">admin@sendit.ma</span></div>
-                <div>Mot de passe : <span className="text-teal-200 font-bold">admin123456</span></div>
+                <div>Email : <span className="text-emerald-200 font-bold">admin@sendit.ma</span></div>
+                <div>Mot de passe : <span className="text-emerald-200 font-bold">admin123456</span></div>
               </div>
             </div>
             <button
               type="button"
               onClick={handleQuickAdminFill}
-              className="text-[11px] font-bold bg-teal-500/20 hover:bg-teal-500/30 text-teal-300 border border-teal-500/40 px-2.5 py-1.5 rounded-xl transition-all shrink-0 active:scale-95 shadow-sm"
+              className="text-[11px] font-bold bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 px-2.5 py-1.5 rounded-xl transition-all shrink-0 active:scale-95 shadow-sm"
               title="Remplir automatiquement les identifiants administrateur"
             >
               Remplir Admin ⚡
@@ -155,8 +155,8 @@ export default function LoginPage() {
           )}
 
           {successMessage && (
-            <div className="bg-teal-950/50 border border-teal-500/40 text-teal-200 text-xs p-3.5 rounded-2xl flex items-start gap-2.5 animate-in fade-in duration-200">
-              <CheckCircle2 className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
+            <div className="bg-emerald-950/50 border border-emerald-500/40 text-emerald-200 text-xs p-3.5 rounded-2xl flex items-start gap-2.5 animate-in fade-in duration-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
               <div className="font-medium leading-relaxed">{successMessage}</div>
             </div>
           )}
@@ -178,7 +178,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@sendit.ma"
-                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/60 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all font-medium"
+                  className="w-full pl-10 pr-3.5 py-2.5 bg-slate-950/60 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                 />
               </div>
             </div>
@@ -189,7 +189,7 @@ export default function LoginPage() {
                 <label className="block text-xs font-bold text-slate-300">
                   Mot de passe
                 </label>
-                <span className="text-[11px] text-teal-400 hover:text-teal-300 cursor-pointer transition-colors font-medium">
+                <span className="text-[11px] text-emerald-400 hover:text-emerald-300 cursor-pointer transition-colors font-medium">
                   Aide à la connexion
                 </span>
               </div>
@@ -203,7 +203,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/60 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20 transition-all font-medium"
+                  className="w-full pl-10 pr-10 py-2.5 bg-slate-950/60 border border-slate-700/80 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all font-medium"
                 />
                 <button
                   type="button"
@@ -222,12 +222,12 @@ export default function LoginPage() {
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-teal-600 focus:ring-teal-500 focus:ring-offset-slate-900"
+                  className="w-4 h-4 rounded border-slate-700 bg-slate-950 text-emerald-600 focus:ring-emerald-500 focus:ring-offset-slate-900"
                 />
                 <span className="text-xs text-slate-300 font-medium">Se souvenir de moi</span>
               </label>
 
-              <div className="flex items-center gap-1 text-[11px] font-bold text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded-lg border border-teal-500/20">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-lg border border-emerald-500/20">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 <span>Sécurisé SSL</span>
               </div>
@@ -237,7 +237,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-teal-500 via-teal-600 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-white font-bold text-sm shadow-lg shadow-teal-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer"
+              className="w-full mt-2 py-3 px-4 rounded-xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition-all active:scale-[0.99] disabled:opacity-60 cursor-pointer"
             >
               {isSubmitting ? (
                 <>
@@ -262,7 +262,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={handleQuickAdminFill}
-                className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-teal-500/40 text-slate-300 transition-colors text-left"
+                className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 text-slate-300 transition-colors text-left"
               >
                 <div className="w-2 h-2 rounded-full bg-purple-500 shrink-0" />
                 <div className="truncate">
@@ -277,7 +277,7 @@ export default function LoginPage() {
                   setPassword('admin123456');
                   setErrorMessage(null);
                 }}
-                className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-teal-500/40 text-slate-300 transition-colors text-left"
+                className="flex items-center gap-1.5 p-2 rounded-xl bg-slate-950/60 border border-slate-800 hover:border-emerald-500/40 text-slate-300 transition-colors text-left"
               >
                 <div className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
                 <div className="truncate">
@@ -294,7 +294,7 @@ export default function LoginPage() {
         <div className="text-center space-y-1.5 text-slate-500 text-xs">
           <div className="flex items-center justify-center gap-4 text-[11px]">
             <span className="flex items-center gap-1">
-              <Truck className="w-3.5 h-3.5 text-teal-500" />
+              <Truck className="w-3.5 h-3.5 text-emerald-500" />
               Connexion directe Sendit.ma
             </span>
             <span>•</span>

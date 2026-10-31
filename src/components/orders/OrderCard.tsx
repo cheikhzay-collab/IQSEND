@@ -112,7 +112,7 @@ export function OrderCard({
       onClick={() => onSelect?.(order)}
       className={`group relative w-full bg-white rounded-2xl border border-slate-200/90 p-3.5 transition-all duration-200 cursor-grab active:cursor-grabbing hover:border-slate-300 hover:shadow-md ${
         isFloating
-          ? 'shadow-xl border-teal-400/80 z-30 ring-2 ring-teal-400/20'
+          ? 'shadow-xl border-emerald-400/80 z-30 ring-2 ring-emerald-400/20'
           : 'shadow-2xs'
       }`}
     >
@@ -174,7 +174,7 @@ export function OrderCard({
 
         {/* Product Details & Customer */}
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1 text-slate-900 font-bold text-xs hover:text-teal-700 transition-colors">
+          <div className="flex items-center gap-1 text-slate-900 font-bold text-xs hover:text-emerald-700 transition-colors">
             <span className="truncate">{order.productName}</span>
             <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </div>

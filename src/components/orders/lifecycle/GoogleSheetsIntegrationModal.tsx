@@ -522,7 +522,7 @@ function testConnection() {
       <div className="bg-white rounded-3xl shadow-2xl max-w-3xl w-full overflow-hidden border border-slate-200 flex flex-col max-h-[92vh]">
         
         {/* Modal Header */}
-        <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 via-teal-700 to-slate-900 text-white flex items-center justify-between shrink-0">
+        <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 via-emerald-700 to-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center shadow-inner">
               <FileSpreadsheet className="w-5 h-5 text-emerald-200" />
@@ -670,10 +670,10 @@ function testConnection() {
                 <button
                   onClick={handleDemoImport}
                   disabled={isSyncingSheet}
-                  className="flex items-center justify-center gap-2 p-3 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl text-teal-900 font-bold text-xs transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
+                  className="flex items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl text-emerald-900 font-bold text-xs transition-all shadow-2xs disabled:opacity-50 cursor-pointer"
                   title="Injecte immédiatement les 5 commandes d'exemple dans votre tableau de bord"
                 >
-                  <Sparkles className="w-4 h-4 text-teal-600" />
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
                   <span>{isSyncingSheet ? 'Import en cours...' : '⚡ Tester l\'Import (5 commandes)'}</span>
                 </button>
               </div>
@@ -765,7 +765,7 @@ function testConnection() {
               
               {/* Database Connection & Persistence Status Banner */}
               {dbSettings.saved ? (
-                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-slate-50 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="p-3.5 bg-gradient-to-r from-emerald-50 via-emerald-50 to-slate-50 rounded-2xl border border-emerald-300 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
                       <Database className="w-4 h-4" />
@@ -864,10 +864,10 @@ function testConnection() {
                       type="button"
                       onClick={() => handleSaveSettings()}
                       disabled={isSavingSettings || !sheetUrl.trim()}
-                      className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-teal-50 hover:bg-teal-100 text-teal-900 border border-teal-300 font-bold text-xs shadow-2xs transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 font-bold text-xs shadow-2xs transition-all active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
                       title="Enregistrer le lien et les options dans la base de données"
                     >
-                      <Save className={`w-3.5 h-3.5 ${isSavingSettings ? 'animate-spin' : 'text-teal-700'}`} />
+                      <Save className={`w-3.5 h-3.5 ${isSavingSettings ? 'animate-spin' : 'text-emerald-700'}`} />
                       <span>{isSavingSettings ? 'Enregistrement...' : '💾 Enregistrer dans la base de données'}</span>
                     </button>
 
@@ -885,7 +885,7 @@ function testConnection() {
                 </div>
 
                 {/* Real-time Auto-Sync Control Card */}
-                <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-slate-900/5 rounded-2xl border border-emerald-300 space-y-3">
+                <div className="p-4 bg-gradient-to-r from-emerald-500/10 via-emerald-500/10 to-slate-900/5 rounded-2xl border border-emerald-300 space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div className="space-y-0.5">
                       <div className="flex items-center gap-2">
@@ -1057,7 +1057,7 @@ function testConnection() {
                   </label>
                   <button
                     onClick={() => copyToClipboard(smartScriptCode, 'code')}
-                    className="text-xs text-teal-600 hover:text-teal-700 font-bold flex items-center gap-1 cursor-pointer"
+                    className="text-xs text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer"
                   >
                     {copiedCode ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
                     <span>{copiedCode ? 'Code copié !' : 'Copier le script'}</span>

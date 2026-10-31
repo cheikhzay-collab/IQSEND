@@ -1358,7 +1358,7 @@ export default function AiAgentsPage() {
                         ? "Posez une question sur la photo ou appuyez sur Envoyer..."
                         : "Écrivez un message en Darija, enregistrez un vocal ou envoyez une photo..."
                     }
-                    className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 shadow-2xs"
+                    className="flex-1 px-3.5 py-2.5 bg-white border border-slate-300 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-2xs"
                   />
 
                   <button
@@ -1728,7 +1728,7 @@ export default function AiAgentsPage() {
                     value={newSellingPoint}
                     onChange={(e) => setNewSellingPoint(e.target.value)}
                     placeholder="Ajouter un argument de vente..."
-                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-hidden focus:bg-white"
+                    className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:bg-white"
                   />
                   <button
                     onClick={handleAddSellingPoint}
@@ -1864,7 +1864,7 @@ export default function AiAgentsPage() {
           </h3>
           <textarea
             rows={14}
-            className="w-full font-mono text-xs p-4 bg-slate-50 border border-slate-200 rounded-xl leading-relaxed text-slate-800 focus:outline-hidden focus:bg-white"
+            className="w-full font-mono text-xs p-4 bg-slate-50 border border-slate-200 rounded-xl leading-relaxed text-slate-800 focus:outline-none focus:bg-white"
             value={systemPromptText}
             onChange={(e) => setSystemPromptText(e.target.value)}
           />
@@ -1878,8 +1878,8 @@ export default function AiAgentsPage() {
         <div className="space-y-6">
           <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-1.5">
-                <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+              <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                 Matrice des Droits & Limites d'Exécution Autonome
               </div>
               <h3 className="font-black text-sm text-slate-900">
@@ -1903,7 +1903,7 @@ export default function AiAgentsPage() {
                 <button
                   onClick={() => setCanConfirmOrders(!canConfirmOrders)}
                   className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
-                    canConfirmOrders ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                    canConfirmOrders ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
                   }`}
                 >
                   <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
@@ -1922,7 +1922,7 @@ export default function AiAgentsPage() {
                   <button
                     onClick={() => setCanOfferUpsell(!canOfferUpsell)}
                     className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
-                      canOfferUpsell ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                      canOfferUpsell ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
                     }`}
                   >
                     <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
@@ -1932,7 +1932,7 @@ export default function AiAgentsPage() {
                   <div className="pt-2 border-t border-slate-200/60">
                     <div className="flex justify-between text-[11px] text-slate-600 mb-1">
                       <span>Remise Maximale Autorisée :</span>
-                      <strong className="text-teal-700 font-bold">{maxUpsellDiscount}%</strong>
+                      <strong className="text-emerald-700 font-bold">{maxUpsellDiscount}%</strong>
                     </div>
                     <input
                       type="range"
@@ -1941,7 +1941,7 @@ export default function AiAgentsPage() {
                       step="5"
                       value={maxUpsellDiscount}
                       onChange={(e) => setMaxUpsellDiscount(parseInt(e.target.value))}
-                      className="w-full h-1.5 bg-slate-200 rounded-lg accent-teal-600 cursor-pointer"
+                      className="w-full h-1.5 bg-slate-200 rounded-lg accent-emerald-600 cursor-pointer"
                     />
                   </div>
                 )}
@@ -1958,7 +1958,7 @@ export default function AiAgentsPage() {
                 <button
                   onClick={() => setCanUpdateAddressAndGPS(!canUpdateAddressAndGPS)}
                   className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
-                    canUpdateAddressAndGPS ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                    canUpdateAddressAndGPS ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
                   }`}
                 >
                   <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
@@ -1977,7 +1977,7 @@ export default function AiAgentsPage() {
                   <button
                     onClick={() => setPriceLockdown(!priceLockdown)}
                     className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
-                      priceLockdown ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                      priceLockdown ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
                     }`}
                   >
                     <div className="w-4 h-4 rounded-full bg-white shadow-xs" />
@@ -2033,7 +2033,7 @@ export default function AiAgentsPage() {
                 placeholder="Ajouter un mot-clé (ex: نصب, شكاية, directeur)..."
                 value={newKeyword}
                 onChange={(e) => setNewKeyword(e.target.value)}
-                className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-teal-600"
+                className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-emerald-600"
               />
               <button
                 onClick={() => {

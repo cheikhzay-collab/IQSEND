@@ -177,7 +177,7 @@ export default function CustomersPage() {
             placeholder="Rechercher par nom, téléphone 06..., ville..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-teal-600 bg-slate-50/50"
+            className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-xl border border-slate-200 focus:outline-emerald-600 bg-slate-50/50"
           />
         </div>
 
@@ -185,7 +185,7 @@ export default function CustomersPage() {
           <select
             value={filterScore}
             onChange={(e) => setFilterScore(e.target.value)}
-            className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-teal-600 text-slate-700"
+            className="px-3 py-2 text-xs font-medium rounded-xl border border-slate-200 bg-white focus:outline-emerald-600 text-slate-700"
           >
             <option value="ALL">Tous les profils</option>
             <option value="VIP">⭐ VIP & Ambassadeurs</option>
@@ -218,7 +218,7 @@ export default function CustomersPage() {
                 <tr>
                   <td colSpan={8} className="py-16 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
-                      <RefreshCw className="w-6 h-6 animate-spin text-teal-600" />
+                      <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
                       <p className="text-xs font-semibold text-slate-600">Chargement de la base clients…</p>
                       <p className="text-[11px] text-slate-400">Synchronisation en direct avec la base de données</p>
                     </div>
@@ -332,7 +332,7 @@ export default function CustomersPage() {
                     <td className="py-3.5 px-4 text-right">
                       <button
                         onClick={() => setSelectedCustomer(c)}
-                        className="px-2.5 py-1 text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-lg transition-colors"
+                        className="px-2.5 py-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg transition-colors"
                       >
                         Consulter
                       </button>
@@ -351,7 +351,7 @@ export default function CustomersPage() {
           <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
             <div className="p-4 px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full bg-teal-700 text-white flex items-center justify-center font-black text-xs">
+                <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-black text-xs">
                   {selectedCustomer.name.slice(0, 2).toUpperCase()}
                 </div>
                 <div>
@@ -444,7 +444,7 @@ export default function CustomersPage() {
                     }
                   }}
                   rows={2}
-                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-teal-600"
+                  className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-800 focus:outline-emerald-600"
                   placeholder="Ajouter une note persistante..."
                 />
                 <span className="text-[10px] text-slate-400 block">Enregistrement automatique dans MySQL dès que vous quittez le champ.</span>

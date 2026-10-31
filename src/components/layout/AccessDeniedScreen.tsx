@@ -60,7 +60,7 @@ export function AccessDeniedScreen({ pathname }: AccessDeniedScreenProps) {
 
           <Link
             href="/dashboard"
-            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors shadow-sm"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl transition-colors shadow-sm"
           >
             <Home className="w-4 h-4" />
             <span>Retour au Tableau de Bord</span>

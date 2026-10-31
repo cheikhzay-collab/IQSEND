@@ -382,7 +382,7 @@ export function OrdersBoard() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher par N° commande, client, ville, tél..."
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-teal-600 shadow-2xs font-medium transition-colors"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 hover:bg-white focus:bg-white border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-emerald-600 shadow-2xs font-medium transition-colors"
               />
             </div>
 
@@ -390,7 +390,7 @@ export function OrdersBoard() {
             <select
               value={selectedCity}
               onChange={(e) => setSelectedCity(e.target.value)}
-              className="text-xs py-1.5 px-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold focus:outline-teal-600 shadow-2xs shrink-0"
+              className="text-xs py-1.5 px-3 bg-slate-50 hover:bg-white border border-slate-200 rounded-xl text-slate-700 font-semibold focus:outline-emerald-600 shadow-2xs shrink-0"
             >
               <option value="ALL">Toutes les villes ({cities.length})</option>
               {cities.map((city) => (
@@ -463,7 +463,7 @@ export function OrdersBoard() {
         {/* Loading Indicator */}
         {isLoading && lifecycleOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 bg-white rounded-2xl border border-slate-200/80 shadow-2xs gap-3">
-            <RotateCw className="w-8 h-8 animate-spin text-teal-600" />
+            <RotateCw className="w-8 h-8 animate-spin text-emerald-600" />
             <p className="text-sm font-semibold text-slate-700">Chargement des commandes en direct…</p>
             <p className="text-xs text-slate-400">Synchronisation avec la base de données MySQL</p>
           </div>
@@ -484,7 +484,7 @@ export function OrdersBoard() {
                   onDragOver={(e) => handleDragOver(e, col.id)}
                   onDrop={(e) => handleDrop(e, col.id)}
                   className={`flex flex-col rounded-2xl transition-all duration-200 border border-slate-200/90 bg-white/70 backdrop-blur-xs p-3 shadow-2xs ${
-                    isTarget ? 'bg-teal-50/70 ring-2 ring-teal-500 border-teal-300' : ''
+                    isTarget ? 'bg-emerald-50/70 ring-2 ring-emerald-500 border-emerald-300' : ''
                   }`}
                 >
                   {/* COLUMN HEADER */}

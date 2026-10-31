@@ -441,10 +441,10 @@ export default function PendingOrdersPage() {
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         onClick={() => confirmOrder(order.id)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-4 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-colors active:scale-95"
+                        className="btn-primary flex-1"
                       >
                         <Check className="w-4 h-4" />
-                        <span>Confirmer ➔ Préparation</span>
+                        <span>Confirmer</span>
                       </button>
                       <button
                         onClick={() => setEditingOrder(order)}
@@ -640,10 +640,10 @@ export default function PendingOrdersPage() {
                               <span>Agent IA</span>
                             </button>
 
-                            {/* Confirmer ➔ Préparation */}
+                            {/* Confirmer */}
                             <button
                               onClick={() => confirmOrder(order.id)}
-                              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-xs transition-transform active:scale-95"
+                              className="btn-primary btn-sm"
                               title="Confirmer la commande et la transmettre en préparation"
                             >
                               <Check className="w-3.5 h-3.5" />

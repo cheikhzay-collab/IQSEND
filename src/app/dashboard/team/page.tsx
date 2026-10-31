@@ -249,14 +249,14 @@ export default function TeamAndPermissionsPage() {
             className="flex items-center gap-1.5 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
             title="Rafraîchir les données de l'équipe"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-teal-600' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-emerald-600' : ''}`} />
             <span>Actualiser</span>
           </button>
           <button
             onClick={() => setIsAddModalOpen(true)}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-teal-700 to-slate-900 hover:from-teal-800 hover:to-slate-950 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98 cursor-pointer"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-emerald-700 to-slate-900 hover:from-emerald-800 hover:to-slate-950 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-98 cursor-pointer"
           >
-            <UserPlus className="w-4 h-4 text-teal-300" />
+            <UserPlus className="w-4 h-4 text-emerald-300" />
             <span>Ajouter un collaborateur</span>
           </button>
         </div>
@@ -355,19 +355,19 @@ export default function TeamAndPermissionsPage() {
       {/* ───────────────────────────────────────────────────────────── */}
       {/* 3. QUICK RBAC ROLE TESTER & ACTIVE USER SWITCHER BANNER      */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-teal-950 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-700/60">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 text-white rounded-2xl p-4 sm:p-5 shadow-lg border border-slate-700/60">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <Laptop className="w-4 h-4 text-teal-400" />
-              <span className="text-xs font-black uppercase tracking-wider text-teal-300">
+              <Laptop className="w-4 h-4 text-emerald-400" />
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-300">
                 Simulateur de rôle actif pour tester la plateforme :
               </span>
             </div>
             <p className="text-xs text-slate-300">
               Vous naviguez actuellement en tant que :{' '}
               <strong className="text-white font-bold">{currentUser?.name}</strong>{' '}
-              <span className="text-teal-300">({currentUser?.jobTitle})</span> — La barre latérale et les autorisations de modules s'adaptent instantanément au collaborateur sélectionné.
+              <span className="text-emerald-300">({currentUser?.jobTitle})</span> — La barre latérale et les autorisations de modules s'adaptent instantanément au collaborateur sélectionné.
             </p>
           </div>
 
@@ -381,7 +381,7 @@ export default function TeamAndPermissionsPage() {
                   onClick={() => switchUser(u.id)}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-teal-500 text-white shadow-sm ring-2 ring-teal-300/50 scale-102'
+                      ? 'bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-300/50 scale-102'
                       : 'bg-white/10 text-slate-200 hover:bg-white/20 hover:text-white'
                   }`}
                 >
@@ -446,7 +446,7 @@ export default function TeamAndPermissionsPage() {
                   <tr
                     key={user.id}
                     className={`hover:bg-slate-50/60 transition-colors ${
-                      isCurrentActive ? 'bg-teal-50/30' : ''
+                      isCurrentActive ? 'bg-emerald-50/30' : ''
                     }`}
                   >
                     {/* User & Login Info */}
@@ -476,7 +476,7 @@ export default function TeamAndPermissionsPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-bold text-slate-900 text-xs">{user.name}</span>
                             {isCurrentActive && (
-                              <span className="bg-teal-100 text-teal-800 text-[9px] font-black px-1.5 py-0.2 rounded">
+                              <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.2 rounded">
                                 Votre compte actif
                               </span>
                             )}
@@ -545,7 +545,7 @@ export default function TeamAndPermissionsPage() {
                           </span>
                         )}
                         {perms?.canAccessAiAgents && (
-                          <span className="bg-teal-50 text-teal-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
+                          <span className="bg-emerald-50 text-emerald-700 text-[10px] px-2 py-0.5 rounded-md font-semibold">
                             🤖 Agents IA
                           </span>
                         )}
@@ -696,7 +696,7 @@ export default function TeamAndPermissionsPage() {
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Tableau de bord principal</span>
                       <span className="text-[10px] text-slate-400">Statistiques et indicateurs globaux</span>
@@ -705,11 +705,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessDashboard}
                       onChange={(e) => setPermsState({ ...permsState, canAccessDashboard: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Gestion des commandes</span>
                       <span className="text-[10px] text-slate-400">Toutes les commandes et modifications</span>
@@ -718,11 +718,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessOrders}
                       onChange={(e) => setPermsState({ ...permsState, canAccessOrders: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Centre d'appels (Call Center)</span>
                       <span className="text-[10px] text-slate-400">Validation téléphonique des commandes</span>
@@ -731,11 +731,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessConfirmation}
                       onChange={(e) => setPermsState({ ...permsState, canAccessConfirmation: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Gestion des Leads & Capture</span>
                       <span className="text-[10px] text-slate-400">Qualification et intention d'achat</span>
@@ -744,7 +744,7 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessLeads}
                       onChange={(e) => setPermsState({ ...permsState, canAccessLeads: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
                 </div>
@@ -757,7 +757,7 @@ export default function TeamAndPermissionsPage() {
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Messagerie WhatsApp</span>
                       <span className="text-[10px] text-slate-400">WhatsApp Live Inbox et échanges</span>
@@ -766,11 +766,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessInbox}
                       onChange={(e) => setPermsState({ ...permsState, canAccessInbox: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Agents IA Gemini (Darija)</span>
                       <span className="text-[10px] text-slate-400">Confirmation automatique et réponses</span>
@@ -779,7 +779,7 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessAiAgents}
                       onChange={(e) => setPermsState({ ...permsState, canAccessAiAgents: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
                 </div>
@@ -792,7 +792,7 @@ export default function TeamAndPermissionsPage() {
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Station d'emballage (AWB)</span>
                       <span className="text-[10px] text-slate-400">Impression bordereaux et scan code-barres</span>
@@ -801,11 +801,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessPacking}
                       onChange={(e) => setPermsState({ ...permsState, canAccessPacking: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Suivi & Sauvetage Colis</span>
                       <span className="text-[10px] text-slate-400">Statuts de livraison Sendit en direct</span>
@@ -814,7 +814,7 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessTracking}
                       onChange={(e) => setPermsState({ ...permsState, canAccessTracking: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
                 </div>
@@ -827,7 +827,7 @@ export default function TeamAndPermissionsPage() {
                 </span>
                 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Catalogue & Stocks Hubs</span>
                       <span className="text-[10px] text-slate-400">Gestion des articles et inventaire</span>
@@ -836,11 +836,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessProducts}
                       onChange={(e) => setPermsState({ ...permsState, canAccessProducts: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Clients & CRM</span>
                       <span className="text-[10px] text-slate-400">Fiches clients et score de confiance</span>
@@ -849,11 +849,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessCustomers}
                       onChange={(e) => setPermsState({ ...permsState, canAccessCustomers: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Finances & Virements COD</span>
                       <span className="text-[10px] text-slate-400">Rapprochements bancaires et encaissements</span>
@@ -862,11 +862,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessFinance}
                       onChange={(e) => setPermsState({ ...permsState, canAccessFinance: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Règles d'automatisation</span>
                       <span className="text-[10px] text-slate-400">Workflows et dispatching automatique</span>
@@ -875,11 +875,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessAutomations}
                       onChange={(e) => setPermsState({ ...permsState, canAccessAutomations: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Intégrations & Passerelles</span>
                       <span className="text-[10px] text-slate-400">Sendit API, Google Sheets et Webhooks</span>
@@ -888,11 +888,11 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessIntegrations}
                       onChange={(e) => setPermsState({ ...permsState, canAccessIntegrations: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
 
-                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-teal-500 transition-colors">
+                  <label className="flex items-center justify-between p-2.5 bg-white rounded-xl border border-slate-200 cursor-pointer hover:border-emerald-500 transition-colors">
                     <div>
                       <span className="font-bold text-xs text-slate-800 block">Gestion de l'Équipe (RBAC)</span>
                       <span className="text-[10px] text-slate-400">Ajout et gestion des droits collaborateurs</span>
@@ -901,7 +901,7 @@ export default function TeamAndPermissionsPage() {
                       type="checkbox"
                       checked={permsState.canAccessTeam}
                       onChange={(e) => setPermsState({ ...permsState, canAccessTeam: e.target.checked })}
-                      className="w-4 h-4 text-teal-600 rounded"
+                      className="w-4 h-4 text-emerald-600 rounded"
                     />
                   </label>
                 </div>
@@ -1070,7 +1070,7 @@ export default function TeamAndPermissionsPage() {
             
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
                   <UserPlus className="w-4 h-4" />
                 </div>
                 <h3 className="font-black text-slate-900 text-sm">
@@ -1091,7 +1091,7 @@ export default function TeamAndPermissionsPage() {
                   placeholder="ex: Younes El Alami"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium"
                 />
               </div>
 
@@ -1103,7 +1103,7 @@ export default function TeamAndPermissionsPage() {
                   placeholder="ex: Agent de Confirmation Call Center"
                   value={newJobTitle}
                   onChange={(e) => setNewJobTitle(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium"
                 />
               </div>
 
@@ -1115,7 +1115,7 @@ export default function TeamAndPermissionsPage() {
                   placeholder="younes@sendit.ma"
                   value={newEmail}
                   onChange={(e) => setNewEmail(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium font-mono"
                 />
               </div>
 
@@ -1126,7 +1126,7 @@ export default function TeamAndPermissionsPage() {
                   required
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium font-mono"
                 />
               </div>
 
@@ -1136,7 +1136,7 @@ export default function TeamAndPermissionsPage() {
                   type="text"
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium font-mono"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium font-mono"
                 />
               </div>
 
@@ -1145,7 +1145,7 @@ export default function TeamAndPermissionsPage() {
                 <select
                   value={newRole}
                   onChange={(e: any) => setNewRole(e.target.value)}
-                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-teal-600 font-medium cursor-pointer"
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-emerald-600 font-medium cursor-pointer"
                 >
                   <option value="CONFIRMATION_AGENT">Agent de Confirmation (Validation des commandes)</option>
                   <option value="PACKER">Responsable Hub & Emballage (Packer AWB)</option>
@@ -1166,7 +1166,7 @@ export default function TeamAndPermissionsPage() {
                 <button
                   type="submit"
                   disabled={isSaving}
-                  className="bg-teal-700 hover:bg-teal-800 text-white font-bold px-5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
+                  className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-5 py-2 rounded-xl transition-all shadow-sm cursor-pointer"
                 >
                   {isSaving ? 'Enregistrement dans MySQL...' : 'Créer le collaborateur dans MySQL'}
                 </button>

@@ -472,8 +472,8 @@ export default function IntegrationsPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-2">
-            <Puzzle className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+            <Puzzle className="w-3.5 h-3.5 text-emerald-600" />
             Écosystème Connecteurs & Passerelles API
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -506,7 +506,7 @@ export default function IntegrationsPage() {
       <div
         className={`p-5 rounded-2xl border-2 transition-all shadow-xs ${
           geminiConfigured
-            ? 'bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-blue-500/10 border-emerald-500/30'
+            ? 'bg-gradient-to-r from-emerald-500/10 via-emerald-500/10 to-blue-500/10 border-emerald-500/30'
             : 'bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-blue-500/10 border-amber-500/40'
         }`}
       >
@@ -574,7 +574,7 @@ export default function IntegrationsPage() {
             }
             value={geminiInputKey}
             onChange={(e) => setGeminiInputKey(e.target.value)}
-            className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+            className="flex-1 px-3 py-2 bg-white border border-slate-300 rounded-xl text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-purple-500"
           />
           <button
             onClick={handleSaveGeminiKey}
@@ -608,8 +608,8 @@ export default function IntegrationsPage() {
       {/* ───────────────────────────────────────────────────────────── */}
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-5">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-1.5">
-            <Send className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-1.5">
+            <Send className="w-3.5 h-3.5 text-emerald-600" />
             📱 Connecteur WhatsApp (Meta Cloud vs Scan QR SIM Maroc)
           </div>
           <h3 className="font-black text-base text-slate-900">
@@ -627,16 +627,16 @@ export default function IntegrationsPage() {
             onClick={() => setSelectedProvider('META_CLOUD_API')}
             className={`p-5 rounded-2xl border cursor-pointer transition-all ${
               selectedProvider === 'META_CLOUD_API'
-                ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
+                ? 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-xs'
                 : 'border-slate-200 hover:border-slate-300 bg-white'
             }`}
           >
             <div className="flex items-center justify-between">
-              <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                 Officiel Entreprise
               </span>
               {selectedProvider === 'META_CLOUD_API' && (
-                <span className="w-2.5 h-2.5 rounded-full bg-teal-500 animate-pulse" />
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
               )}
             </div>
             <h4 className="font-black text-sm text-slate-900 mt-2">
@@ -656,7 +656,7 @@ export default function IntegrationsPage() {
             onClick={() => setSelectedProvider('EVOLUTION_API_QR')}
             className={`p-5 rounded-2xl border cursor-pointer transition-all ${
               selectedProvider === 'EVOLUTION_API_QR'
-                ? 'border-teal-500 bg-teal-50/30 ring-2 ring-teal-500/20 shadow-xs'
+                ? 'border-emerald-500 bg-emerald-50/30 ring-2 ring-emerald-500/20 shadow-xs'
                 : 'border-slate-200 hover:border-slate-300 bg-white'
             }`}
           >
@@ -733,7 +733,7 @@ export default function IntegrationsPage() {
                     console.error('Failed to save Meta settings:', err);
                   }
                 }}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-2xs"
               >
                 {waSaveSuccess ? '✅ Identifiants Meta Enregistrés dans MySQL !' : 'Enregistrer les identifiants Meta'}
               </button>
@@ -991,7 +991,7 @@ export default function IntegrationsPage() {
               type="text"
               value={googleSheetUrl}
               onChange={(e) => setGoogleSheetUrl(e.target.value)}
-              className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-slate-50/50 focus:outline-teal-600"
+              className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-slate-50/50 focus:outline-emerald-600"
             />
             <button
               onClick={async () => {
@@ -1026,7 +1026,7 @@ export default function IntegrationsPage() {
           <span className="text-slate-600">
             <strong>Colonnes reconnues :</strong> Nom Client, Téléphone (06...), Ville, Adresse, Produit, Prix (MAD).
           </span>
-          <span className="text-teal-700 font-bold shrink-0">
+          <span className="text-emerald-700 font-bold shrink-0">
             Dernière vérification: il y a 2 min (4 nouveaux leads traités)
           </span>
         </div>

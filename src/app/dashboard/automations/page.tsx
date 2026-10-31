@@ -253,7 +253,7 @@ export default function AutomationsPage() {
           >
             <div className="flex items-start justify-between gap-3">
               <div>
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded-md">
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
                   {rule.pillar}
                 </span>
                 <h3 className="text-sm font-black text-slate-900 mt-1.5">{rule.name}</h3>
@@ -263,7 +263,7 @@ export default function AutomationsPage() {
               <button
                 onClick={() => toggleAutomation(rule.id)}
                 className={`w-11 h-6 rounded-full transition-colors p-1 flex items-center shrink-0 ${
-                  rule.active ? 'bg-teal-600 justify-end' : 'bg-slate-300 justify-start'
+                  rule.active ? 'bg-emerald-600 justify-end' : 'bg-slate-300 justify-start'
                 }`}
                 title={rule.active ? 'Désactiver' : 'Activer'}
               >

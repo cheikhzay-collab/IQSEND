@@ -169,7 +169,7 @@ export function TrackingKanban({
                 isRescueCol
                   ? 'bg-gradient-to-r from-rose-50 to-amber-50/60 border-rose-200'
                   : isDeliveredCol
-                  ? 'bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-200'
+                  ? 'bg-gradient-to-r from-emerald-50 to-emerald-50 border-emerald-200'
                   : isReturnedCol
                   ? 'bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200'
                   : isCanceledCol

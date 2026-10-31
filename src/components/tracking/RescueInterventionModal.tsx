@@ -455,7 +455,7 @@ export function RescueInterventionModal({
                   value={customMessage}
                   onChange={(e) => setCustomMessage(e.target.value)}
                   rows={4}
-                  className="w-full p-3 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500 leading-relaxed font-sans"
+                  className="w-full p-3 border border-slate-200 rounded-2xl text-xs sm:text-sm text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed font-sans"
                 />
               </div>
 
@@ -564,7 +564,7 @@ export function RescueInterventionModal({
                     type="date"
                     value={rescheduledDate}
                     onChange={(e) => setRescheduledDate(e.target.value)}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
                 </div>
 
@@ -575,7 +575,7 @@ export function RescueInterventionModal({
                   <select
                     value={deliverySlot}
                     onChange={(e) => setDeliverySlot(e.target.value)}
-                    className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                    className="w-full p-2.5 border border-slate-200 rounded-xl text-xs font-medium text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="Matin (10h - 14h)">Matin (10h - 14h)</option>
                     <option value="Après-midi (15h - 19h)">Après-midi (15h - 19h)</option>
@@ -593,7 +593,7 @@ export function RescueInterventionModal({
                   value={driverNote}
                   onChange={(e) => setDriverNote(e.target.value)}
                   placeholder="Ex: Client disponible au travail, appeler 15 min avant l'arrivée..."
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -624,7 +624,7 @@ export function RescueInterventionModal({
                   value={newAddress}
                   onChange={(e) => setNewAddress(e.target.value)}
                   rows={2}
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
@@ -638,7 +638,7 @@ export function RescueInterventionModal({
                     value={gpsUrl}
                     onChange={(e) => setGpsUrl(e.target.value)}
                     placeholder="https://maps.google.com/?q=33.5731,-7.5898"
-                    className="flex-1 p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono"
+                    className="flex-1 p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono"
                   />
                   {gpsUrl && (
                     <a
@@ -662,7 +662,7 @@ export function RescueInterventionModal({
                   value={driverNote}
                   onChange={(e) => setDriverNote(e.target.value)}
                   placeholder="Ex: En face de la pharmacie, Immeuble 4, 2ème étage..."
-                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500"
+                  className="w-full p-2.5 border border-slate-200 rounded-xl text-xs text-slate-800 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 

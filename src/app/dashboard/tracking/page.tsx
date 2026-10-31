@@ -609,7 +609,7 @@ export default function TrackingPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Rechercher (Client, Tél, Code Sendit)..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 py-1.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all"
               />
             </div>
 
@@ -618,7 +618,7 @@ export default function TrackingPage() {
               <select
                 value={selectedCity}
                 onChange={(e) => setSelectedCity(e.target.value)}
-                className="appearance-none bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-indigo-500"
+                className="appearance-none bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 pr-7 text-xs font-medium text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
                 <option value="ALL">Toutes les villes</option>
                 {cities.map((city) => (
@@ -770,7 +770,7 @@ export default function TrackingPage() {
                             type="date"
                             value={customStartDate}
                             onChange={(e) => setCustomStartDate(e.target.value)}
-                            className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-mono focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                            className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
                           />
                         </div>
                         <div>
@@ -779,7 +779,7 @@ export default function TrackingPage() {
                             type="date"
                             value={customEndDate}
                             onChange={(e) => setCustomEndDate(e.target.value)}
-                            className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-mono focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                            className="w-full bg-white border border-indigo-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500"
                           />
                         </div>
                       </div>
@@ -797,7 +797,7 @@ export default function TrackingPage() {
                       <select
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as TrackingSortOption)}
-                        className="w-full appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 pr-8 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-all"
+                        className="w-full appearance-none bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 pr-8 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer transition-all"
                       >
                         <option value="DATE_DESC">📅 Date : Plus récent d'abord (Défaut)</option>
                         <option value="DATE_ASC">📅 Date : Plus ancien d'abord</option>

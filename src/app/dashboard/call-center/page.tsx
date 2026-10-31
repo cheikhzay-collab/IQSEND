@@ -202,8 +202,8 @@ export default function CallCenterPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-teal-700 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full mb-2">
-            <Headphones className="w-3.5 h-3.5 text-teal-600" />
+          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
+            <Headphones className="w-3.5 h-3.5 text-emerald-600" />
             Poste Téléphonique & Confirmation d'Appels COD
             {isLiveDb && (
               <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
@@ -294,7 +294,7 @@ export default function CallCenterPage() {
                 onClick={() => setActiveTask(task)}
                 className={`p-3.5 rounded-xl border cursor-pointer transition-all ${
                   activeTask?.id === task.id
-                    ? 'border-teal-500 bg-teal-50/40 shadow-xs'
+                    ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
                     : 'border-slate-200 hover:border-slate-300 bg-white'
                 }`}
               >
@@ -335,7 +335,7 @@ export default function CallCenterPage() {
             {/* Customer Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
               <div>
-                <span className="text-[10px] font-bold text-teal-700 bg-teal-50 border border-teal-200 px-2.5 py-0.5 rounded-full">
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
                   Appel en cours • {activeTask.orderNumber}
                 </span>
                 <h2 className="text-xl font-black text-slate-900 mt-1">{activeTask.customerName}</h2>
@@ -372,7 +372,7 @@ export default function CallCenterPage() {
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-black text-slate-800 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
                   Script d'Appel Recommandé (Darija Marocaine)
                 </span>
                 <span className="text-[10px] text-slate-400">À lire au client</span>
@@ -383,12 +383,12 @@ export default function CallCenterPage() {
               </p>
 
               {/* Upsell Suggestion */}
-              <div className="p-3 bg-teal-50/70 border border-teal-200 rounded-lg flex items-center justify-between">
+              <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-lg flex items-center justify-between">
                 <div>
-                  <strong className="text-xs font-bold text-teal-900 block">
+                  <strong className="text-xs font-bold text-emerald-900 block">
                     Offre Spéciale Appel : 2ème pièce à -30% (+179 MAD)
                   </strong>
-                  <span className="text-[11px] text-teal-700">
+                  <span className="text-[11px] text-emerald-700">
                     « Ila bghiti tzid piece khera lik wla l chi 7ed, katakhodha b remise 30% »
                   </span>
                 </div>
@@ -396,7 +396,7 @@ export default function CallCenterPage() {
                   type="checkbox"
                   checked={upsellAccepted}
                   onChange={(e) => setUpsellAccepted(e.target.checked)}
-                  className="w-4 h-4 text-teal-600 rounded border-slate-300 focus:ring-teal-500"
+                  className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500"
                 />
               </div>
             </div>
@@ -411,7 +411,7 @@ export default function CallCenterPage() {
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 placeholder="Ex: Le client confirme l'adresse, rappeler vers 17h, etc."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-teal-500 focus:bg-white"
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white"
               />
             </div>
 

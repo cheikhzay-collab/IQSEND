@@ -343,7 +343,7 @@ export default function LeadsConfirmationPage() {
       {/* 🚀 AI Agent Autonomous Control Center & Database Status */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-indigo-800/40 p-4 rounded-2xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 text-white">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center font-black shadow-lg shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-emerald-400 text-slate-950 flex items-center justify-center font-black shadow-lg shrink-0">
             <Bot className="w-5 h-5 text-slate-950" />
           </div>
           <div>
@@ -368,7 +368,7 @@ export default function LeadsConfirmationPage() {
           <button
             onClick={handleRunAutoPilot}
             disabled={isAutoPiloting}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-slate-950 font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-500 hover:from-emerald-600 hover:to-emerald-600 text-slate-950 font-black text-xs shadow-md transition-all active:scale-95 disabled:opacity-50"
           >
             <Sparkles className="w-4 h-4 text-slate-950" />
             <span>{isAutoPiloting ? 'Confirmation auto en cours...' : 'Lancer l\'Agent sur toutes les nouvelles commandes ⚡'}</span>
@@ -394,7 +394,7 @@ export default function LeadsConfirmationPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher par client, téléphone, ville, produit ou réf..."
-            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-hidden focus:bg-white focus:border-blue-500 transition-all"
+            className="w-full pl-9 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs focus:outline-none focus:bg-white focus:border-blue-500 transition-all"
           />
         </div>
         <div className="flex items-center gap-3">
@@ -568,7 +568,7 @@ export default function LeadsConfirmationPage() {
                               </span>
                             )}
                             {lead.gpsReceived && (
-                              <span className="bg-teal-100 text-teal-800 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-0.5">
+                              <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md font-semibold flex items-center gap-0.5">
                                 📍 GPS Reçu
                               </span>
                             )}
@@ -717,7 +717,7 @@ export default function LeadsConfirmationPage() {
                       setEditingLead({ ...editingLead, productImage: e.target.value })
                     }
                     placeholder="https://images.unsplash.com/..."
-                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                    className="w-full p-2 bg-white border border-slate-300 rounded-lg text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -738,7 +738,7 @@ export default function LeadsConfirmationPage() {
                       onChange={(e) =>
                         setEditingLead({ ...editingLead, customerName: e.target.value })
                       }
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -752,7 +752,7 @@ export default function LeadsConfirmationPage() {
                       onChange={(e) =>
                         setEditingLead({ ...editingLead, phone: e.target.value })
                       }
-                      className="w-full p-2 font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -765,7 +765,7 @@ export default function LeadsConfirmationPage() {
                       onChange={(e) =>
                         setEditingLead({ ...editingLead, city: e.target.value })
                       }
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                     >
                       {MOROCCAN_CITIES.map((c) => (
                         <option key={c} value={c}>
@@ -785,7 +785,7 @@ export default function LeadsConfirmationPage() {
                         setEditingLead({ ...editingLead, address: e.target.value })
                       }
                       placeholder="Quartier, N° rue, immeuble..."
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -809,7 +809,7 @@ export default function LeadsConfirmationPage() {
                     onChange={(e) =>
                       setEditingLead({ ...editingLead, product: e.target.value })
                     }
-                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                    className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   />
                 </div>
 
@@ -823,7 +823,7 @@ export default function LeadsConfirmationPage() {
                         setEditingLead({ ...editingLead, size: e.target.value })
                       }
                       placeholder="Ex: 42, XL, L"
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -835,7 +835,7 @@ export default function LeadsConfirmationPage() {
                         setEditingLead({ ...editingLead, color: e.target.value })
                       }
                       placeholder="Ex: Noir, Blanc"
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                   <div>
@@ -853,7 +853,7 @@ export default function LeadsConfirmationPage() {
                           amount: parseFloat(e.target.value) || 0,
                         })
                       }
-                      className="w-full p-2 font-bold font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 font-bold font-mono border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -871,7 +871,7 @@ export default function LeadsConfirmationPage() {
                           status: e.target.value as LeadCard['status'],
                         })
                       }
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden bg-white"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white"
                     >
                       {COLUMNS.map((col) => (
                         <option key={col.id} value={col.id}>
@@ -891,7 +891,7 @@ export default function LeadsConfirmationPage() {
                         setEditingLead({ ...editingLead, customerNote: e.target.value })
                       }
                       placeholder="Ex: Préfère la livraison le matin"
-                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-hidden"
+                      className="w-full p-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1005,7 +1005,7 @@ export default function LeadsConfirmationPage() {
                   value={whatsAppMessageText}
                   onChange={(e) => setWhatsAppMessageText(e.target.value)}
                   dir="auto"
-                  className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-hidden leading-relaxed"
+                  className="w-full p-3 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none leading-relaxed"
                   placeholder="Tapez votre message ici..."
                 />
               </div>
