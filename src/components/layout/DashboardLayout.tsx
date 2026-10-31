@@ -269,39 +269,61 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* 1B. MOBILE APP HEADER (< MD) */}
-      <header className="md:hidden h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 flex items-center justify-between sticky top-0 z-40 shadow-2xs">
-        {/* Left: Hamburger Button + Brand */}
-        <div className="flex items-center gap-3">
+      <header className="md:hidden h-14 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-3.5 flex items-center justify-between sticky top-0 z-40 shadow-2xs">
+        {/* Left: Hamburger Button + Brand with Live Status */}
+        <div className="flex items-center gap-2">
           <button
             onClick={() => setMobileMenuOpen(true)}
-            className="p-2 -ml-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors active:scale-95"
+            className="p-2 -ml-1 text-slate-700 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors active:scale-95 cursor-pointer relative"
             aria-label="Ouvrir le menu"
           >
             <Menu className="w-5 h-5" />
+            {pendingCount > 0 && (
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 absolute top-1.5 right-1.5 ring-2 ring-white animate-pulse" />
+            )}
           </button>
 
-          <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-emerald-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
+          <Link href="/dashboard" className="flex items-center gap-2 active:scale-95 transition-transform">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
               IQ
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-black text-sm tracking-tight text-slate-900">
-                IQSEND
-              </span>
-              <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded">
-                COD
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5 leading-none">
+                <span className="font-black text-sm tracking-tight text-slate-900">
+                  IQSEND
+                </span>
+                <span className="inline-flex items-center gap-1 text-[9px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200/70 px-1.5 py-0.2 rounded-full">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live
+                </span>
+              </div>
+              <span className="text-[9px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
+                COD Suite Maroc
               </span>
             </div>
           </Link>
         </div>
 
-        {/* Right: Quick Presence Widget & Notifications */}
-        <div className="flex items-center gap-2">
+        {/* Right: Quick Team Presence, WhatsApp shortcut & Search */}
+        <div className="flex items-center gap-1.5">
           <TeamPresenceWidget />
 
+          {/* Quick WhatsApp shortcut on mobile */}
+          {hasPermission('canAccessInbox') && (
+            <Link
+              href="/dashboard/inbox"
+              className="p-2 text-slate-600 hover:text-emerald-700 hover:bg-slate-100 rounded-xl transition-colors relative active:scale-95"
+              title="Messagerie WhatsApp"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span className="w-2 h-2 rounded-full bg-emerald-500 absolute top-1.5 right-1.5 ring-2 ring-white animate-pulse" />
+            </Link>
+          )}
+
+          {/* Search Button */}
           <button
             onClick={() => setMobileSearchOpen(true)}
-            className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors active:scale-95"
             aria-label="Recherche rapide"
           >
             <Search className="w-4 h-4" />
@@ -393,78 +415,92 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileMenuOpen(false)}
           />
 
-          {/* Drawer Body */}
-          <div className="fixed inset-y-0 left-0 max-w-[85vw] w-72 bg-white shadow-2xl flex flex-col justify-between z-50 animate-in slide-in-from-left duration-200">
-            {/* Drawer Header */}
-            <div>
-              <div className="p-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-2"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-700 to-slate-900 text-white flex items-center justify-center font-black text-xs shadow-xs">
-                    IQ
+          {/* Drawer Body - Native Mobile App Navigation Hub */}
+          <div className="fixed inset-y-0 left-0 max-w-[88vw] w-80 bg-white shadow-2xl flex flex-col justify-between z-50 animate-in slide-in-from-left duration-200">
+            {/* Drawer Header & User Profile Card */}
+            <div className="flex flex-col flex-1 min-h-0">
+              <div className="p-4 border-b border-slate-100 bg-gradient-to-br from-slate-900 to-slate-800 text-white shrink-0">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-500 text-white flex items-center justify-center font-black text-xs shadow-xs">
+                      IQ
+                    </div>
+                    <div>
+                      <h2 className="font-black text-sm text-white tracking-tight leading-none">IQSEND COD</h2>
+                      <span className="text-[10px] text-emerald-400 font-bold">Suite E-commerce Maroc</span>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="font-black text-sm text-slate-900">IQSEND COD</h2>
-                    <p className="text-[10px] text-slate-400">
-                      Connecté : {currentUser?.name ? currentUser.name.split(' ')[0] : 'Admin'}
-                    </p>
-                  </div>
-                </Link>
 
-                <button
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-200/60"
-                  aria-label="Fermer le menu"
-                >
-                  <X className="w-5 h-5" />
-                </button>
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-1.5 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                    aria-label="Fermer le menu"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Profile pill */}
+                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+                  {currentUser?.avatarUrl ? (
+                    <img
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.name}
+                      className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center">
+                      {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-black text-white truncate">{currentUser?.name || 'Administrateur'}</p>
+                    <span className="text-[10px] text-emerald-300 font-semibold block">
+                      {currentUser?.role === 'ADMIN' ? '👑 Directeur Admin' : currentUser?.role || 'Agent Confirmateur'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Navigation Links Scrollable (Filtered by Permissions) */}
-              <div className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-160px)]">
+              {/* Navigation Links Scrollable (Categorized for Native App Experience) */}
+              <div className="p-3.5 space-y-4 overflow-y-auto flex-1 text-xs">
                 
-                {/* 1. Home */}
-                <Link
-                  href="/dashboard"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
-                    pathname === '/dashboard'
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  <Home className="w-4 h-4 shrink-0" />
-                  <span>Tableau de bord</span>
-                </Link>
+                {/* Section 1: Dashboard Home */}
+                <div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all active:scale-95 ${
+                      pathname === '/dashboard'
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <Home className="w-4 h-4 shrink-0" />
+                      <span>Tableau de bord</span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                      Vue Globale
+                    </span>
+                  </Link>
+                </div>
 
-                {/* 2. Orders (Filtered by canAccessOrders) */}
+                {/* Section 2: Cycle des Commandes (6 Étapes Clés) */}
                 {hasPermission('canAccessOrders') && (
-                  <div className="pt-1">
-                    <Link
-                      href="/dashboard/orders"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${
-                        isOrdersActive
-                          ? 'bg-emerald-50 text-emerald-950 font-black border border-emerald-200/80'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <ShoppingBag className="w-4 h-4 text-emerald-700 shrink-0" />
-                        <span>Toutes les Commandes</span>
-                      </div>
+                  <div className="space-y-1">
+                    <div className="px-2 pb-1 flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        📦 Cycle des Commandes (6 Étapes)
+                      </span>
                       {pendingCount > 0 && (
-                        <span className="bg-amber-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-2xs">
-                          {pendingCount}
+                        <span className="bg-amber-500 text-white text-[9px] font-black px-1.5 py-0.2 rounded-full animate-pulse">
+                          {pendingCount} urgent
                         </span>
                       )}
-                    </Link>
+                    </div>
 
-                    {/* Submenu */}
-                    <div className="ml-4 pl-3 border-l-2 border-slate-200 mt-1.5 space-y-1">
+                    <div className="space-y-1 bg-slate-50/70 p-1.5 rounded-2xl border border-slate-200/70">
                       {orderStages.map((stage) => {
                         const Icon = stage.icon;
                         const isActive = pathname === stage.href;
@@ -473,18 +509,18 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                             key={stage.href}
                             href={stage.href}
                             onClick={() => setMobileMenuOpen(false)}
-                            className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-colors ${
+                            className={`flex items-center justify-between px-2.5 py-2 rounded-xl text-xs transition-all active:scale-95 ${
                               isActive
                                 ? stage.activeClass
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold'
+                                : 'text-slate-700 hover:bg-white hover:text-slate-900 font-semibold'
                             }`}
                           >
-                            <div className="flex items-center gap-2 truncate">
-                              <Icon className={`w-3.5 h-3.5 shrink-0 ${stage.iconColor}`} />
+                            <div className="flex items-center gap-2.5 truncate">
+                              <Icon className={`w-4 h-4 shrink-0 ${stage.iconColor}`} />
                               <span className="truncate">{stage.label}</span>
                             </div>
                             {stage.count > 0 && (
-                              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${stage.countClass}`}>
+                              <span className={`text-[10px] font-black px-2 py-0.5 rounded-full shrink-0 ${stage.countClass}`}>
                                 {stage.count}
                               </span>
                             )}
@@ -495,114 +531,169 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
 
-                {/* Other Filtered Modules */}
-                {hasPermission('canAccessLeads') && (
-                  <Link
-                    href="/dashboard/leads"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Sparkles className="w-4 h-4 text-amber-500" />
-                    <span>Leads & Capture IA</span>
-                  </Link>
-                )}
-
-                {hasPermission('canAccessConfirmation') && (
-                  <Link
-                    href="/dashboard/call-center"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Headphones className="w-4 h-4 text-amber-600" />
-                      <span>Centre d'appels</span>
-                    </div>
-                    {pendingCount > 0 && (
-                      <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">
-                        {pendingCount}
+                {/* Section 3: Vente & Intelligence Artificielle */}
+                {(hasPermission('canAccessLeads') || hasPermission('canAccessConfirmation') || hasPermission('canAccessInbox') || hasPermission('canAccessAiAgents')) && (
+                  <div className="space-y-1">
+                    <div className="px-2 pb-1">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                        🤖 Vente & Intelligence Artificielle
                       </span>
+                    </div>
+
+                    <div className="space-y-1 bg-slate-50/70 p-1.5 rounded-2xl border border-slate-200/70">
+                      {hasPermission('canAccessLeads') && (
+                        <Link
+                          href="/dashboard/leads"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                            pathname === '/dashboard/leads' ? 'bg-amber-50 text-amber-900 font-bold' : 'text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Sparkles className="w-4 h-4 text-amber-500" />
+                            <span>Leads & Capture IA</span>
+                          </div>
+                        </Link>
+                      )}
+
+                      {hasPermission('canAccessConfirmation') && (
+                        <Link
+                          href="/dashboard/call-center"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                            pathname === '/dashboard/call-center' ? 'bg-amber-50 text-amber-900 font-bold' : 'text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Headphones className="w-4 h-4 text-amber-600" />
+                            <span>Centre d'appels</span>
+                          </div>
+                          {pendingCount > 0 && (
+                            <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full">
+                              {pendingCount}
+                            </span>
+                          )}
+                        </Link>
+                      )}
+
+                      {hasPermission('canAccessInbox') && (
+                        <Link
+                          href="/dashboard/inbox"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                            pathname === '/dashboard/inbox' ? 'bg-emerald-50 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Inbox className="w-4 h-4 text-emerald-600" />
+                            <span>Messagerie WhatsApp</span>
+                          </div>
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        </Link>
+                      )}
+
+                      {hasPermission('canAccessAiAgents') && (
+                        <Link
+                          href="/dashboard/ai-agents"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                            pathname === '/dashboard/ai-agents' ? 'bg-emerald-50 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5">
+                            <Bot className="w-4 h-4 text-emerald-600" />
+                            <span>Agents IA (Gemini Darija)</span>
+                          </div>
+                          <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.2 rounded">
+                            Auto
+                          </span>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Section 4: Logistique, Produits & Finances */}
+                <div className="space-y-1">
+                  <div className="px-2 pb-1">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      📊 Logistique, Produits & Finances
+                    </span>
+                  </div>
+
+                  <div className="space-y-1 bg-slate-50/70 p-1.5 rounded-2xl border border-slate-200/70">
+                    {hasPermission('canAccessProducts') && (
+                      <Link
+                        href="/dashboard/products"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                          pathname === '/dashboard/products' ? 'bg-slate-200 text-slate-900 font-bold' : 'text-slate-700 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Package className="w-4 h-4 text-slate-600" />
+                          <span>Produits & Stock Hubs</span>
+                        </div>
+                      </Link>
                     )}
-                  </Link>
-                )}
 
-                {hasPermission('canAccessInbox') && (
-                  <Link
-                    href="/dashboard/inbox"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Inbox className="w-4 h-4 text-emerald-600" />
-                    <span>Messagerie WhatsApp</span>
-                  </Link>
-                )}
+                    {hasPermission('canAccessCustomers') && (
+                      <Link
+                        href="/dashboard/customers"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                          pathname === '/dashboard/customers' ? 'bg-slate-200 text-slate-900 font-bold' : 'text-slate-700 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Users className="w-4 h-4 text-slate-600" />
+                          <span>Clients & CRM</span>
+                        </div>
+                      </Link>
+                    )}
 
-                {hasPermission('canAccessAiAgents') && (
-                  <Link
-                    href="/dashboard/ai-agents"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-emerald-800 hover:bg-emerald-50"
-                  >
-                    <Bot className="w-4 h-4 text-emerald-600" />
-                    <span>Agents IA (Gemini)</span>
-                  </Link>
-                )}
+                    {hasPermission('canAccessFinance') && (
+                      <Link
+                        href="/dashboard/finance"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                          pathname === '/dashboard/finance' ? 'bg-emerald-50 text-emerald-900 font-bold' : 'text-slate-700 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Banknote className="w-4 h-4 text-emerald-600" />
+                          <span>Finances & Virements COD</span>
+                        </div>
+                      </Link>
+                    )}
 
-
-
-                {hasPermission('canAccessProducts') && (
-                  <Link
-                    href="/dashboard/products"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Package className="w-4 h-4 text-slate-500" />
-                    <span>Produits & Stock Hubs</span>
-                  </Link>
-                )}
-
-                {hasPermission('canAccessCustomers') && (
-                  <Link
-                    href="/dashboard/customers"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Users className="w-4 h-4 text-slate-500" />
-                    <span>Clients & CRM</span>
-                  </Link>
-                )}
-
-                {hasPermission('canAccessFinance') && (
-                  <Link
-                    href="/dashboard/finance"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                  >
-                    <Banknote className="w-4 h-4 text-emerald-600" />
-                    <span>Finances & Virements COD</span>
-                  </Link>
-                )}
-
-                {hasPermission('canAccessTeam') && (
-                  <Link
-                    href="/dashboard/team"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-purple-700 hover:bg-purple-50"
-                  >
-                    <Shield className="w-4 h-4 text-purple-600" />
-                    <span>Équipe & Permissions (RBAC)</span>
-                  </Link>
-                )}
+                    {hasPermission('canAccessTeam') && (
+                      <Link
+                        href="/dashboard/team"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                          pathname === '/dashboard/team' ? 'bg-purple-50 text-purple-900 font-bold' : 'text-slate-700 hover:bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Shield className="w-4 h-4 text-purple-600" />
+                          <span>Équipe & Permissions (RBAC)</span>
+                        </div>
+                      </Link>
+                    )}
+                  </div>
+                </div>
 
               </div>
             </div>
 
             {/* Drawer Footer with Settings & Logout */}
-            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/50">
+            <div className="p-3 border-t border-slate-100 space-y-2 bg-slate-50/70 shrink-0">
               {hasPermission('canAccessSettings') && (
                 <Link
                   href="/dashboard/settings"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-white hover:text-slate-900 transition-colors"
+                  className="flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 hover:bg-white transition-colors"
                 >
                   <Settings className="w-4 h-4 text-slate-500" />
                   <span>Paramètres & Passerelles</span>
@@ -614,7 +705,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   setMobileMenuOpen(false);
                   logout();
                 }}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200/80 transition-all cursor-pointer"
+                className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-600 hover:text-white border border-rose-200/80 transition-all cursor-pointer active:scale-95"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Déconnexion</span>
@@ -990,17 +1081,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           <span className="text-[10px]">Accueil</span>
         </Link>
 
-        {/* Tab 2: Orders */}
+        {/* Tab 2: Orders (Confirmation Queue) */}
         {hasPermission('canAccessOrders') && (
           <Link
-            href="/dashboard/orders"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
-              isOrdersActive
+            href="/dashboard/orders/pending"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all active:scale-95 ${
+              pathname.includes('/orders') || isOrdersActive
                 ? 'text-emerald-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <ShoppingBag className={`w-5 h-5 ${isOrdersActive ? 'stroke-[2.5]' : ''}`} />
+            <ShoppingBag className={`w-5 h-5 ${pathname.includes('/orders') ? 'stroke-[2.5]' : ''}`} />
             <span className="text-[10px]">Commandes</span>
             {pendingCount > 0 && (
               <span className="absolute -top-0.5 right-1.5 bg-amber-500 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs animate-pulse">
@@ -1014,35 +1105,40 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         {hasPermission('canAccessInbox') && (
           <Link
             href="/dashboard/inbox"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all ${
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl relative transition-all active:scale-95 ${
               pathname === '/dashboard/inbox'
                 ? 'text-emerald-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
             <MessageSquare className={`w-5 h-5 ${pathname === '/dashboard/inbox' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px]">Messages</span>
-            <span className="absolute -top-0.5 right-2 w-2 h-2 rounded-full bg-[#25D366] ring-2 ring-white" />
+            <span className="text-[10px]">WhatsApp</span>
+            <span className="absolute -top-0.5 right-2 w-2 h-2 rounded-full bg-[#25D366] ring-2 ring-white animate-pulse" />
           </Link>
         )}
 
-        {/* Tab 4: Packing Station or AI Agents */}
-        {hasPermission('canAccessPacking') ? (
+        {/* Tab 4: Sendit Logistics Tracking */}
+        {hasPermission('canAccessTracking') ? (
           <Link
-            href="/dashboard/packing"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
-              pathname === '/dashboard/packing'
-                ? 'text-blue-700 font-bold scale-105'
+            href="/dashboard/tracking"
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all active:scale-95 relative ${
+              pathname === '/dashboard/tracking'
+                ? 'text-indigo-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'
             }`}
           >
-            <PackageCheck className={`w-5 h-5 ${pathname === '/dashboard/packing' ? 'stroke-[2.5]' : ''}`} />
-            <span className="text-[10px]">Emballage</span>
+            <Truck className={`w-5 h-5 ${pathname === '/dashboard/tracking' ? 'stroke-[2.5]' : ''}`} />
+            <span className="text-[10px]">Sendit</span>
+            {inTransitCount > 0 && (
+              <span className="absolute -top-0.5 right-1.5 bg-indigo-600 text-white text-[9px] font-black w-4 h-4 rounded-full flex items-center justify-center shadow-xs">
+                {inTransitCount}
+              </span>
+            )}
           </Link>
         ) : hasPermission('canAccessAiAgents') ? (
           <Link
             href="/dashboard/ai-agents"
-            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all ${
+            className={`flex flex-col items-center gap-0.5 px-3 py-1 rounded-xl transition-all active:scale-95 ${
               pathname === '/dashboard/ai-agents'
                 ? 'text-emerald-700 font-bold scale-105'
                 : 'text-slate-500 hover:text-slate-800'

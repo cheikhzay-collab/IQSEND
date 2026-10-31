@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description:
     'Unified COD e-commerce management platform for Morocco: multi-stage order lifecycle, Darija AI confirmation agents, WhatsApp live inbox, packing workstation, and Sendit logistics integration.',
   applicationName: 'IQSEND',
+  manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   openGraph: {
     title: 'IQSEND - COD & Logistics Suite for Morocco',
     description:
@@ -14,7 +19,7 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'IQSEND',
   },
   formatDetection: {

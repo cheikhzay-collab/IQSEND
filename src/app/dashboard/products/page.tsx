@@ -451,9 +451,131 @@ export default function ProductsPage() {
         </div>
       </div>
 
-      {/* Products Table */}
+      {/* Products Table & Mobile Cards */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile View: High-Touch App Cards (md:hidden) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {isLoading && products.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 p-4">
+              <Package className="w-8 h-8 animate-bounce text-slate-400 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-slate-600">Chargement du catalogue…</p>
+            </div>
+          ) : filteredProducts.length === 0 ? (
+            <div className="py-12 text-center text-slate-400 p-4">
+              <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <p className="text-xs font-semibold text-slate-600">Aucun produit trouvé</p>
+            </div>
+          ) : (
+            filteredProducts.map((p) => {
+              const grossProfit = p.sellingPrice - p.costPrice - p.deliveryFee;
+              const marginPercent = p.sellingPrice > 0 ? Math.round((grossProfit / p.sellingPrice) * 100) : 0;
+              const metrics = getMetricsForProduct(p);
+
+              return (
+                <div key={p.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                  {/* Top: Image, Name, Status */}
+                  <div className="flex items-start gap-3">
+                    <img
+                      src={p.image}
+                      alt={p.name}
+                      className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shrink-0 shadow-2xs"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          {p.sku}
+                        </span>
+                        {p.status === 'IN_STOCK' ? (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            En Stock
+                          </span>
+                        ) : p.status === 'LOW_STOCK' ? (
+                          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            Stock Faible
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                            Rupture
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-xs text-slate-900 mt-1 leading-snug line-clamp-2">{p.name}</h4>
+                      {p.nameAr && (
+                        <p className="text-[11px] text-slate-500 font-semibold mt-0.5" dir="rtl">
+                          {p.nameAr}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Financial Metrics Row */}
+                  <div className="grid grid-cols-3 gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-center">
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Prix Vente</span>
+                      <span className="text-xs font-black text-slate-900 font-mono">{p.sellingPrice} MAD</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-slate-400 uppercase font-bold block">Coût Achat</span>
+                      <span className="text-xs font-bold text-slate-600 font-mono">{p.costPrice} MAD</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] text-emerald-700 uppercase font-bold block">Marge Nette</span>
+                      <span className="text-xs font-black text-emerald-700 font-mono">+{grossProfit} ({marginPercent}%)</span>
+                    </div>
+                  </div>
+
+                  {/* Stock Hubs Breakdown */}
+                  <div className="flex items-center justify-between text-xs p-2 bg-slate-50/70 rounded-xl border border-slate-200/60">
+                    <span className="text-slate-500 font-semibold text-[11px]">Stock Total: <strong className="text-slate-900">{p.totalStock} pcs</strong></span>
+                    <div className="flex items-center gap-1.5 text-[10px]">
+                      <span className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold">Casa: {p.hubs?.casablanca ?? p.totalStock}</span>
+                      <span className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold">Fès: {p.hubs?.fes ?? 0}</span>
+                      <span className="bg-white px-1.5 py-0.5 rounded border border-slate-200 text-slate-600 font-bold">Mar: {p.hubs?.marrakech ?? 0}</span>
+                    </div>
+                  </div>
+
+                  {/* Annulation vs Retour Metrics */}
+                  <div className="grid grid-cols-2 gap-2 text-[10px]">
+                    <div className="p-2 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+                      <span className="text-slate-600 font-medium">Annulé Conf. (0 DH):</span>
+                      <span className="font-black text-slate-900">{metrics.canceledAtConfirmation}</span>
+                    </div>
+                    <div className={`p-2 rounded-xl border flex items-center justify-between ${
+                      metrics.returnedAtDelivery > 0 ? 'bg-amber-50 text-amber-900 border-amber-200' : 'bg-slate-50 text-slate-500 border-slate-200'
+                    }`}>
+                      <span className="font-medium">Retour Sendit:</span>
+                      <span className="font-black">{metrics.returnedAtDelivery}</span>
+                    </div>
+                  </div>
+
+                  {/* Mobile Actions */}
+                  <div className="pt-1 flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        setSelectedProduct(p);
+                        setIsEditModalOpen(true);
+                      }}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-900 text-white rounded-xl text-xs font-bold active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                      <span>Modifier Produit</span>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(p)}
+                      className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl border border-slate-200 transition-colors cursor-pointer"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop View: Full Table (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-500 font-semibold uppercase tracking-wider text-[10px]">
               <tr>

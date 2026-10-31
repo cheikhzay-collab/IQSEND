@@ -1,0 +1,19 @@
+{
+  "name": "IQSEND - COD Suite Maroc",
+  "short_name": "IQSEND",
+  "description": "Suite E-commerce COD tout-en-un pour le Maroc avec Sendit.ma et IA Gemini Darija",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#047857",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

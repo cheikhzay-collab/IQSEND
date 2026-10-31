@@ -263,9 +263,68 @@ export default function CanceledOrdersPage() {
           </div>
         </div>
 
-        {/* 4. Orders Table */}
+        {/* 4. Orders Table & Mobile Cards */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile View: High-Touch App Cards (md:hidden) */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {canceledOrders.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 p-4">
+                <XCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-bold text-slate-600 text-xs">Aucune commande annulée trouvée</p>
+              </div>
+            ) : (
+              canceledOrders.map((order) => (
+                <div key={order.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-mono font-black text-xs text-slate-900">{order.orderNumber}</span>
+                      <span className="text-[10px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded border border-rose-200">
+                        Annulée
+                      </span>
+                    </div>
+                    <span className="text-[10px] text-slate-400 font-medium">{order.createdAt}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-bold text-xs text-slate-900">{order.customer.name}</p>
+                      <p className="text-[11px] text-slate-500 font-mono">{order.customer.phone}</p>
+                    </div>
+                    <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                      {order.customer.city}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                    <span className="text-slate-600 text-[11px] truncate flex-1 pr-2">
+                      {order.items.map((it) => `${it.quantity}x ${it.name}`).join(', ')}
+                    </span>
+                    <span className="font-black text-slate-900 font-mono shrink-0">{order.payment.amount} MAD</span>
+                  </div>
+
+                  <div className="p-2.5 rounded-xl bg-rose-50/80 border border-rose-200 text-rose-900 text-xs leading-relaxed">
+                    <span className="font-bold text-[10px] uppercase tracking-wider text-rose-800 block mb-0.5">Motif :</span>
+                    {order.customer.notes || 'Annulé lors de l\'appel de confirmation (Changement d\'avis)'}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                      0 DH Frais • Avant expédition
+                    </span>
+                    <button
+                      onClick={() => reactivateOrder(order.id)}
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs active:scale-95 transition-all shadow-xs cursor-pointer"
+                    >
+                      Réactiver
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <tr>

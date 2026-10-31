@@ -269,9 +269,116 @@ export default function ReturnsOrdersPage() {
           </div>
         </div>
 
-        {/* 4. Returns Table */}
+        {/* 4. Returns Table & Mobile Cards */}
         <div className="bg-white rounded-2xl border border-slate-200/90 shadow-sm overflow-hidden">
-          <div className="overflow-x-auto">
+          {/* Mobile View: High-Touch App Cards (md:hidden) */}
+          <div className="md:hidden divide-y divide-slate-100">
+            {returnedOrders.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 p-4">
+                <RotateCcw className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="font-bold text-slate-600 text-xs">Aucun colis retourné ou refusé</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">Toutes vos expéditions en cours sont en bonne voie.</p>
+              </div>
+            ) : (
+              returnedOrders.map((order) => {
+                const isStockRestored = order.completed?.returnStatus === 'RETURNED';
+
+                return (
+                  <div key={order.id} className="p-4 space-y-3 bg-white hover:bg-slate-50/50 transition-colors">
+                    {/* Top: Order & Tracking */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono font-black text-xs text-slate-900">{order.orderNumber}</span>
+                        {order.shipping?.trackingNumber && (
+                          <span className="font-mono text-[10px] font-bold text-indigo-700 bg-indigo-50 px-1.5 py-0.5 rounded border border-indigo-200">
+                            {order.shipping.trackingNumber}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-slate-400 font-medium">{order.createdAt}</span>
+                    </div>
+
+                    {/* Customer & City */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-xs text-slate-900">{order.customer.name}</p>
+                        <p className="text-[11px] text-slate-500 font-mono">{order.customer.phone}</p>
+                      </div>
+                      <span className="text-[10px] font-bold bg-slate-100 text-slate-700 px-2 py-0.5 rounded">
+                        {order.customer.city}
+                      </span>
+                    </div>
+
+                    {/* Sendit Courier attempts & Amount */}
+                    <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                      <div>
+                        <span className="font-bold text-slate-800 text-[11px] block">{order.shipping?.courier || 'Sendit Express'}</span>
+                        <span className="text-[10px] text-amber-800 font-semibold">
+                          {order.shipping?.deliveryAttempts || 1} tentative(s) de livraison
+                        </span>
+                      </div>
+                      <span className="font-black text-slate-900 font-mono text-sm">{order.payment.amount} MAD</span>
+                    </div>
+
+                    {/* Refusal Reason */}
+                    <div className="p-2.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-amber-950 text-xs leading-relaxed">
+                      <span className="font-bold text-[10px] uppercase tracking-wider text-amber-800 block mb-0.5">Motif Refus :</span>
+                      {order.shipping?.failedReason || order.customer.notes || 'Colis refusé par le client à la livraison.'}
+                    </div>
+
+                    {/* Return Status & Actions */}
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-1">
+                      <div>
+                        {isStockRestored ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Stock Réintégré au Hub
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <Truck className="w-3 h-3 text-amber-600" />
+                            En transit retour (~35 DH Frais)
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 justify-end">
+                        {!isStockRestored ? (
+                          <button
+                            onClick={() => setInspectReturnOrder(order)}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs active:scale-95 transition-all shadow-xs"
+                          >
+                            <PackageCheck className="w-3.5 h-3.5" />
+                            <span>Inspecter Stock</span>
+                          </button>
+                        ) : null}
+
+                        <button
+                          onClick={() => handleRescueWhatsApp(order)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 hover:bg-emerald-100 border border-emerald-200 font-bold text-xs active:scale-95 transition-all"
+                          title="Sauvetage WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>WhatsApp</span>
+                        </button>
+
+                        <button
+                          onClick={() => reactivateOrder(order.id)}
+                          className="p-1.5 rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
+                          title="Replacer en confirmation"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* Desktop Table View (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700">
               <thead className="bg-slate-50 border-b border-slate-200/80 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 <tr>
