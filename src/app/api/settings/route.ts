@@ -133,6 +133,13 @@ export async function POST(req: NextRequest) {
       if (key in process.env) {
         process.env[key] = val;
       }
+
+      if (key === 'GEMINI_API_KEY') {
+        try {
+          const { invalidateGeminiKeyCache } = await import('@/lib/gemini-agent');
+          invalidateGeminiKeyCache();
+        } catch {}
+      }
     }
 
     // 🔴 Real-time broadcast

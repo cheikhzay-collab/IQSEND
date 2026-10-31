@@ -18,6 +18,55 @@ import {
 /**
  * Retrieve effective Gemini API Key from environment, runtime ai_config.json or MySQL
  */
+let cachedDbKey: { key: string; model: string; timestamp: number } | null = null;
+const DB_KEY_TTL_MS = 10000;
+
+export function setGeminiRuntimeKey(key: string, model: string): void {
+  cachedDbKey = { key: key.trim(), model: model.trim(), timestamp: Date.now() };
+  process.env.GEMINI_API_KEY = key.trim();
+  process.env.GEMINI_MODEL_NAME = model.trim();
+}
+
+export function invalidateGeminiKeyCache(): void {
+  cachedDbKey = null;
+}
+
+export async function getEffectiveGeminiKeyAsync(): Promise<string> {
+  if (cachedDbKey && Date.now() - cachedDbKey.timestamp < DB_KEY_TTL_MS && cachedDbKey.key) {
+    return cachedDbKey.key;
+  }
+  try {
+    const { getMysqlPool } = await import('./db');
+    const pool = getMysqlPool();
+    const [rows]: any = await pool.execute(
+      "SELECT setting_key, setting_value FROM store_settings WHERE setting_key IN ('GEMINI_API_KEY', 'GEMINI_MODEL_NAME')"
+    );
+    if (Array.isArray(rows) && rows.length > 0) {
+      let dbKey = '';
+      let dbModel = 'gemini-1.5-flash';
+      for (const r of rows) {
+        if (r.setting_key === 'GEMINI_API_KEY' && r.setting_value) dbKey = r.setting_value.trim();
+        if (r.setting_key === 'GEMINI_MODEL_NAME' && r.setting_value) dbModel = r.setting_value.trim();
+      }
+      if (dbKey && dbKey !== 'votre_cle_gemini_ici' && dbKey.length > 15 && !dbKey.includes('AIzaSyBxbQA8H5E9RnmkUs')) {
+        process.env.GEMINI_API_KEY = dbKey;
+        if (dbModel && dbModel !== 'gemini-3.8-flash') process.env.GEMINI_MODEL_NAME = dbModel;
+        cachedDbKey = { key: dbKey, model: dbModel, timestamp: Date.now() };
+        return dbKey;
+      }
+    }
+  } catch (err) {}
+  return getEffectiveGeminiKey();
+}
+
+export async function getEffectiveGeminiModelAsync(): Promise<string> {
+  if (cachedDbKey && Date.now() - cachedDbKey.timestamp < DB_KEY_TTL_MS && cachedDbKey.model) {
+    return cachedDbKey.model;
+  }
+  await getEffectiveGeminiKeyAsync();
+  return getEffectiveGeminiModel();
+}
+
 export function getEffectiveGeminiKey(): string {
   // 1. Check in-memory / environment variable
   let key = process.env.GEMINI_API_KEY || '';
@@ -70,6 +119,7 @@ export interface OrderContext {
   orderId: string;
   orderNumber: string;
   customerName: string;
+  senderProfileName?: string;
   phoneNumber: string;
   city: string;
   address: string;
@@ -391,6 +441,12 @@ ${productsList}
 ### 📋 سياق الزبون الحالي وحالة الشحنة:
 - رقم هاتف الزبون: ${context.phoneNumber}
 - اسم الزبون: ${context.customerName}
+- اسم المتصل عبر الواتساب (WhatsApp Profile / PushName): "${context.senderProfileName || context.customerName || 'غير محدد'}"
+- ⭐️ **التعرف على المتصل ومناداته باسمه:** ${
+  (context.senderProfileName && context.senderProfileName.trim() !== 'الزبون المحترم' && context.senderProfileName.trim() !== 'Client')
+    ? `لقد تعرفتِ على اسم المتصل في حسابه بواتساب وهو: "${context.senderProfileName}". خاطبيه باسمه الشخصي بود واحترام في بداية حديثك ورسائلك (مثلاً: "مرحبا بك أخي ${context.senderProfileName}" أو "أهلاً للا ${context.senderProfileName}")، ولا تسأليه عن اسمه أبداً لأنك تعرفينه بالفعل!`
+    : `خاطبيه بلباقة وأدب بالدارجة المغربية ("أخي الكريم" أو "أختي الكريمة").`
+}
 - المدينة: ${context.city}
 - رقم الطلب الحالي (إن وجد): ${context.orderNumber}
 - المبلغ: ${context.totalAmount} درهم (الدفع نقداً عند الاستلام COD)
@@ -469,7 +525,7 @@ export async function processCustomerWhatsAppMessage(
     };
   }
 
-  const apiKey = getEffectiveGeminiKey();
+  const apiKey = await getEffectiveGeminiKeyAsync();
   const isKeyConfigured = Boolean(apiKey && apiKey.length > 15);
 
   if (!isKeyConfigured) {
@@ -481,7 +537,7 @@ export async function processCustomerWhatsAppMessage(
     const systemInstruction = buildMoroccanSystemPrompt(context);
     const genAI = new GoogleGenerativeAI(apiKey);
 
-    const activeModelName = getEffectiveGeminiModel();
+    const activeModelName = await getEffectiveGeminiModelAsync();
     const agentTools = [
       {
         functionDeclarations: [
@@ -890,7 +946,7 @@ async function processWithRulesFallback(
     const customerCity = detectedCity?.ar || (context.city !== 'المغرب' && context.city !== 'غير محدد' ? context.city : '');
 
     // Extract customer name if provided
-    let extractedName = context.customerName;
+    let extractedName = context.senderProfileName || context.customerName;
     const nameMatch = incomingMessage.match(/(?:اسمي|انا|الاسم|سميتي)\s+([^\s,،\.]+)/i);
     if (nameMatch && nameMatch[1]) {
       extractedName = nameMatch[1].trim();
@@ -1260,7 +1316,7 @@ export async function processCustomerVoiceNote(
   toolDetails?: AgentToolDetails;
   requiresHumanHandover: boolean;
 }> {
-  const apiKey = getEffectiveGeminiKey();
+  const apiKey = await getEffectiveGeminiKeyAsync();
   const cleanMimeType = mimetype.split(';')[0].trim() || 'audio/ogg';
 
   // 1. Fallback if Gemini key is missing or for offline simulation
@@ -1270,7 +1326,7 @@ export async function processCustomerVoiceNote(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const activeModelName = getEffectiveGeminiModel();
+    const activeModelName = await getEffectiveGeminiModelAsync();
     const systemPrompt =
       buildMoroccanSystemPrompt(context) +
       `\n\n### 🎙️ تعليمات معالجة الرسائل الصوتية (WhatsApp Voice Notes Multimodal):
@@ -1660,7 +1716,7 @@ export async function processCustomerImage(
   },
   imagePresetHint?: string
 ): Promise<AgentImageProcessResult> {
-  const apiKey = getEffectiveGeminiKey();
+  const apiKey = await getEffectiveGeminiKeyAsync();
   const cleanMimeType = mimetype.split(';')[0].trim() || 'image/jpeg';
 
   // 1. Fallback if Gemini key is missing or for offline simulation
@@ -1670,7 +1726,7 @@ export async function processCustomerImage(
 
   try {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const activeModelName = getEffectiveGeminiModel();
+    const activeModelName = await getEffectiveGeminiModelAsync();
     const systemPrompt =
       buildMoroccanSystemPrompt(context) +
       `\n\n### 👁️ تعليمات الرؤية وتحليل الصور (WhatsApp Vision AI Multimodal):

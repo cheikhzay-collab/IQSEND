@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getEffectiveGeminiKey, getEffectiveGeminiModel } from '@/lib/gemini-agent';
+import { getEffectiveGeminiKey, getEffectiveGeminiModel, getEffectiveGeminiKeyAsync, getEffectiveGeminiModelAsync } from '@/lib/gemini-agent';
 import { sendWhatsAppMessage } from '@/lib/whatsapp';
 import { recordOutboundMessage, toggleAiActive } from '@/lib/inbox-store';
 import { getStageMessageConfig } from '@/lib/order-stage-messages';
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     // 1. ACTION: GENERATE SMART AGENT MESSAGE VIA GEMINI AI
     // ─────────────────────────────────────────────────────────
     if (action === 'generate') {
-      const apiKey = getEffectiveGeminiKey();
+      const apiKey = await getEffectiveGeminiKeyAsync();
       const stageConfig = getStageMessageConfig(stage);
 
       // Default fallback templates
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
 
       try {
         const genAI = new GoogleGenerativeAI(apiKey);
-        const modelName = getEffectiveGeminiModel();
+        const modelName = await getEffectiveGeminiModelAsync();
         const model = genAI.getGenerativeModel({
           model: modelName,
           generationConfig: {

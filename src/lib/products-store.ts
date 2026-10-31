@@ -135,6 +135,7 @@ export const INITIAL_PRODUCTS: ProductItem[] = [
 
 const globalForProducts = globalThis as unknown as {
   __senditProducts?: ProductItem[];
+  __lastDbFetch?: number;
 };
 
 export function getProducts(): ProductItem[] {

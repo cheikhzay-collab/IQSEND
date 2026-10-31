@@ -63,6 +63,26 @@ export async function POST(request: Request) {
 
     const rawFrom = msg.from || '';
     const cleanedFrom = cleanMoroccanPhone(rawFrom);
+    const senderProfileName = (
+      msg.senderName ||
+      changes?.value?.contacts?.[0]?.profile?.name ||
+      msg.pushName ||
+      ''
+    ).trim();
+
+    // 🌟 Persist WhatsApp caller name directly to Hostinger MySQL customers table
+    if (senderProfileName && senderProfileName !== 'Client' && senderProfileName !== 'الزبون المحترم') {
+      try {
+        const pool = getMysqlPool();
+        pool.execute(
+          `INSERT INTO customers (id, phone_number, name, city, address, created_at)
+           VALUES (?, ?, ?, 'Maroc', 'WhatsApp Contact', CURRENT_TIMESTAMP)
+           ON DUPLICATE KEY UPDATE 
+             name = IF(name = 'Client' OR name = 'الزبون المحترم' OR name = '' OR name IS NULL, VALUES(name), name)`,
+          [`cust-${Date.now()}-${Math.random().toString(36).substring(7)}`, cleanedFrom || rawFrom, senderProfileName]
+        ).catch(() => {});
+      } catch (custErr) {}
+    }
 
     // Locate matching order in store
     const orders = getInboundOrders();
@@ -241,10 +261,15 @@ export async function POST(request: Request) {
         });
       } catch (inboxErr) {}
 
+      const effectiveVoiceName = order?.customer?.name && order.customer.name !== 'Client' && order.customer.name !== 'الزبون المحترم'
+        ? order.customer.name
+        : (senderProfileName || 'الزبون المحترم');
+
       const orderContext: OrderContext = {
         orderId: order?.id || 'lead_temp',
         orderNumber: order?.orderNumber || 'MA-TEMP',
-        customerName: order?.customer?.name || 'الزبون المحترم',
+        customerName: effectiveVoiceName,
+        senderProfileName: senderProfileName || undefined,
         phoneNumber: rawFrom,
         city: order?.customer?.city || 'المغرب',
         address: order?.customer?.address || 'غير محدد',
@@ -370,10 +395,15 @@ export async function POST(request: Request) {
         });
       } catch (inboxErr) {}
 
+      const effectiveImgName = order?.customer?.name && order.customer.name !== 'Client' && order.customer.name !== 'الزبون المحترم'
+        ? order.customer.name
+        : (senderProfileName || 'الزبون المحترم');
+
       const orderContext: OrderContext = {
         orderId: order?.id || 'lead_temp',
         orderNumber: order?.orderNumber || 'MA-TEMP',
-        customerName: order?.customer?.name || 'الزبون المحترم',
+        customerName: effectiveImgName,
+        senderProfileName: senderProfileName || undefined,
         phoneNumber: rawFrom,
         city: order?.customer?.city || 'المغرب',
         address: order?.customer?.address || 'غير محدد',
@@ -480,10 +510,15 @@ export async function POST(request: Request) {
         const dbHistory = await getRecentWhatsAppHistoryFromDb(cleanedFrom || rawFrom, 6);
 
         // Execute Gemini AI Agent with Moroccan Context + Real Conversation History + Session State
+        const effectiveCustomerName = order?.customer?.name && order.customer.name !== 'Client' && order.customer.name !== 'الزبون المحترم'
+          ? order.customer.name
+          : (senderProfileName || 'الزبون المحترم');
+
         const orderContext: OrderContext = {
           orderId: order?.id || 'lead_temp',
           orderNumber: order?.orderNumber || 'MA-TEMP',
-          customerName: order?.customer?.name || 'الزبون المحترم',
+          customerName: effectiveCustomerName,
+          senderProfileName: senderProfileName || undefined,
           phoneNumber: rawFrom,
           city: order?.customer?.city || 'المغرب',
           address: order?.customer?.address || 'غير محدد',

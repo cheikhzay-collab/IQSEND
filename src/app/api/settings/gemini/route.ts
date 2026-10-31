@@ -238,6 +238,11 @@ export async function POST(req: NextRequest) {
     process.env.GEMINI_API_KEY = cleanKey;
     process.env.GEMINI_MODEL_NAME = workingModel;
 
+    try {
+      const { setGeminiRuntimeKey } = await import('@/lib/gemini-agent');
+      setGeminiRuntimeKey(cleanKey, workingModel);
+    } catch {}
+
     return NextResponse.json({
       success: true,
       source: 'hostinger_mysql',

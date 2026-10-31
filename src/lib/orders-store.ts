@@ -225,6 +225,7 @@ export function createDirectCustomerOrder(params: {
   };
 
   addInboundOrder(newOrder);
+
   return newOrder;
 }
 

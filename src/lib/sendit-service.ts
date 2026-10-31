@@ -209,12 +209,12 @@ export class SenditLogisticsService {
       const pool = getMysqlPool();
       const [rows]: any = await pool.execute(`
         SELECT setting_key, setting_value FROM store_settings
-        WHERE setting_key IN ('SENDIT_PUBLIC_KEY', 'SENDIT_PRIVATE_KEY', 'SENDIT_WEBHOOK_SECRET', 'SENDIT_DEFAULT_PICKUP_DISTRICT')
+        WHERE setting_key IN ('SENDIT_PUBLIC_KEY', 'SENDIT_SECRET_KEY', 'SENDIT_PRIVATE_KEY', 'SENDIT_WEBHOOK_SECRET', 'SENDIT_DEFAULT_PICKUP_DISTRICT')
       `);
       if (Array.isArray(rows)) {
         for (const r of rows) {
           if (!this.publicKey && r.setting_key === 'SENDIT_PUBLIC_KEY') this.publicKey = r.setting_value;
-          if (!this.secretKey && r.setting_key === 'SENDIT_PRIVATE_KEY') this.secretKey = r.setting_value;
+          if (!this.secretKey && (r.setting_key === 'SENDIT_SECRET_KEY' || r.setting_key === 'SENDIT_PRIVATE_KEY')) this.secretKey = r.setting_value;
           if (!this.webhookSecret && r.setting_key === 'SENDIT_WEBHOOK_SECRET') this.webhookSecret = r.setting_value;
           if (r.setting_key === 'SENDIT_DEFAULT_PICKUP_DISTRICT' && r.setting_value) {
             this.defaultPickupDistrictId = Number(r.setting_value) || 139;
