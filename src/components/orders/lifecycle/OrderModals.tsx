@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
   Printer,
@@ -14,10 +14,25 @@ import {
   MapPin,
   ExternalLink,
   Barcode,
-  QrCode
+  QrCode,
+  ChevronDown,
+  Plus,
+  Save,
+  Package,
+  FileEdit
 } from 'lucide-react';
-import { LifecycleOrder } from '@/context/OrderLifecycleContext';
+import { LifecycleOrder, LifecycleStage, OrderItemDetail } from '@/context/OrderLifecycleContext';
 import { MOROCCAN_CITIES } from '@/lib/moroccan-cities';
+import { CATALOG_PRODUCTS } from '@/lib/products-store';
+
+interface DistrictOption {
+  id: number;
+  ville: string;
+  name: string;
+  arabic_name?: string;
+  price?: number;
+  delais?: string;
+}
 
 // ── 1. SHIPPING LABEL MODAL (WAYBILL / BORDEREAU DE LIVRAISON) ──────────
 export function ShippingLabelModal({
@@ -295,7 +310,7 @@ export function InvoiceModal({
   );
 }
 
-// ── 3. EDIT ORDER MODAL ──────────────────────────────────────────────────
+// ── 3. EDIT ORDER MODAL (IDENTIQUE AU FORMULAIRE OFFICIEL D'ENTRÉE DE COMMANDE) ──
 export function EditOrderModal({
   order,
   isOpen,
@@ -307,140 +322,479 @@ export function EditOrderModal({
   onClose: () => void;
   onSave: (orderId: string, updates: Partial<LifecycleOrder>) => void;
 }) {
-  const [name, setName] = useState(order?.customer.name || '');
-  const [phone, setPhone] = useState(order?.customer.phone || '');
-  const [city, setCity] = useState(order?.customer.city || '');
-  const [address, setAddress] = useState(order?.customer.address || '');
-  const [paymentMethod, setPaymentMethod] = useState<'COD' | 'PREPAID'>(order?.payment.method || 'COD');
-  const [amount, setAmount] = useState(order?.payment.amount || 0);
+  const [customerName, setCustomerName] = useState('');
+  const [phone, setPhone] = useState('06');
+  const [city, setCity] = useState('Casablanca');
+  const [cityInput, setCityInput] = useState('Casablanca');
+  const [isCityDropdownOpen, setIsCityDropdownOpen] = useState(false);
+  const [address, setAddress] = useState('');
+  const [note, setNote] = useState('');
+  const [selectedCatalogId, setSelectedCatalogId] = useState<string>('custom');
+  const [productName, setProductName] = useState('');
+  const [sku, setSku] = useState('');
+  const [quantity, setQuantity] = useState<number>(1);
+  const [amount, setAmount] = useState<string>('299');
+  const [productThumbnail, setProductThumbnail] = useState<string>('');
+  const [stage, setStage] = useState<LifecycleStage>('PENDING_CONFIRMATION');
 
+  // Sendit Districts State (Synchronized with Sendit.ma)
+  const [senditDistricts, setSenditDistricts] = useState<DistrictOption[]>([]);
+  const cityDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (cityDropdownRef.current && !cityDropdownRef.current.contains(event.target as Node)) {
+        setIsCityDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Fetch Sendit official districts on open
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    fetch('/api/logistics/sendit/districts')
+      .then((res) => res.json())
+      .then((data) => {
+        if (!isMounted) return;
+        if (data.success && Array.isArray(data.districts) && data.districts.length > 0) {
+          const sorted = [...data.districts].sort((a, b) =>
+            (a.name || '').localeCompare(b.name || '', 'fr', { sensitivity: 'base' })
+          );
+          setSenditDistricts(sorted);
+        }
+      })
+      .catch((err) => {
+        console.warn('[EditOrderModal] Could not load Sendit districts:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isOpen]);
+
+  // Synchronize state when order changes
   useEffect(() => {
     if (order) {
-      setName(order.customer.name);
-      setPhone(order.customer.phone);
-      setCity(order.customer.city);
-      setAddress(order.customer.address);
-      setPaymentMethod(order.payment.method);
-      setAmount(order.payment.amount);
+      setCustomerName(order.customer?.name || '');
+      setPhone(order.customer?.phone || '');
+      const currentCity = order.customer?.city || 'Casablanca';
+      setCity(currentCity);
+      setCityInput(currentCity);
+      setAddress(order.customer?.address || '');
+      setNote(order.customer?.notes || '');
+      setStage(order.stage || 'PENDING_CONFIRMATION');
+      setAmount(String(order.payment?.amount || 299));
+
+      const firstItem = order.items?.[0];
+      const prodName = firstItem?.name || 'Pack E-commerce';
+      setProductName(prodName);
+      setSku(firstItem?.sku || '');
+      const itemQty = firstItem?.quantity || 1;
+      setQuantity(itemQty);
+      setProductThumbnail(firstItem?.thumbnail || '');
+
+      // Match catalog product
+      const match = CATALOG_PRODUCTS.find(
+        (p) =>
+          p.name.trim().toLowerCase() === prodName.trim().toLowerCase() ||
+          (firstItem?.sku && p.sku && p.sku.toLowerCase() === firstItem.sku.toLowerCase())
+      );
+      if (match) {
+        setSelectedCatalogId(match.id);
+      } else {
+        setSelectedCatalogId('custom');
+      }
     }
   }, [order]);
 
+  // Current selected district details (for price & delay info)
+  const selectedDistrictInfo = useMemo(() => {
+    if (!senditDistricts.length) return null;
+    const lowerCity = city.trim().toLowerCase();
+    return (
+      senditDistricts.find(
+        (d) =>
+          d.name.toLowerCase() === lowerCity ||
+          d.ville.toLowerCase() === lowerCity ||
+          (d.arabic_name && d.arabic_name.includes(city.trim()))
+      ) || null
+    );
+  }, [city, senditDistricts]);
+
+  // Filtered districts based on user typing
+  const filteredDistricts = useMemo(() => {
+    if (!senditDistricts.length) return [];
+    if (!cityInput.trim()) return senditDistricts;
+    const q = cityInput.trim().toLowerCase();
+    return senditDistricts.filter(
+      (d) =>
+        d.name.toLowerCase().includes(q) ||
+        d.ville.toLowerCase().includes(q) ||
+        (d.arabic_name && d.arabic_name.toLowerCase().includes(q))
+    );
+  }, [cityInput, senditDistricts]);
+
   if (!isOpen || !order) return null;
+
+  const handleSelectProduct = (productId: string) => {
+    setSelectedCatalogId(productId);
+    if (productId === 'custom') return;
+    const found = CATALOG_PRODUCTS.find((p) => p.id === productId);
+    if (found) {
+      setProductName(found.name);
+      const qty = Number(quantity) || 1;
+      setAmount(String(found.sellingPrice * qty));
+      setProductThumbnail(found.image);
+      if (found.sku) setSku(found.sku);
+    }
+  };
+
+  const handleSelectCity = (chosenDistrict: DistrictOption) => {
+    const finalName = chosenDistrict.ville || chosenDistrict.name;
+    setCity(finalName);
+    setCityInput(chosenDistrict.name);
+    setIsCityDropdownOpen(false);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!customerName.trim() || !productName.trim()) return;
+
+    const totalAmount = parseFloat(amount) || 0;
+    const qty = Number(quantity) || 1;
+    const unitPrice = qty > 0 ? totalAmount / qty : totalAmount;
+
+    const updatedItem: OrderItemDetail = {
+      id: order.items?.[0]?.id || `item-${Date.now()}`,
+      name: productName.trim(),
+      sku: sku.trim() || order.items?.[0]?.sku || 'SKU-COD',
+      thumbnail: productThumbnail || order.items?.[0]?.thumbnail || '',
+      quantity: qty,
+      price: unitPrice,
+    };
+
     onSave(order.id, {
       customer: {
         ...order.customer,
-        name,
-        phone,
-        city,
-        address,
+        name: customerName.trim(),
+        phone: phone.trim(),
+        city: (city || cityInput).trim(),
+        address: address.trim(),
+        notes: note.trim() || undefined,
       },
+      items: [updatedItem, ...(order.items?.slice(1) || [])],
       payment: {
         ...order.payment,
-        method: paymentMethod,
-        amount: Number(amount),
+        method: 'COD',
+        amount: totalAmount,
       },
+      stage,
     });
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-md">
-        <div className="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50 rounded-t-2xl">
-          <h3 className="text-sm font-bold text-slate-800">
-            Modifier la commande — {order.orderNumber}
-          </h3>
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden animate-in fade-in slide-in-from-bottom sm:slide-in-from-bottom-0 sm:zoom-in-95 duration-200 max-h-[92vh] flex flex-col">
+        {/* Mobile Drag Indicator */}
+        <div className="w-12 h-1 bg-slate-300 rounded-full mx-auto my-2 sm:hidden shrink-0" />
+
+        {/* Header */}
+        <div className="p-4 px-5 sm:px-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/70 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0 shadow-xs">
+              <FileEdit className="w-4 h-4" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-black text-slate-900 text-sm">
+                  Modifier la commande — {order.orderNumber}
+                </h3>
+                <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" /> 517 Villes Sendit (A-Z)
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">Mise à jour des informations client, produit et logistique COD</p>
+            </div>
+          </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-200/50"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-200/50 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 text-xs">
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
+          {/* Nom du Client */}
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Nom du client</label>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Nom du Client <span className="text-rose-500">*</span>
+            </label>
             <input
               type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
               required
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="Ex: Salma R. أو رشيد العلوي"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Téléphone */}
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Téléphone</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Téléphone (Maroc) <span className="text-rose-500">*</span>
+              </label>
               <input
                 type="text"
+                required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                placeholder="06******** أو 07********"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
+              />
+            </div>
+
+            {/* Ville avec Autocomplete A-Z Sendit */}
+            <div className="relative" ref={cityDropdownRef}>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-xs font-bold text-slate-700">
+                  Ville (Maroc) <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200">
+                  A-Z
+                </span>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={cityInput}
+                  onChange={(e) => {
+                    setCityInput(e.target.value);
+                    setCity(e.target.value);
+                    setIsCityDropdownOpen(true);
+                  }}
+                  onFocus={() => setIsCityDropdownOpen(true)}
+                  placeholder="Tapez les 1ères lettres (ex: Ca, Fa, Rabat...)"
+                  className="w-full text-xs p-2.5 pr-8 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => setIsCityDropdownOpen(!isCityDropdownOpen)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                >
+                  <ChevronDown
+                    className={`w-3.5 h-3.5 transition-transform ${
+                      isCityDropdownOpen ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Autocomplete / Dropdown list */}
+              {isCityDropdownOpen && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 max-h-56 overflow-y-auto divide-y divide-slate-100 animate-in fade-in zoom-in-95 duration-100">
+                  {filteredDistricts.length === 0 ? (
+                    <div className="p-3 text-center text-xs text-slate-400">
+                      Aucune ville trouvée. Saisie personnalisée conservée.
+                    </div>
+                  ) : (
+                    filteredDistricts.slice(0, 80).map((d) => (
+                      <button
+                        key={`city-edit-${d.id}`}
+                        type="button"
+                        onClick={() => handleSelectCity(d)}
+                        className="w-full text-left p-2.5 hover:bg-slate-50 transition-colors flex items-center justify-between gap-2 group"
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-800 group-hover:text-[#135d54] truncate">
+                            {d.name}
+                          </p>
+                          {d.arabic_name && (
+                            <p className="text-[11px] text-slate-500 font-sans truncate">
+                              {d.arabic_name}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-[10px] text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold shrink-0">
+                          {d.price} MAD
+                        </span>
+                      </button>
+                    ))
+                  )}
+                  {filteredDistricts.length > 80 && (
+                    <div className="p-2 text-center text-[10px] text-slate-400 bg-slate-50">
+                      + {filteredDistricts.length - 80} autres villes... Tapez plus de lettres pour affiner
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Delivery fee & SLA info */}
+              {selectedDistrictInfo && (
+                <div className="mt-1 flex items-center gap-1.5 text-[10px] text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                  <MapPin className="w-2.5 h-2.5 shrink-0" />
+                  <span>
+                    Sendit: {selectedDistrictInfo.price} MAD • Délai: {selectedDistrictInfo.delais}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Adresse Complète */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Adresse Complète (Optionnel)
+            </label>
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Ex: Boulevard Mohammed V, Immeuble 12, Quartier Agdal"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
+            />
+          </div>
+
+          {/* NOTE / Instructions */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 flex items-center justify-between mb-1">
+              <span className="flex items-center gap-1">
+                <FileText className="w-3.5 h-3.5 text-emerald-600" />
+                NOTE / Instructions (Optionnel)
+              </span>
+              <span className="text-[10px] text-slate-400">Pour le livreur Sendit ou l'équipe</span>
+            </label>
+            <textarea
+              rows={2}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="Ex: ملاحظات للطلب أو للمندوب (القياس 42، اللون أسود، يفضل التوصيل بعد العصر، الاتصال قبل المجيء...)"
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium placeholder:text-slate-400 resize-none"
+            />
+          </div>
+
+          {/* Sélectionner dans le catalogue */}
+          <div>
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Sélectionner dans le catalogue
+            </label>
+            <select
+              value={selectedCatalogId}
+              onChange={(e) => handleSelectProduct(e.target.value)}
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
+            >
+              {CATALOG_PRODUCTS.map((prod) => (
+                <option key={prod.id} value={prod.id}>
+                  {prod.name} ({prod.sellingPrice} MAD • Stock: {prod.totalStock})
+                </option>
+              ))}
+              <option value="custom">Autre article personnalisé...</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Nom de l'Article <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
                 required
+                value={productName}
+                onChange={(e) => setProductName(e.target.value)}
+                placeholder="Ex: Smart Watch S2"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Ville (Maroc)</label>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Quantité <span className="text-rose-500">*</span>
+              </label>
               <input
-                list="moroccan-cities-edit-list"
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-slate-900"
-                placeholder="Ex: Casablanca, Marrakech..."
+                type="number"
+                min={1}
                 required
+                value={quantity}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10) || 1;
+                  setQuantity(val);
+                }}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
-              <datalist id="moroccan-cities-edit-list">
-                {MOROCCAN_CITIES.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Code SKU (Optionnel)
+              </label>
+              <input
+                type="text"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="Ex: SKU-KHUF-42"
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-mono text-slate-700"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-slate-700 block mb-1">
+                Montant COD (MAD) <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="number"
+                required
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-black text-slate-900"
+              />
             </div>
           </div>
 
           <div>
-            <label className="block font-bold text-slate-700 mb-1">Adresse de livraison</label>
-            <textarea
-              rows={2}
-              value={address}
-              onChange={(e) => setAddress(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              required
-            />
+            <label className="text-xs font-bold text-slate-700 block mb-1">
+              Étape / Statut du cycle de vente
+            </label>
+            <select
+              value={stage}
+              onChange={(e) => setStage(e.target.value as LifecycleStage)}
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium bg-white"
+            >
+              <option value="PENDING_CONFIRMATION">1. En attente de confirmation</option>
+              <option value="PROCESSING">2. En préparation (AWB)</option>
+              <option value="IN_TRANSIT">3. En cours de livraison (Sendit)</option>
+              <option value="COMPLETED">4. Livrées & Encaissées</option>
+              <option value="CANCELED">5. Annulée à la confirmation (0 DH)</option>
+              <option value="RETURNED">6. Retournée chez transporteur (Sendit)</option>
+            </select>
           </div>
 
-          <div>
-            <label className="block font-bold text-slate-700 mb-1">Montant à Encaisser (MAD - COD)</label>
-            <input
-              type="number"
-              value={amount}
-              onChange={(e) => setAmount(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-              required
-            />
-            <span className="text-[10px] text-amber-700 mt-1 block font-medium">
-              Mode exclusif : Cash On Delivery (Paiement à la livraison)
-            </span>
-          </div>
-
-          <div className="pt-2 flex justify-end gap-2">
+          <div className="pt-2 flex items-center justify-end gap-2 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold"
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold transition-colors cursor-pointer"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-all shadow-xs active:scale-95 cursor-pointer"
             >
-              Enregistrer
+              <Save className="w-3.5 h-3.5" />
+              <span>Enregistrer les modifications</span>
             </button>
           </div>
         </form>

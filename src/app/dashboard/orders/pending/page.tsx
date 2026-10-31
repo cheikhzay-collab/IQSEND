@@ -24,12 +24,14 @@ import {
   PhoneMissed,
   Calendar,
   XCircle,
+  Plus,
 } from 'lucide-react';
-import { useOrderLifecycle, LifecycleOrder } from '@/context/OrderLifecycleContext';
+import { useOrderLifecycle, LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
 import {
   EditOrderModal,
   CancelOrderModal,
 } from '@/components/orders/lifecycle/OrderModals';
+import { CreateOrderModal } from '@/components/orders/CreateOrderModal';
 import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
 import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
@@ -68,7 +70,7 @@ function getConfirmationSubStatus(order: LifecycleOrder): 'NEW' | 'UNREACHABLE' 
 }
 
 export default function PendingOrdersPage() {
-  const { orders, confirmOrder, cancelOrder, editOrder, pendingCount } = useOrderLifecycle();
+  const { orders, confirmOrder, cancelOrder, editOrder, addOrder, pendingCount } = useOrderLifecycle();
 
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState('ALL');
@@ -83,6 +85,46 @@ export default function PendingOrdersPage() {
   const [scheduledDate, setScheduledDate] = useState('');
   const [callingCity, setCallingCity] = useState('');
   const [callingAddress, setCallingAddress] = useState('');
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // Handle Manual Order Creation
+  const handleCreateOrder = (newOrder: OrderItem & { notes?: string }) => {
+    const newLifecycle: LifecycleOrder = {
+      id: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      stage: (newOrder.status as LifecycleStage) || 'PENDING_CONFIRMATION',
+      createdAt: 'À l’instant',
+      customer: {
+        name: newOrder.customerName,
+        phone: newOrder.phone,
+        address: newOrder.address || '',
+        city: newOrder.city,
+        notes: newOrder.notes,
+      },
+      items: [
+        {
+          id: `item-${Date.now()}`,
+          name: newOrder.productName,
+          sku: 'SKU-' + Math.floor(1000 + Math.random() * 9000),
+          thumbnail: newOrder.productThumbnail,
+          quantity: 1,
+          price: newOrder.amount,
+        },
+      ],
+      payment: {
+        method: 'COD',
+        amount: newOrder.amount,
+        currency: newOrder.currency || 'MAD',
+        status: 'PENDING',
+      },
+      aiVerification: {
+        status: 'NEEDS_REVIEW',
+        riskScore: 10,
+        notes: 'Commande enregistrée manuellement depuis la confirmation.',
+      },
+    };
+    addOrder(newLifecycle);
+  };
 
   useEffect(() => {
     if (callingOrder) {
@@ -255,6 +297,16 @@ export default function PendingOrdersPage() {
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
               <span>Google Sheets</span>
+            </button>
+
+            {/* Manual New Order Button */}
+            <button
+              onClick={() => setIsCreateModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-2xs shrink-0 active:scale-95 cursor-pointer"
+              title="Ajouter manuellement une nouvelle commande COD"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Nouvelle Commande</span>
             </button>
 
             {/* Quick Link to Call Center */}
@@ -895,6 +947,13 @@ export default function PendingOrdersPage() {
       <GoogleSheetsIntegrationModal
         isOpen={isSheetsModalOpen}
         onClose={() => setIsSheetsModalOpen(false)}
+      />
+
+      {/* Manual Create Order Modal */}
+      <CreateOrderModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onCreate={handleCreateOrder}
       />
     </div>
   );
