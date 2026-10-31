@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ClipboardCheck,
@@ -36,6 +36,7 @@ import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/Goog
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
+import { MOROCCAN_CITIES } from '@/lib/moroccan-cities';
 
 type ConfirmationSubFilter = 'ALL' | 'NEW' | 'UNREACHABLE' | 'RESCHEDULED';
 
@@ -80,6 +81,15 @@ export default function PendingOrdersPage() {
   const [callOutcome, setCallOutcome] = useState('CONFIRMED');
   const [customCallNote, setCustomCallNote] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
+  const [callingCity, setCallingCity] = useState('');
+  const [callingAddress, setCallingAddress] = useState('');
+
+  useEffect(() => {
+    if (callingOrder) {
+      setCallingCity(callingOrder.customer.city || '');
+      setCallingAddress(callingOrder.customer.address || '');
+    }
+  }, [callingOrder]);
   const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
@@ -139,6 +149,22 @@ export default function PendingOrdersPage() {
   // Handle Quick Call Result
   const handleLogCall = () => {
     if (!callingOrder) return;
+
+    // Check if city or address was modified during the confirmation call
+    const cityVal = callingCity.trim() || callingOrder.customer.city;
+    const addressVal = callingAddress.trim() || callingOrder.customer.address;
+    const wasUpdated = cityVal !== callingOrder.customer.city || addressVal !== callingOrder.customer.address;
+
+    if (wasUpdated) {
+      editOrder(callingOrder.id, {
+        customer: {
+          ...callingOrder.customer,
+          city: cityVal,
+          address: addressVal,
+        },
+      });
+    }
+
     if (callOutcome === 'CONFIRMED') {
       confirmOrder(callingOrder.id);
     } else if (callOutcome === 'CANCELED') {
@@ -147,14 +173,16 @@ export default function PendingOrdersPage() {
       const timeStr = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
       let noteText = '';
       if (callOutcome === 'Rappel programmé') {
-        noteText = `Rappeler: ${scheduledDate || 'Date ultérieure'} (${timeStr})${customCallNote ? ` — ${customCallNote}` : ''}`;
+        noteText = `Rappeler: ${scheduledDate || 'Date ultérieure'} (${timeStr})${customCallNote ? ` - ${customCallNote}` : ''}`;
       } else {
-        noteText = `${callOutcome} (${timeStr})${customCallNote ? ` — ${customCallNote}` : ''}`;
+        noteText = `${callOutcome} (${timeStr})${customCallNote ? ` - ${customCallNote}` : ''}`;
       }
 
       editOrder(callingOrder.id, {
         customer: {
           ...callingOrder.customer,
+          city: cityVal,
+          address: addressVal,
           notes: noteText,
         },
       });
@@ -687,9 +715,49 @@ export default function PendingOrdersPage() {
                 Enregistrer l'appel — {callingOrder.orderNumber}
               </h3>
             </div>
-            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 space-y-1">
-              <p>Client : <strong>{callingOrder.customer.name}</strong></p>
-              <p>Téléphone : <strong className="font-mono">{callingOrder.customer.phone}</strong></p>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-700 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span>Client : <strong>{callingOrder.customer.name}</strong></span>
+                <span className="font-mono font-bold text-emerald-700">{callingOrder.customer.phone}</span>
+              </div>
+
+              {/* Editable City & Address during confirmation call */}
+              <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[11px] font-black text-slate-800 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>تعديل مدينة وعنوان التوصيل (Destination) :</span>
+                  </label>
+                  <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
+                    تعديل فوري
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <input
+                      list="moroccan-cities-call-list"
+                      type="text"
+                      value={callingCity}
+                      onChange={(e) => setCallingCity(e.target.value)}
+                      placeholder="المدينة..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-900 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      required
+                    />
+                    <datalist id="moroccan-cities-call-list">
+                      {MOROCCAN_CITIES.map((c) => (
+                        <option key={c} value={c} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <input
+                    type="text"
+                    value={callingAddress}
+                    onChange={(e) => setCallingAddress(e.target.value)}
+                    placeholder="العنوان أو الحي بالتفصيل..."
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  />
+                </div>
+              </div>
             </div>
 
             <div>

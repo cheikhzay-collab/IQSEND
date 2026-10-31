@@ -211,6 +211,44 @@ export function findProductByNameOrKeyword(query: string): ProductItem | undefin
   );
 }
 
+/**
+ * Robust Product Resolver: Finds matching catalog product by SKU/Code or by Name/Keywords
+ */
+export function resolveProductBySkuOrName(rawSku?: string, rawName?: string): ProductItem | null {
+  const products = getProducts();
+
+  // 1. Direct SKU or ID match
+  if (rawSku && rawSku.trim()) {
+    const cleanSku = rawSku.trim().toLowerCase();
+    const bySku = products.find(
+      (p) =>
+        (p.sku && p.sku.toLowerCase() === cleanSku) ||
+        (p.id && p.id.toLowerCase() === cleanSku) ||
+        (Array.isArray(p.keywords) && p.keywords.some((k) => k.toLowerCase() === cleanSku))
+    );
+    if (bySku) return bySku;
+  }
+
+  // 2. Direct Name or Keyword match
+  if (rawName && rawName.trim()) {
+    const byName = findProductByNameOrKeyword(rawName.trim());
+    if (byName) return byName;
+  }
+
+  // 3. Fallback: Check if SKU is contained in name or keywords
+  if (rawSku && rawSku.trim()) {
+    const cleanSku = rawSku.trim().toLowerCase();
+    const fuzzy = products.find(
+      (p) =>
+        p.name.toLowerCase().includes(cleanSku) ||
+        p.nameAr.toLowerCase().includes(cleanSku)
+    );
+    if (fuzzy) return fuzzy;
+  }
+
+  return null;
+}
+
 export function formatProductListForWhatsApp(): string {
   const products = getProducts();
   const lines = products.map((p, idx) => {

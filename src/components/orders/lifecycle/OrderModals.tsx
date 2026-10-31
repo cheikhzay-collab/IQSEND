@@ -17,6 +17,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { LifecycleOrder } from '@/context/OrderLifecycleContext';
+import { MOROCCAN_CITIES } from '@/lib/moroccan-cities';
 
 // ── 1. SHIPPING LABEL MODAL (WAYBILL / BORDEREAU DE LIVRAISON) ──────────
 export function ShippingLabelModal({
@@ -384,14 +385,21 @@ export function EditOrderModal({
               />
             </div>
             <div>
-              <label className="block font-bold text-slate-700 mb-1">Ville</label>
+              <label className="block font-bold text-slate-700 mb-1">Ville (Maroc)</label>
               <input
+                list="moroccan-cities-edit-list"
                 type="text"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none font-bold text-slate-900"
+                placeholder="Ex: Casablanca, Marrakech..."
                 required
               />
+              <datalist id="moroccan-cities-edit-list">
+                {MOROCCAN_CITIES.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
             </div>
           </div>
 

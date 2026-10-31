@@ -3,6 +3,8 @@ import { addInboundOrder, cleanMoroccanPhone, IngestedOrder } from '@/lib/orders
 import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
 import { getMysqlPool } from '@/lib/db';
 import { realtimeHub } from '@/lib/realtime-events';
+import { resolveProductBySkuOrName } from '@/lib/products-store';
+import { normalizeMoroccanCity } from '@/lib/moroccan-cities';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +12,7 @@ export const dynamic = 'force-dynamic';
  * 1-Click Google Sheets Direct Sync & Settings API
  * 1. GET: Fetch saved Google Sheets settings & recent logs from MySQL store_settings
  * 2. PUT: Save/update Google Sheet settings (URL, auto-sync, interval) in MySQL
- * 3. POST: Execute direct synchronization with deduplication & real-time broadcast
+ * 3. POST: Execute direct synchronization with SKU recognition, deduplication & real-time broadcast
  */
 
 function extractSheetId(url: string): { sheetId: string; gid?: string } | null {
@@ -199,10 +201,11 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     let sheetUrl = (body.sheetUrl || body.url || '').trim();
+    const isDemo = body.isDemo === true || sheetUrl === 'DEMO';
     const pool = getMysqlPool();
 
-    // If no sheetUrl provided in request, check if one was saved in store_settings
-    if (!sheetUrl) {
+    // If no sheetUrl provided in request and not demo, check if one was saved in store_settings
+    if (!sheetUrl && !isDemo) {
       const [rows]: any = await pool.execute(
         `SELECT setting_value FROM store_settings WHERE setting_key = 'GOOGLE_SHEET_URL'`
       );
@@ -211,7 +214,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    if (!sheetUrl) {
+    if (!sheetUrl && !isDemo) {
       return NextResponse.json(
         { success: false, error: 'رابط Google Sheet مفقود. يرجى لصق الرابط وحفظه أولاً.' },
         { status: 400 }
@@ -238,7 +241,7 @@ export async function POST(req: NextRequest) {
 
     // If client only requested saving settings without running sync
     if (body.saveOnly) {
-      if (sheetUrl) {
+      if (sheetUrl && !isDemo) {
         await pool.execute(
           `INSERT INTO store_settings (setting_key, setting_value, updated_at)
            VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
@@ -253,51 +256,63 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    let csvData = '';
-    let sheetIdTag = 'gs';
+    let rows: string[][] = [];
+    let sheetIdTag = 'gs-demo';
 
-    const extracted = extractSheetId(sheetUrl);
-    if (!extracted) {
-      return NextResponse.json(
-        { success: false, error: 'صيغة رابط Google Sheet غير صالحة. تأكد من أن الرابط يحتوي على https://docs.google.com/spreadsheets/d/...' },
-        { status: 400 }
-      );
-    }
-    sheetIdTag = extracted.sheetId.slice(0, 6);
+    if (isDemo) {
+      // Built-in Demo Data using official catalog SKU and products
+      rows = [
+        ['Date', 'ID Commande', 'Nom Client', 'Téléphone', 'Ville', 'Adresse', 'Code SKU', 'Produit', 'Quantité', 'Prix Total COD', 'Remarques'],
+        ['2026-10-31', '#CMD-DEMO-1', 'Youssef El Amrani', '0661998877', 'Marrakech', 'Guéliz, Immeuble Atlas, Appt 6', 'BMB-BLK-L', 'خف جلد طبيعي أصلي (KHUF CUIR)', '1', '179', 'Appeler avant 14h pour confirmation'],
+        ['2026-10-31', '#CMD-DEMO-2', 'Amina Benjelloun', '0672112233', 'Fès', 'Route Ain Chkef, Résidence Narjiss', 'BMB-BLK-L', 'خف جلد طبيعي أصلي (KHUF CUIR)', '2', '269', 'Livraison rapide souhaitée'],
+        ['2026-10-31', '#CMD-DEMO-3', 'Tariq Alami', '0654334455', 'Casablanca', 'Bd Zerktouni, Quartier Maârif', 'BMB-BLK-L', 'خف جلد طبيعي أصلي (KHUF CUIR)', '1', '179', 'Paiement espèces COD à la livraison'],
+        ['2026-10-31', '#CMD-DEMO-4', 'Houda Tazi', '0663778899', 'Tanger', 'Tanger Balia, Complexe Ennasr', 'BMB-BLK-L', 'خف جلد طبيعي أصلي (KHUF CUIR)', '3', '340', 'Confirmer par WhatsApp Darija'],
+        ['2026-10-31', '#CMD-DEMO-5', 'Karim Bennani', '0611223344', 'Rabat', 'Agdal, Rue Oukaimeden, Imm 12', 'BMB-BLK-L', 'خف جلد طبيعي أصلي (KHUF CUIR)', '1', '179', 'Livrer l\'après-midi après 16h'],
+      ];
+    } else {
+      const extracted = extractSheetId(sheetUrl);
+      if (!extracted) {
+        return NextResponse.json(
+          { success: false, error: 'صيغة رابط Google Sheet غير صالحة. تأكد من أن الرابط يحتوي على https://docs.google.com/spreadsheets/d/...' },
+          { status: 400 }
+        );
+      }
+      sheetIdTag = extracted.sheetId.slice(0, 6);
 
-    // Direct Google Sheets CSV export endpoint
-    const csvExportUrl = extracted.gid
-      ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
-      : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
+      // Direct Google Sheets CSV export endpoint
+      const csvExportUrl = extracted.gid
+        ? `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv&gid=${extracted.gid}`
+        : `https://docs.google.com/spreadsheets/d/${extracted.sheetId}/export?format=csv`;
 
-    const response = await fetch(csvExportUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'تعذر الوصول إلى Google Sheet. تأكد من ضبط إمكانية الوصول إلى "Tous les utilisateurs disposant du lien (Lecteur)" في Google Sheets.',
+      const response = await fetch(csvExportUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SenditPlatform/1.0',
         },
-        { status: 403 }
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'تعذر الوصول إلى Google Sheet. تأكد من ضبط إمكانية الوصول إلى "Tous les utilisateurs disposant du lien (Lecteur)" في Google Sheets.',
+          },
+          { status: 403 }
+        );
+      }
+
+      const csvData = await response.text();
+
+      // Persist the valid URL into store_settings
+      await pool.execute(
+        `INSERT INTO store_settings (setting_key, setting_value, updated_at)
+         VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
+         ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
+        [sheetUrl]
       );
+
+      rows = parseCSV(csvData);
     }
-
-    csvData = await response.text();
-
-    // Persist the valid URL into store_settings
-    await pool.execute(
-      `INSERT INTO store_settings (setting_key, setting_value, updated_at)
-       VALUES ('GOOGLE_SHEET_URL', ?, CURRENT_TIMESTAMP)
-       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value), updated_at = CURRENT_TIMESTAMP`,
-      [sheetUrl]
-    );
-
-    const rows = parseCSV(csvData);
 
     if (rows.length < 2) {
       return NextResponse.json(
@@ -312,19 +327,22 @@ export async function POST(req: NextRequest) {
       return headers.findIndex(h => possibleNames.some(p => h.includes(p)));
     };
 
-    const nameIdx = findIndex(['nom', 'client', 'name', 'الاسم', 'اسم']);
-    const phoneIdx = findIndex(['tel', 'téléphone', 'telephone', 'phone', 'mobile', 'الهاتف', 'هاتف', 'رقم']);
+    const orderIdIdx = findIndex(['id', 'commande', 'n°', 'order', 'numero', 'ref', 'الطلب', 'رقم الطلب', 'معرف']);
+    const skuIdx = findIndex(['sku', 'code', 'ref', 'référence', 'reference', 'الرمز', 'رمز', 'معرف المنتج', 'كود']);
+    const nameIdx = findIndex(['nom', 'client', 'name', 'prenom', 'الاسم', 'اسم']);
+    const phoneIdx = findIndex(['tel', 'téléphone', 'telephone', 'phone', 'mobile', 'gsm', 'الهاتف', 'هاتف', 'رقم']);
     const cityIdx = findIndex(['ville', 'city', 'المدينة', 'مدينة', 'destination']);
-    const addressIdx = findIndex(['adresse', 'address', 'العنوان', 'عنوان', 'quartier']);
-    const productIdx = findIndex(['produit', 'article', 'product', 'item', 'المنتج', 'سلعة', 'عرض']);
-    const priceIdx = findIndex(['prix', 'montant', 'total', 'price', 'amount', 'الثمن', 'المبلغ', 'سعر']);
+    const addressIdx = findIndex(['adresse', 'address', 'العنوان', 'عنوان', 'quartier', 'rue']);
+    const productIdx = findIndex(['produit', 'article', 'product', 'item', 'المنتج', 'سلعة', 'عرض', 'اسم المنتج']);
+    const priceIdx = findIndex(['prix', 'montant', 'total', 'price', 'amount', 'cod', 'الثمن', 'المبلغ', 'سعر', 'الإجمالي']);
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
-    const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات']);
+    const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات', 'remarques']);
     const dateIdx = findIndex(['date', 'time', 'horodateur', 'timestamp', 'تاريخ', 'وقت', 'heure']);
 
-    // Fetch existing phone numbers and order numbers from order_leads to DEDUPLICATE
+    // Fetch existing phone numbers and order numbers from order_leads to STRICTLY DEDUPLICATE
     const existingPhones = new Set<string>();
     const existingOrderIds = new Set<string>();
+    const existingOrderNumbers = new Set<string>();
     try {
       const [existingLeads]: any = await pool.execute(
         `SELECT id, order_number, phone_number FROM order_leads`
@@ -332,11 +350,12 @@ export async function POST(req: NextRequest) {
       if (Array.isArray(existingLeads)) {
         existingLeads.forEach((l: any) => {
           if (l.phone_number) existingPhones.add(cleanMoroccanPhone(l.phone_number));
-          if (l.id) existingOrderIds.add(l.id);
+          if (l.id) existingOrderIds.add(String(l.id).trim().toLowerCase());
+          if (l.order_number) existingOrderNumbers.add(String(l.order_number).trim().toLowerCase());
         });
       }
     } catch (e) {
-      console.warn('[Sync] Note querying existing leads:', e);
+      console.warn('[Sync] Note querying existing leads for deduplication:', e);
     }
 
     const importedOrders: IngestedOrder[] = [];
@@ -347,6 +366,7 @@ export async function POST(req: NextRequest) {
       const row = rows[r];
       if (!row || row.length === 0) continue;
 
+      const rawOrderId = (orderIdIdx !== -1 && row[orderIdIdx]) ? row[orderIdIdx].trim() : '';
       const customerName = (nameIdx !== -1 && row[nameIdx]) ? row[nameIdx].trim() : `Client #${r}`;
       const rawPhone = (phoneIdx !== -1 && row[phoneIdx]) ? row[phoneIdx].trim() : '';
       const phone = cleanMoroccanPhone(rawPhone);
@@ -358,17 +378,49 @@ export async function POST(req: NextRequest) {
         continue;
       }
 
-      // Deduplication check: if order with this phone already exists in DB, skip it (unless forceSync is true)
+      // Deduplication check:
+      // 1. By Order Number / ID from Sheet
+      if (rawOrderId) {
+        const cleanOId = rawOrderId.toLowerCase();
+        if (existingOrderNumbers.has(cleanOId) || existingOrderIds.has(cleanOId)) {
+          skippedCount++;
+          continue;
+        }
+      }
+
+      // 2. By Phone Number: if order with this phone already exists in DB, skip it (unless forceSync is true)
       if (!body.forceSync && phone && existingPhones.has(phone)) {
         skippedCount++;
         continue;
       }
 
-      const city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
+      // Mark phone and order ID as seen to prevent duplicates within same sheet
+      if (phone) existingPhones.add(phone);
+      if (rawOrderId) existingOrderNumbers.add(rawOrderId.toLowerCase());
+
+      const rawCity = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
+      const city = normalizeMoroccanCity(rawCity);
       const address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx].trim() : 'Adresse à confirmer par appel';
-      const productName = (productIdx !== -1 && row[productIdx]) ? row[productIdx].trim() : 'Pack E-commerce Standard';
-      const rawPrice = (priceIdx !== -1 && row[priceIdx]) ? row[priceIdx].replace(/[^\d.]/g, '') : '299';
-      const amount = parseFloat(rawPrice) || 299;
+
+      // 🌟 Intelligent Product Identification by SKU and Name from Central Catalog
+      const rawSku = (skuIdx !== -1 && row[skuIdx]) ? row[skuIdx].trim() : '';
+      const rawProductName = (productIdx !== -1 && row[productIdx]) ? row[productIdx].trim() : '';
+      const matchedProd = resolveProductBySkuOrName(rawSku, rawProductName);
+
+      const productName = matchedProd 
+        ? (matchedProd.nameAr || matchedProd.name) 
+        : (rawProductName || 'Pack E-commerce Standard');
+
+      const productSku = matchedProd 
+        ? matchedProd.sku 
+        : (rawSku || `GS-${productName.slice(0, 3).toUpperCase()}-01`);
+
+      const productThumbnail = matchedProd?.image 
+        || matchedProd?.additionalImages?.[0] 
+        || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%8BD8%A7%D9%8B-1.jpg.webp';
+
+      const rawPrice = (priceIdx !== -1 && row[priceIdx]) ? row[priceIdx].replace(/[^\d.]/g, '') : '';
+      const amount = parseFloat(rawPrice) || (matchedProd ? matchedProd.sellingPrice : 179);
       const quantity = (qtyIdx !== -1 && row[qtyIdx]) ? parseInt(row[qtyIdx], 10) || 1 : 1;
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'Importé automatiquement via Google Sheet';
 
@@ -381,8 +433,8 @@ export async function POST(req: NextRequest) {
       }
 
       const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-      const orderId = `gs-${sheetIdTag}-r${r}`;
-      const orderNumber = `#GS${randomSuffix}`;
+      const orderId = rawOrderId ? `gs-${rawOrderId.replace(/[^\w-]/g, '')}` : `gs-${sheetIdTag}-r${r}`;
+      const orderNumber = rawOrderId ? (rawOrderId.startsWith('#') ? rawOrderId : `#${rawOrderId}`) : `#GS${randomSuffix}`;
 
       const order: IngestedOrder = {
         id: orderId,
@@ -401,8 +453,8 @@ export async function POST(req: NextRequest) {
           {
             id: `item-${orderId}`,
             name: productName,
-            sku: `GS-${productName.slice(0, 3).toUpperCase()}-01`,
-            thumbnail: 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp',
+            sku: productSku,
+            thumbnail: productThumbnail,
             quantity,
             price: amount,
           },
@@ -415,8 +467,8 @@ export async function POST(req: NextRequest) {
         },
         aiVerification: {
           status: 'NEEDS_REVIEW',
-          riskScore: 88,
-          notes: `Importé depuis Google Sheet. Numéro marocain : ${phone}`,
+          riskScore: 10,
+          notes: `Importé depuis Google Sheet. Produit identifié : ${productName} (${productSku}). Destination : ${city}`,
         },
       };
 
@@ -429,15 +481,19 @@ export async function POST(req: NextRequest) {
           `INSERT INTO order_leads (
             id, order_number, customer_name, phone_number, city, address, total_amount, status,
             risk_score, risk_level, ai_confirmation_status, store_source, created_at, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 15, 'LOW', 'PENDING', 'Google Sheets Sync', ?, ?)
-          ON DUPLICATE KEY UPDATE updated_at = CURRENT_TIMESTAMP`,
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 'NEW', 10, 'LOW', 'PENDING', 'Google Sheets Sync', ?, ?)
+          ON DUPLICATE KEY UPDATE 
+            city = VALUES(city),
+            address = VALUES(address),
+            updated_at = CURRENT_TIMESTAMP`,
           [order.id, order.orderNumber, customerName, phone, city, address, amount * quantity, sheetCreatedAt, notes]
         );
 
         await pool.execute(
           `INSERT INTO order_items (id, order_id, product_name, sku, quantity, price)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [`it-${order.id}`, order.id, productName, `GS-${productName.slice(0, 3).toUpperCase()}-01`, quantity, amount]
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON DUPLICATE KEY UPDATE product_name = VALUES(product_name), sku = VALUES(sku), quantity = VALUES(quantity), price = VALUES(price)`,
+          [`it-${order.id}`, order.id, productName, productSku, quantity, amount]
         );
 
         await pool.execute(
@@ -448,9 +504,6 @@ export async function POST(req: NextRequest) {
              total_orders = total_orders + 1, updated_at = CURRENT_TIMESTAMP`,
           [`cust-${(phone || '0000').slice(-4)}`, phone || '0600000000', customerName, city, address, notes]
         );
-
-        // Mark phone as seen to prevent duplicates within same sheet
-        if (phone) existingPhones.add(phone);
       } catch (dbErr: any) {
         console.warn(`[Sync] Note persisting order ${order.orderNumber}:`, dbErr.message);
       }
@@ -474,7 +527,7 @@ export async function POST(req: NextRequest) {
           `log-sync-${Date.now()}`,
           sheetIdTag,
           importedOrders.length,
-          `استيراد ${importedOrders.length} طلبات جديدة وتخطي ${skippedCount} مسجلة مسبقاً`
+          `استيراد ${importedOrders.length} طلبات جديدة وتخطي ${skippedCount} طلبات مكررة`
         ]
       );
 
@@ -522,8 +575,8 @@ export async function POST(req: NextRequest) {
     }
 
     const message = importedOrders.length > 0
-      ? `✅ تم استيراد ${importedOrders.length} طلب(ات) جديدة بنجاح إلى مرحلة التأكيد! (${skippedCount} طلبات سابقة تم تخطيها)`
-      : `ℹ️ لم يتم العثور على طلبات جديدة. جميع الطلبات (${skippedCount}) مسجلة مسبقاً في قاعدة البيانات.`;
+      ? `✅ تم استيراد ${importedOrders.length} طلب(ات) جديدة بنجاح إلى مرحلة التأكيد! (${skippedCount} طلبات مكررة تم تخطيها لمنع التكرار)`
+      : `ℹ️ لم يتم العثور على طلبات جديدة. جميع الطلبات (${skippedCount}) مسجلة مسبقاً في قاعدة البيانات لمنع التكرار.`;
 
     return NextResponse.json({
       success: true,
@@ -545,3 +598,4 @@ export async function POST(req: NextRequest) {
     );
   }
 }
+

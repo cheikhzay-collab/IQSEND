@@ -21,6 +21,8 @@ import {
 } from 'lucide-react';
 import { OrderItem, OrderStatus } from '@/types/orders';
 import { getStageMessageConfig } from '@/lib/order-stage-messages';
+import { MOROCCAN_CITIES } from '@/lib/moroccan-cities';
+import { Edit2 } from 'lucide-react';
 
 interface OrderDetailsModalProps {
   order: OrderItem | null;
@@ -45,11 +47,57 @@ export function OrderDetailsModal({
   const [isPushing, setIsPushing] = useState(false);
   const [pushSuccess, setPushSuccess] = useState<string | null>(order?.trackingCode || null);
   const [waybillLink, setWaybillLink] = useState<string | null>(order?.waybillUrl || null);
+  const [isEditingCity, setIsEditingCity] = useState(false);
+  const [editableCity, setEditableCity] = useState(order?.city || '');
+  const [editableAddress, setEditableAddress] = useState(order?.address || '');
+  const [isSavingCity, setIsSavingCity] = useState(false);
 
   useEffect(() => {
     setPushSuccess(order?.trackingCode || null);
     setWaybillLink(order?.waybillUrl || null);
+    if (order) {
+      setEditableCity(order.city || '');
+      setEditableAddress(order.address || '');
+      setIsEditingCity(false);
+    }
   }, [order]);
+
+  
+  const handleSaveCity = async () => {
+    if (!order || isSavingCity) return;
+    setIsSavingCity(true);
+    try {
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          phone: order.phone,
+          city: editableCity.trim() || order.city,
+          address: editableAddress.trim() || order.address,
+          amount: order.amount,
+          status: order.status,
+          customer: {
+            name: order.customerName,
+            phone: order.phone,
+            city: editableCity.trim() || order.city,
+            address: editableAddress.trim() || order.address,
+          },
+        }),
+      });
+      if (res.ok) {
+        order.city = editableCity.trim() || order.city;
+        order.address = editableAddress.trim() || order.address;
+        setIsEditingCity(false);
+      }
+    } catch (err) {
+      console.warn('Error saving city:', err);
+    } finally {
+      setIsSavingCity(false);
+    }
+  };
 
   const handlePushToSendit = async () => {
     if (!order || isPushing) return;
@@ -218,11 +266,78 @@ export function OrderDetailsModal({
                   {order.phone}
                 </a>
               </div>
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60 col-span-2">
-                <span className="text-slate-400 text-[11px] block">Ville & Adresse</span>
-                <span className="font-bold text-slate-800">
-                  {order.city}, Maroc {order.address ? `— ${order.address}` : ''}
-                </span>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 col-span-2 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 text-[11px] font-bold flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Ville & Adresse de livraison (Maroc)</span>
+                  </span>
+                  {!isEditingCity ? (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingCity(true)}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>تعديل المدينة</span>
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingCity(false)}
+                        className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded bg-slate-200/70"
+                      >
+                        إلغاء
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleSaveCity}
+                        disabled={isSavingCity}
+                        className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded shadow-2xs disabled:opacity-50"
+                      >
+                        {isSavingCity ? 'جاري الحفظ...' : 'حفظ'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {!isEditingCity ? (
+                  <div className="flex items-center justify-between">
+                    <span className="font-extrabold text-slate-900 text-xs">
+                      {order.city}, Maroc {order.address ? `— ${order.address}` : ''}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      {order.city}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 animate-in fade-in">
+                    <div>
+                      <input
+                        list="modal-moroccan-cities-list"
+                        type="text"
+                        value={editableCity}
+                        onChange={(e) => setEditableCity(e.target.value)}
+                        placeholder="المدينة..."
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-900 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        required
+                      />
+                      <datalist id="modal-moroccan-cities-list">
+                        {MOROCCAN_CITIES.map((c) => (
+                          <option key={c} value={c} />
+                        ))}
+                      </datalist>
+                    </div>
+                    <input
+                      type="text"
+                      value={editableAddress}
+                      onChange={(e) => setEditableAddress(e.target.value)}
+                      placeholder="العنوان أو الحي بالتفصيل..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           </div>

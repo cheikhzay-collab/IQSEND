@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { addInboundOrder, cleanMoroccanPhone, getInboundOrders, IngestedOrder } from '@/lib/orders-store';
 import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
+import { resolveProductBySkuOrName } from '@/lib/products-store';
+import { normalizeMoroccanCity } from '@/lib/moroccan-cities';
 
 /**
  * Google Sheets Webhook API
@@ -89,12 +91,13 @@ export async function POST(req: NextRequest) {
       payload['Téléphone'] ||
       '';
 
-    const city =
+    const rawCity =
       payload.city ||
       payload.ville ||
       payload['المدينة'] ||
       payload['Ville'] ||
       'Casablanca';
+    const city = normalizeMoroccanCity(String(rawCity));
 
     const address =
       payload.address ||
@@ -103,7 +106,18 @@ export async function POST(req: NextRequest) {
       payload['Adresse'] ||
       'عنوان غير محدد';
 
-    const productName =
+    const rawSku =
+      payload.sku ||
+      payload.code ||
+      payload.ref ||
+      payload['الرمز'] ||
+      payload['رمز'] ||
+      payload['Code'] ||
+      payload['SKU'] ||
+      payload['Code SKU'] ||
+      '';
+
+    const rawProductName =
       payload.product ||
       payload.item ||
       payload.productName ||
@@ -111,14 +125,27 @@ export async function POST(req: NextRequest) {
       payload['Produit'] ||
       'Pack Moroccan COD Premium';
 
+    const matchedProd = resolveProductBySkuOrName(String(rawSku), String(rawProductName));
+
+    const productName = matchedProd
+      ? (matchedProd.nameAr || matchedProd.name)
+      : String(rawProductName).trim();
+
+    const productSku = matchedProd
+      ? matchedProd.sku
+      : (String(rawSku).trim() || `GS-${String(productName).slice(0, 3).toUpperCase()}-01`);
+
+    const productThumbnail = matchedProd?.image 
+      || matchedProd?.additionalImages?.[0]
+      || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%8BD8%A7%D9%8B-1.jpg.webp';
+
     const quantity = parseInt(
       payload.quantity || payload.qte || payload.quantite || payload['الكمية'] || '1',
       10
     ) || 1;
 
-    const price = parseFloat(
-      payload.price || payload.total || payload.totalAmount || payload.prix || payload['الثمن'] || '299'
-    ) || 299;
+    const rawPrice = payload.price || payload.total || payload.totalAmount || payload.prix || payload['الثمن'];
+    const price = parseFloat(rawPrice) || (matchedProd ? matchedProd.sellingPrice : 179);
 
     const notes =
       payload.notes ||

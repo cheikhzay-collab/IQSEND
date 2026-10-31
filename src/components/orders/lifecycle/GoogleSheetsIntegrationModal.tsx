@@ -118,70 +118,104 @@ export function GoogleSheetsIntegrationModal({ isOpen, onClose }: GoogleSheetsIn
     ? `${window.location.origin}/api/webhooks/google-sheets`
     : 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets';
 
-  const headersList = ['Date', 'Nom Client', 'Téléphone', 'Ville', 'Adresse', 'Produit', 'Quantité', 'Prix COD (MAD)', 'Remarques'];
+  const headersList = [
+    'Date',
+    'ID Commande',
+    'Nom Client',
+    'Téléphone',
+    'Ville',
+    'Adresse',
+    'Code SKU',
+    'Produit',
+    'Quantité',
+    'Prix Total COD (MAD)',
+    'Remarques',
+  ];
 
   const sampleRows = [
     {
-      date: '2026-10-20',
+      date: '2026-10-31',
+      orderId: '#CMD-101',
       name: 'Youssef El Amrani',
       phone: '0661998877',
       city: 'Marrakech',
       address: 'Guéliz, Immeuble Atlas, Appt 6',
-      product: 'Montre Luxe Or Noir',
+      sku: 'BMB-BLK-L',
+      product: 'خف جلد طبيعي أصلي (KHUF CUIR)',
       qty: 1,
-      price: '349 MAD',
-      notes: 'Appeler avant 14h',
+      price: '179 MAD',
+      notes: 'Appeler avant 14h pour confirmation',
     },
     {
-      date: '2026-10-20',
+      date: '2026-10-31',
+      orderId: '#CMD-102',
       name: 'Amina Benjelloun',
       phone: '0672112233',
       city: 'Fès',
       address: 'Route Ain Chkef, Résidence Narjiss',
-      product: 'Pack Caftan Moderne',
-      qty: 1,
-      price: '490 MAD',
+      sku: 'BMB-BLK-L',
+      product: 'خف جلد طبيعي أصلي (KHUF CUIR)',
+      qty: 2,
+      price: '269 MAD',
       notes: 'Livraison express souhaitée',
     },
     {
-      date: '2026-10-20',
+      date: '2026-10-31',
+      orderId: '#CMD-103',
       name: 'Tariq Alami',
       phone: '0654334455',
       city: 'Casablanca',
       address: 'Bd Zerktouni, Quartier Maârif',
-      product: 'Sneakers Sport Élite',
-      qty: 2,
-      price: '598 MAD',
-      notes: 'Espèces à la livraison',
+      sku: 'BMB-BLK-L',
+      product: 'خف جلد طبيعي أصلي (KHUF CUIR)',
+      qty: 1,
+      price: '179 MAD',
+      notes: 'Paiement espèces COD à la livraison',
     },
     {
-      date: '2026-10-20',
+      date: '2026-10-31',
+      orderId: '#CMD-104',
       name: 'Houda Tazi',
       phone: '0663778899',
       city: 'Tanger',
       address: 'Tanger Balia, Complexe Ennasr',
-      product: 'Sac Cuir Artisanal',
-      qty: 1,
-      price: '380 MAD',
-      notes: 'Confirmation WhatsApp',
+      sku: 'BMB-BLK-L',
+      product: 'خف جلد طبيعي أصلي (KHUF CUIR)',
+      qty: 3,
+      price: '340 MAD',
+      notes: 'Confirmer par WhatsApp Darija',
     },
     {
-      date: '2026-10-20',
+      date: '2026-10-31',
+      orderId: '#CMD-105',
       name: 'Karim Bennani',
       phone: '0611223344',
       city: 'Rabat',
       address: 'Agdal, Rue Oukaimeden, Imm 12',
-      product: 'Pack Soins Bio Maroc',
+      sku: 'BMB-BLK-L',
+      product: 'خف جلد طبيعي أصلي (KHUF CUIR)',
       qty: 1,
-      price: '299 MAD',
-      notes: 'Livrer l\'après-midi',
+      price: '179 MAD',
+      notes: 'Livrer l\'après-midi après 16h',
     },
   ];
 
   const copyFullTemplateToClipboard = () => {
     const fullText = [
       headersList.join('\t'),
-      ...sampleRows.map((r) => [r.date, r.name, r.phone, r.city, `"${r.address}"`, r.product, r.qty, r.price.replace(' MAD', ''), r.notes].join('\t')),
+      ...sampleRows.map((r) => [
+        r.date,
+        r.orderId,
+        r.name,
+        r.phone,
+        r.city,
+        `"${r.address}"`,
+        r.sku,
+        r.product,
+        r.qty,
+        r.price.replace(' MAD', ''),
+        r.notes,
+      ].join('\t')),
     ].join('\n');
     navigator.clipboard.writeText(fullText);
     setCopiedFullTemplate(true);
@@ -710,10 +744,12 @@ function testConnection() {
                               {idx + 2}
                             </td>
                             <td className="py-2 px-3 whitespace-nowrap font-mono text-slate-500">{row.date}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-mono font-bold text-slate-700 bg-slate-50">{row.orderId}</td>
                             <td className="py-2 px-3 whitespace-nowrap font-bold text-slate-900">{row.name}</td>
                             <td className="py-2 px-3 whitespace-nowrap font-mono font-bold text-emerald-700">{row.phone}</td>
                             <td className="py-2 px-3 whitespace-nowrap font-medium text-slate-800">{row.city}</td>
                             <td className="py-2 px-3 whitespace-nowrap text-slate-600">{row.address}</td>
+                            <td className="py-2 px-3 whitespace-nowrap font-mono font-extrabold text-blue-700 bg-blue-50/60 px-2 py-0.5 rounded">{row.sku}</td>
                             <td className="py-2 px-3 whitespace-nowrap font-bold text-slate-800">{row.product}</td>
                             <td className="py-2 px-3 whitespace-nowrap text-center font-bold text-slate-700">{row.qty}</td>
                             <td className="py-2 px-3 whitespace-nowrap font-black text-emerald-800 bg-emerald-50/50">{row.price}</td>

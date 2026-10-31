@@ -3,6 +3,8 @@ import { addInboundOrder, cleanMoroccanPhone, IngestedOrder } from '@/lib/orders
 import { triggerOrderConfirmationOutreach } from '@/lib/order-automations';
 import { getMysqlPool } from '@/lib/db';
 import { realtimeHub } from '@/lib/realtime-events';
+import { resolveProductBySkuOrName } from '@/lib/products-store';
+import { normalizeMoroccanCity } from '@/lib/moroccan-cities';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,14 +140,15 @@ export async function GET(req: NextRequest) {
       return headers.findIndex(h => possibleNames.some(p => h.includes(p)));
     };
 
-    const nameIdx = findIndex(['nom', 'client', 'name', 'الاسم', 'اسم']);
-    const phoneIdx = findIndex(['tel', 'téléphone', 'telephone', 'phone', 'mobile', 'الهاتف', 'هاتف', 'رقم']);
+    const nameIdx = findIndex(['nom', 'client', 'name', 'prenom', 'الاسم', 'اسم']);
+    const phoneIdx = findIndex(['tel', 'téléphone', 'telephone', 'phone', 'mobile', 'gsm', 'الهاتف', 'هاتف', 'رقم']);
     const cityIdx = findIndex(['ville', 'city', 'المدينة', 'مدينة', 'destination']);
-    const addressIdx = findIndex(['adresse', 'address', 'العنوان', 'عنوان', 'quartier']);
-    const productIdx = findIndex(['produit', 'article', 'product', 'item', 'المنتج', 'سلعة', 'عرض']);
-    const priceIdx = findIndex(['prix', 'montant', 'total', 'price', 'amount', 'الثمن', 'المبلغ', 'سعر']);
+    const addressIdx = findIndex(['adresse', 'address', 'العنوان', 'عنوان', 'quartier', 'rue']);
+    const skuIdx = findIndex(['sku', 'code', 'ref', 'référence', 'reference', 'الرمز', 'رمز', 'معرف المنتج', 'كود']);
+    const productIdx = findIndex(['produit', 'article', 'product', 'item', 'المنتج', 'سلعة', 'عرض', 'اسم المنتج']);
+    const priceIdx = findIndex(['prix', 'montant', 'total', 'price', 'amount', 'cod', 'الثمن', 'المبلغ', 'سعر', 'الإجمالي']);
     const qtyIdx = findIndex(['qte', 'quantité', 'quantity', 'qty', 'الكمية', 'عدد']);
-    const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات']);
+    const noteIdx = findIndex(['note', 'remarque', 'comment', 'ملاحظة', 'ملاحظات', 'remarques']);
 
     // 4. Query existing phone numbers and order IDs in order_leads for deduplication
     const existingPhones = new Set<string>();
@@ -195,11 +198,28 @@ export async function GET(req: NextRequest) {
       const orderNumber = `#GS${1000 + (r % 9000)}`;
       const finalCustomerName = customerName || `Client ${phone.slice(-4)}`;
 
-      const city = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
+      const rawCity = (cityIdx !== -1 && row[cityIdx]) ? row[cityIdx].trim() : 'Casablanca';
+      const city = normalizeMoroccanCity(rawCity);
       const address = (addressIdx !== -1 && row[addressIdx]) ? row[addressIdx].trim() : 'Adresse à confirmer par appel';
-      const productName = (productIdx !== -1 && row[productIdx]) ? row[productIdx].trim() : 'Pack E-commerce Standard';
-      const rawPrice = (priceIdx !== -1 && row[priceIdx]) ? row[priceIdx].replace(/[^\d.]/g, '') : '299';
-      const amount = parseFloat(rawPrice) || 299;
+
+      const rawSku = (skuIdx !== -1 && row[skuIdx]) ? row[skuIdx].trim() : '';
+      const rawProductName = (productIdx !== -1 && row[productIdx]) ? row[productIdx].trim() : '';
+      const matchedProd = resolveProductBySkuOrName(rawSku, rawProductName);
+
+      const productName = matchedProd 
+        ? (matchedProd.nameAr || matchedProd.name) 
+        : (rawProductName || 'Pack E-commerce Standard');
+
+      const productSku = matchedProd 
+        ? matchedProd.sku 
+        : (rawSku || `GS-${productName.slice(0, 3).toUpperCase()}-01`);
+
+      const productThumbnail = matchedProd?.image 
+        || matchedProd?.additionalImages?.[0] 
+        || 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%8BD8%A7%D9%8B-1.jpg.webp';
+
+      const rawPrice = (priceIdx !== -1 && row[priceIdx]) ? row[priceIdx].replace(/[^\d.]/g, '') : '';
+      const amount = parseFloat(rawPrice) || (matchedProd ? matchedProd.sellingPrice : 179);
       const quantity = (qtyIdx !== -1 && row[qtyIdx]) ? parseInt(row[qtyIdx], 10) || 1 : 1;
       const notes = (noteIdx !== -1 && row[noteIdx]) ? row[noteIdx].trim() : 'مزامنة تلقائية حية من Google Sheet';
 
@@ -220,8 +240,8 @@ export async function GET(req: NextRequest) {
           {
             id: `item-${orderId}`,
             name: productName,
-            sku: `GS-${productName.slice(0, 3).toUpperCase()}-01`,
-            thumbnail: 'https://qonfor.shop/wp-content/uploads/2026/10/Copie-de-Copie-de-Copie-de-%D8%A8%D8%AF%D9%88%D9%86-%D9%85%D9%88%D8%B3E%D9%8A%D9%82%D9%89-%D8%A8%D8%AA%D8%A7%D9%86%D8%A7%D9%8B-1.jpg.webp',
+            sku: productSku,
+            thumbnail: productThumbnail,
             quantity,
             price: amount,
           },
