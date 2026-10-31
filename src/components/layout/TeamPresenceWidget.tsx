@@ -12,12 +12,15 @@ import {
   Circle,
   Sparkles,
   Wifi,
-  WifiOff
+  WifiOff,
+  User
 } from 'lucide-react';
+import { UserProfileModal } from '@/components/profile/UserProfileModal';
 
 export function TeamPresenceWidget() {
   const { currentUser, allUsers, switchUser, toggleMyOnlineStatus, isLoading } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -281,6 +284,21 @@ export function TeamPresenceWidget() {
                   <span>{currentUser.isOnline ? 'En ligne (Disponible)' : 'Absent (Hors ligne)'}</span>
                 </button>
               </div>
+
+              {/* Profile Edit Button */}
+              <div className="mt-2.5 pt-2 border-t border-slate-700/60">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setIsProfileOpen(true);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 hover:text-white rounded-lg text-xs font-bold border border-emerald-500/40 transition-colors cursor-pointer"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>Modifier mon profil & photo (تعديل البروفايل)</span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -434,6 +452,12 @@ export function TeamPresenceWidget() {
           </div>
         </div>
       )}
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
     </div>
   );
 }

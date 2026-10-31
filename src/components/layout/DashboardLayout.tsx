@@ -39,6 +39,7 @@ import {
   Shield,
   ShieldCheck,
   UserCheck,
+  User,
   LogOut,
   Power
 } from 'lucide-react';
@@ -46,6 +47,7 @@ import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { useAuth } from '@/context/AuthContext';
 import { TeamPresenceWidget } from '@/components/layout/TeamPresenceWidget';
 import { AccessDeniedScreen } from '@/components/layout/AccessDeniedScreen';
+import { UserProfileModal } from '@/components/profile/UserProfileModal';
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -54,6 +56,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [searchFocused, setSearchFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
   const {
     pendingCount,
@@ -232,28 +235,38 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </button>
 
           {/* Top Header User Profile & Logout */}
-          <div className="flex items-center gap-2.5 pl-3 border-l border-slate-200">
-            <div className="flex items-center gap-2">
-              {currentUser?.avatarUrl ? (
-                <img
-                  src={currentUser.avatarUrl}
-                  alt={currentUser.name}
-                  className="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-500/20"
-                />
-              ) : (
-                <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
-                  {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
-                </div>
-              )}
-              <div className="hidden lg:flex flex-col text-left">
-                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px]">
-                  {currentUser?.name || 'Admin'}
-                </span>
-                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider">
-                  {currentUser?.role === 'ADMIN' ? 'Directeur Admin' : currentUser?.role || 'Agent'}
+          <div className="flex items-center gap-2 pl-3 border-l border-slate-200">
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100/90 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200"
+              title="Modifier mon profil et ma photo (تعديل البروفايل)"
+            >
+              <div className="relative">
+                {currentUser?.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-7 h-7 rounded-full object-cover ring-2 ring-emerald-500/20 group-hover:ring-emerald-500 transition-all"
+                  />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-slate-900 text-white font-black text-[9px] flex items-center justify-center tracking-tighter">
+                    {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                  </div>
+                )}
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 text-white absolute -bottom-0.5 -right-0.5 flex items-center justify-center ring-1 ring-white">
+                  <User className="w-1.5 h-1.5" />
                 </span>
               </div>
-            </div>
+              <div className="hidden lg:flex flex-col text-left">
+                <span className="text-xs font-bold text-slate-800 leading-tight truncate max-w-[130px] group-hover:text-emerald-700">
+                  {currentUser?.name || 'Admin'}
+                </span>
+                <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
+                  <span>{currentUser?.role === 'ADMIN' ? 'Directeur Admin' : currentUser?.role || 'Agent'}</span>
+                  <span className="text-[8px] text-slate-400 group-hover:text-emerald-600 font-normal">✏️</span>
+                </span>
+              </div>
+            </button>
 
             {/* Top Logout Button */}
             <button
@@ -440,26 +453,39 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </button>
                 </div>
 
-                {/* Profile pill */}
-                <div className="flex items-center gap-2.5 p-2 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
-                  {currentUser?.avatarUrl ? (
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={currentUser.name}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center">
-                      {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                {/* Profile pill (Clickable to edit profile) */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    setIsProfileModalOpen(true);
+                  }}
+                  className="w-full flex items-center justify-between p-2 rounded-xl bg-white/10 hover:bg-white/15 backdrop-blur-xs border border-white/10 transition-colors text-left cursor-pointer group"
+                  title="Modifier mon profil et ma photo"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {currentUser?.avatarUrl ? (
+                      <img
+                        src={currentUser.avatarUrl}
+                        alt={currentUser.name}
+                        className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-black text-xs flex items-center justify-center shrink-0">
+                        {currentUser?.name ? currentUser.name.slice(0, 2).toUpperCase() : 'AD'}
+                      </div>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs font-black text-white truncate">{currentUser?.name || 'Administrateur'}</p>
+                      <span className="text-[10px] text-emerald-300 font-semibold block">
+                        {currentUser?.role === 'ADMIN' ? '👑 Directeur Admin' : currentUser?.role || 'Agent Confirmateur'}
+                      </span>
                     </div>
-                  )}
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-black text-white truncate">{currentUser?.name || 'Administrateur'}</p>
-                    <span className="text-[10px] text-emerald-300 font-semibold block">
-                      {currentUser?.role === 'ADMIN' ? '👑 Directeur Admin' : currentUser?.role || 'Agent Confirmateur'}
-                    </span>
                   </div>
-                </div>
+                  <span className="text-[10px] text-emerald-200 bg-emerald-500/20 px-2 py-0.5 rounded-lg border border-emerald-400/30 font-bold shrink-0">
+                    Modifier ✏️
+                  </span>
+                </button>
               </div>
 
               {/* Navigation Links Scrollable (Categorized for Native App Experience) */}
@@ -1021,12 +1047,17 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
             {/* Active User Card & Dedicated Logout Button in Sidebar */}
             <div className="pt-2 border-t border-slate-200/60 space-y-2">
-              <div className="flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 border border-slate-200/70">
+              <button
+                type="button"
+                onClick={() => setIsProfileModalOpen(true)}
+                className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 transition-all text-left cursor-pointer group"
+                title="Modifier mon profil et ma photo (تعديل البروفايل)"
+              >
                 {currentUser?.avatarUrl ? (
                   <img
                     src={currentUser.avatarUrl}
                     alt={currentUser.name}
-                    className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-300"
+                    className="w-8 h-8 rounded-full object-cover ring-1 ring-slate-300 group-hover:ring-emerald-500 transition-all"
                   />
                 ) : (
                   <div className="w-8 h-8 rounded-full bg-slate-900 text-white font-bold text-xs flex items-center justify-center">
@@ -1034,14 +1065,15 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   </div>
                 )}
                 <div className="flex-1 min-w-0 text-left">
-                  <div className="text-xs font-bold text-slate-900 truncate">
-                    {currentUser?.name || 'Administrateur'}
+                  <div className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-700 flex items-center gap-1">
+                    <span>{currentUser?.name || 'Administrateur'}</span>
+                    <span className="text-[10px] text-slate-400 group-hover:text-emerald-600">✏️</span>
                   </div>
                   <div className="text-[10px] text-slate-500 truncate font-mono">
                     {currentUser?.email || 'admin@sendit.ma'}
                   </div>
                 </div>
-              </div>
+              </button>
 
               <button
                 onClick={() => logout()}
@@ -1175,6 +1207,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
           </button>
         </div>
       )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* 7. USER PROFILE MODAL (EDIT PROFILE & PICTURE)               */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
 
     </div>
   );

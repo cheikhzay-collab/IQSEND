@@ -29,10 +29,16 @@ import {
   Trash2,
   AlertOctagon,
   ShieldAlert,
-  X
+  X,
+  User,
+  Camera
 } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { UserProfileModal } from '@/components/profile/UserProfileModal';
 
 export default function SettingsPage() {
+  const { currentUser } = useAuth();
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   // Sendit.ma Logistics State
   const [senditPublicKey, setSenditPublicKey] = useState('');
   const [senditSecretKey, setSenditSecretKey] = useState('');
@@ -376,6 +382,60 @@ export default function SettingsPage() {
           {isSavingAll ? 'Enregistrement...' : 'Enregistrer les Paramètres'}
         </button>
       </div>
+
+      {/* 🌟 SECTION 0: MON PROFIL PERSONNEL & PHOTO */}
+      {currentUser && (
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs bg-gradient-to-r from-white via-white to-emerald-50/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className="relative group shrink-0">
+                {currentUser.avatarUrl ? (
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-14 h-14 rounded-full object-cover ring-2 ring-emerald-500 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-emerald-600 text-white font-black text-xl flex items-center justify-center ring-2 ring-emerald-500 shadow-xs">
+                    {currentUser.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setIsProfileModalOpen(true)}
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs hover:bg-emerald-700 transition-colors"
+                  title="Modifier la photo"
+                >
+                  <Camera className="w-3 h-3" />
+                </button>
+              </div>
+
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900 truncate">{currentUser.name}</h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200">
+                    {currentUser.role === 'ADMIN' ? '👑 Directeur Admin' : currentUser.role}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 truncate mt-0.5">{currentUser.jobTitle || 'Collaborateur Sendit COD'}</p>
+                <div className="flex items-center gap-3 text-[11px] text-slate-400 mt-1 font-mono">
+                  <span>{currentUser.email}</span>
+                  {currentUser.phone && <span>• {currentUser.phone}</span>}
+                </div>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
+            >
+              <User className="w-4 h-4" />
+              <span>Modifier mon profil & photo (تعديل البروفايل)</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 0. GOOGLE SHEETS AUTOMATIC INTEGRATION */}
       <div className="bg-white border-2 border-emerald-500/30 rounded-2xl p-5 space-y-4 shadow-sm bg-gradient-to-br from-white via-white to-emerald-50/20">
@@ -1089,6 +1149,12 @@ export default function SettingsPage() {
           </div>
         </div>
       )}
+
+      {/* User Profile Modal */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </div>
   );
 }
