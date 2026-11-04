@@ -1,8 +1,4 @@
-import makeWASocket, {
-  DisconnectReason,
-  useMultiFileAuthState,
-  WASocket,
-} from '@whiskeysockets/baileys';
+import type { WASocket } from '@whiskeysockets/baileys';
 import pino from 'pino';
 import QRCode from 'qrcode';
 import path from 'path';
@@ -59,6 +55,7 @@ export async function initWhatsAppBaileys(): Promise<WhatsAppBridgeState> {
       fs.mkdirSync(authDir, { recursive: true });
     }
 
+    const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = await import('@whiskeysockets/baileys');
     const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
     const sock = makeWASocket({
