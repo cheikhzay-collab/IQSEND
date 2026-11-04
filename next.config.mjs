@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   experimental: {
+    workerThreads: false,
+    cpus: 1,
     serverComponentsExternalPackages: [
       '@whiskeysockets/baileys',
       'whatsapp-rust-bridge',
