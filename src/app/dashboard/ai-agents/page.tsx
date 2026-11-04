@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ChatMessage, MOROCCAN_VOICE_PRESETS, COD_IMAGE_PRESETS } from '@/lib/ai-agents-data';
+import AgentAuditLogTab from '@/components/ai-agents/AgentAuditLogTab';
+import AgentAdvancedRulesTab from '@/components/ai-agents/AgentAdvancedRulesTab';
 import Link from 'next/link';
 import {
   Bot,
@@ -218,8 +220,8 @@ const DEFAULT_PRODUCTS_KB: ProductKbData[] = [
 
 export default function AiAgentsPage() {
   const [activeTab, setActiveTab] = useState<
-    'simulator' | 'product-kb' | 'prompt' | 'knowledge' | 'permissions'
-  >('simulator');
+    'simulator' | 'operations-log' | 'advanced-rules' | 'product-kb' | 'prompt' | 'knowledge' | 'permissions'
+  >('operations-log');
   const [temperature, setTemperature] = useState(0.3);
   const [selectedProduct, setSelectedProduct] = useState<ProductKbData>(DEFAULT_PRODUCTS_KB[0]);
   const [newSellingPoint, setNewSellingPoint] = useState('');
@@ -800,9 +802,6 @@ export default function AiAgentsPage() {
             <h1 className="text-lg font-bold text-slate-900">
               Agents IA & Knowledge Base (Gemini 1.5 Flash)
             </h1>
-            <p className="text-xs text-slate-500">
-              Confirmation automatique, gestion des objections en Darija, Upselling et suivi interactif
-            </p>
           </div>
         </div>
 
@@ -850,6 +849,26 @@ export default function AiAgentsPage() {
 
       {/* Navigation Tabs - Mobile Horizontal Swipe */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-2 text-xs font-bold overflow-x-auto whitespace-nowrap scrollbar-none scroll-smooth">
+        <button
+          onClick={() => setActiveTab('operations-log')}
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
+            activeTab === 'operations-log'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" /> 📋 سجل العمليات (Audit Log)
+        </button>
+        <button
+          onClick={() => setActiveTab('advanced-rules')}
+          className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
+            activeTab === 'advanced-rules'
+              ? 'bg-blue-600 text-white shadow-sm'
+              : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <Sliders className="w-3.5 h-3.5" /> ⚙️ قواعد التهدئة وساعات الهدوء
+        </button>
         <button
           onClick={() => setActiveTab('simulator')}
           className={`px-3.5 py-2.5 rounded-xl transition-all flex items-center gap-2 shrink-0 whitespace-nowrap active:scale-95 ${
@@ -2050,6 +2069,16 @@ export default function AiAgentsPage() {
           </div>
         </div>
       )}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 6: AUDIT & OPERATIONS LOG (سجل العمليات والقرارات)       */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'operations-log' && <AgentAuditLogTab />}
+
+      {/* ───────────────────────────────────────────────────────────── */}
+      {/* TAB 7: ADVANCED ANTI-SPAM & COOLDOWN RULES (قواعد التهدئة)   */}
+      {/* ───────────────────────────────────────────────────────────── */}
+      {activeTab === 'advanced-rules' && <AgentAdvancedRulesTab />}
 
     </div>
   );

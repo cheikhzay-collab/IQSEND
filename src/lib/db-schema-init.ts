@@ -492,6 +492,26 @@ export const CREATE_TABLES_SQL = [
     INDEX idx_session_phone (phone_number),
     INDEX idx_session_active (is_active)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+
+  // 25. Agent Operations Log (Audit trail, Rate-limiting, Cooldown & Anti-Spam protection)
+  `CREATE TABLE IF NOT EXISTS agent_operations_log (
+    id VARCHAR(64) PRIMARY KEY,
+    order_id VARCHAR(36),
+    order_number VARCHAR(100),
+    customer_phone VARCHAR(50) NOT NULL,
+    customer_name VARCHAR(255),
+    action_type VARCHAR(100) NOT NULL,
+    status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'EXECUTED',
+    reason_details TEXT,
+    channel VARCHAR(50) DEFAULT 'WHATSAPP',
+    payload TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_agent_op_order (order_id),
+    INDEX idx_agent_op_phone (customer_phone),
+    INDEX idx_agent_op_action (action_type),
+    INDEX idx_agent_op_status (status),
+    INDEX idx_agent_op_created (created_at)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
 ];
 
 /**
@@ -777,6 +797,27 @@ export const MIGRATION_STATEMENTS_SQL: { id: string; sql: string }[] = [
       INDEX idx_session_active (is_active)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
   },
+  {
+    id: 'create_agent_operations_log_table',
+    sql: `CREATE TABLE IF NOT EXISTS agent_operations_log (
+      id VARCHAR(64) PRIMARY KEY,
+      order_id VARCHAR(36),
+      order_number VARCHAR(100),
+      customer_phone VARCHAR(50) NOT NULL,
+      customer_name VARCHAR(255),
+      action_type VARCHAR(100) NOT NULL,
+      status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'EXECUTED',
+      reason_details TEXT,
+      channel VARCHAR(50) DEFAULT 'WHATSAPP',
+      payload TEXT,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_agent_op_order (order_id),
+      INDEX idx_agent_op_phone (customer_phone),
+      INDEX idx_agent_op_action (action_type),
+      INDEX idx_agent_op_status (status),
+      INDEX idx_agent_op_created (created_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+  },
 ];
 
 /**
@@ -900,6 +941,7 @@ export async function initializeDatabase(forceReset: boolean = false) {
     'events',
     'google_sheets_configs',
     'whatsapp_sessions',
+    'agent_operations_log',
   ];
 
   // 1. Create all tables sequentially
@@ -1064,6 +1106,17 @@ export async function initializeDatabase(forceReset: boolean = false) {
       { key: 'SENDIT_PUBLIC_KEY', value: '3d4232babb11df9a39165b4fcaf88057' },
       { key: 'SENDIT_PRIVATE_KEY', value: 'RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ' },
       { key: 'SENDIT_WEBHOOK_SECRET', value: 'RzRVrol6hv3OHMmcaYDPzBl2KianmSZQ' },
+      { key: 'AGENT_QUIET_HOURS_ENABLED', value: 'true' },
+      { key: 'AGENT_QUIET_HOURS_START', value: '21:30' },
+      { key: 'AGENT_QUIET_HOURS_END', value: '08:30' },
+      { key: 'AGENT_COOLDOWN_OUT_FOR_DELIVERY_HOURS', value: '24' },
+      { key: 'AGENT_COOLDOWN_MORNING_REMINDER_HOURS', value: '24' },
+      { key: 'AGENT_COOLDOWN_CONFIRMATION_HOURS', value: '4' },
+      { key: 'AGENT_COOLDOWN_RESCUE_HOURS', value: '18' },
+      { key: 'AGENT_COOLDOWN_REVIEW_HOURS', value: '720' },
+      { key: 'AGENT_MAX_DAILY_MESSAGES_PER_CUSTOMER', value: '2' },
+      { key: 'AGENT_OPERATION_MODE', value: 'AUTOPILOT' },
+      { key: 'AGENT_DND_PHONES', value: '[]' },
       { key: 'DATABASE_VERSION', value: '2.0.0-hostinger-mysql-complete' },
     ];
 

@@ -1,5 +1,6 @@
 import { sendInteractiveButtons, sendWhatsAppMessage } from './whatsapp';
 import { getInboundOrders, IngestedOrder } from './orders-store';
+import { executeSafeAgentAction } from './agent-rules-engine';
 
 /**
  * Pillar 1: Confirmation AI Agent
@@ -41,24 +42,33 @@ ${itemsText}
     { id: `MODIFY_${order.id}`, title: 'تعديل الطلب ✍️' },
   ];
 
-  const result = await sendInteractiveButtons(phone, bodyText, buttons, 'تأكيد طلبية Sendit');
-  
-  // Update order record
-  order.aiVerification = {
-    status: 'NEEDS_REVIEW',
-    riskScore: order.aiVerification?.riskScore || 10,
-    notes: 'Message de confirmation WhatsApp envoyé avec boutons interactifs',
-  };
-  order.upsellOffer = {
-    offered: true,
-    accepted: false,
-    newQuantity: 2,
-    extraPriceMad: upsellPrice,
-    discountPercent: 30,
-    bundleTitle: 'Pack Duo (-30%)',
-  };
-
-  return { success: true, result };
+  return await executeSafeAgentAction(
+    {
+      customerPhone: phone,
+      customerName,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      actionType: 'ORDER_CONFIRMATION',
+      payloadPreview: bodyText,
+    },
+    async () => {
+      const result = await sendInteractiveButtons(phone, bodyText, buttons, 'تأكيد طلبية Sendit');
+      order.aiVerification = {
+        status: 'NEEDS_REVIEW',
+        riskScore: order.aiVerification?.riskScore || 10,
+        notes: 'Message de confirmation WhatsApp envoyé avec boutons interactifs',
+      };
+      order.upsellOffer = {
+        offered: true,
+        accepted: false,
+        newQuantity: 2,
+        extraPriceMad: upsellPrice,
+        discountPercent: 30,
+        bundleTitle: 'Pack Duo (-30%)',
+      };
+      return result;
+    }
+  );
 }
 
 /**
@@ -84,24 +94,34 @@ export async function triggerNeedsAttentionRescue(
     { id: `RESCUE_SUPPORT_${order.id}`, title: 'التحدث مع المندوب 📞' },
   ];
 
-  const result = await sendInteractiveButtons(phone, bodyText, buttons, 'متابعة توصيل طلبيتك');
-
-  if (order.rescue) {
-    order.rescue.status = 'OUTREACH_SENT';
-    order.rescue.failureReason = failureReason;
-    order.rescue.outreachCount = (order.rescue.outreachCount || 0) + 1;
-    order.rescue.lastOutreachAt = new Date().toISOString();
-  } else {
-    order.rescue = {
-      status: 'OUTREACH_SENT',
-      failureReason,
-      outreachCount: 1,
-      lastOutreachAt: new Date().toISOString(),
-      notes: `Rescue outreach triggered for ${failureReason}`,
-    };
-  }
-
-  return { success: true, result };
+  return await executeSafeAgentAction(
+    {
+      customerPhone: phone,
+      customerName,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      actionType: 'DELIVERY_RESCUE',
+      payloadPreview: `[Rescue: ${failureReason}] ${bodyText}`,
+    },
+    async () => {
+      const result = await sendInteractiveButtons(phone, bodyText, buttons, 'متابعة توصيل طلبيتك');
+      if (order.rescue) {
+        order.rescue.status = 'OUTREACH_SENT';
+        order.rescue.failureReason = failureReason;
+        order.rescue.outreachCount = (order.rescue.outreachCount || 0) + 1;
+        order.rescue.lastOutreachAt = new Date().toISOString();
+      } else {
+        order.rescue = {
+          status: 'OUTREACH_SENT',
+          failureReason,
+          outreachCount: 1,
+          lastOutreachAt: new Date().toISOString(),
+          notes: `Rescue outreach triggered for ${failureReason}`,
+        };
+      }
+      return result;
+    }
+  );
 }
 
 /**
@@ -113,7 +133,8 @@ export async function triggerOutForDeliveryNotice(
   phone: string,
   customerName: string,
   trackingCode: string,
-  carrier: string = 'Sendit.ma'
+  carrier: string = 'Sendit.ma',
+  orderId?: string
 ) {
   const trackingUrl = `https://app.sendit.ma/tracking/${trackingCode}`;
   const message = `أهلاً ${customerName}! 🚚
@@ -123,7 +144,19 @@ export async function triggerOutForDeliveryNotice(
 
 خلي هاتفك متاح باش يتصل بيك المندوب عند الوصول! ✨`;
 
-  return await sendWhatsAppMessage(phone, message);
+  return await executeSafeAgentAction(
+    {
+      customerPhone: phone,
+      customerName,
+      orderId,
+      orderNumber: trackingCode,
+      actionType: 'OUT_FOR_DELIVERY_NOTICE',
+      payloadPreview: message,
+    },
+    async () => {
+      return await sendWhatsAppMessage(phone, message);
+    }
+  );
 }
 
 // 2. Morning-of-delivery COD Reminder
@@ -131,21 +164,35 @@ export async function triggerMorningCodReminder(
   phone: string,
   customerName: string,
   trackingCode: string,
-  codAmountMad: number
+  codAmountMad: number,
+  orderId?: string
 ) {
   const message = `صباح الخير ${customerName} ☀️
 تذكير ودود: كوليتك رقم *${trackingCode}* مبرمجة للتوصيل اليوم عبر Sendit.
 💵 يرجى تحضير المبلغ المطلوب نقداً: *${codAmountMad} درهم*.
 الموزع سيتصل بك قريباً للتنسيق. شكراً لثقتكم! 📦`;
 
-  return await sendWhatsAppMessage(phone, message);
+  return await executeSafeAgentAction(
+    {
+      customerPhone: phone,
+      customerName,
+      orderId,
+      orderNumber: trackingCode,
+      actionType: 'MORNING_COD_REMINDER',
+      payloadPreview: message,
+    },
+    async () => {
+      return await sendWhatsAppMessage(phone, message);
+    }
+  );
 }
 
 // 3. Post-Delivery Thank you and Review Invitation
 export async function triggerReviewInvitation(
   phone: string,
   customerName: string,
-  orderNumber: string
+  orderNumber: string,
+  orderId?: string
 ) {
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || 'https://app.sendit.ma';
   const cleanBase = baseUrl.replace(/\/+$/, '');
@@ -158,5 +205,17 @@ export async function triggerReviewInvitation(
 
 نتشرف بخدمتك دائماً! ❤️`;
 
-  return await sendWhatsAppMessage(phone, message);
+  return await executeSafeAgentAction(
+    {
+      customerPhone: phone,
+      customerName,
+      orderId,
+      orderNumber,
+      actionType: 'POST_DELIVERY_REVIEW',
+      payloadPreview: message,
+    },
+    async () => {
+      return await sendWhatsAppMessage(phone, message);
+    }
+  );
 }

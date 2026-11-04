@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI, FunctionDeclaration, SchemaType } from '@google/generative-ai';
+import { logAgentOperation } from './agent-rules-engine';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
@@ -741,6 +742,15 @@ export async function processCustomerWhatsAppMessage(
               deliveryNotes: args.deliveryNotes,
             });
             toolDetails.resultDescription = `Confirmation validée pour ${args.verifiedCity || context.city}`;
+            logAgentOperation({
+              orderId: context.orderId,
+              customerPhone: context.phoneNumber,
+              customerName: context.customerName,
+              actionType: 'TOOL_CONFIRM_ORDER',
+              status: 'EXECUTED',
+              reasonDetails: `Confirmation d'adresse & commande pour ${args.verifiedCity || context.city}`,
+              channel: 'WHATSAPP',
+            }).catch(() => {});
             if (!replyText) {
               replyText = `شكراً بزاف ليك أخي ${context.customerName}! الطلب ديالك تأكد وغادي نجهزو الكولية في أقرب وقت لـ ${args.verifiedCity || context.city}. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
             }
@@ -756,6 +766,15 @@ export async function processCustomerWhatsAppMessage(
               reason: args.reason,
             });
             toolDetails.resultDescription = `Détails modifiés (Taille: ${args.newSize || 'inchangée'})`;
+            logAgentOperation({
+              orderId: context.orderId,
+              customerPhone: context.phoneNumber,
+              customerName: context.customerName,
+              actionType: 'TOOL_UPDATE_DETAILS',
+              status: 'EXECUTED',
+              reasonDetails: `Mise à jour des détails (Taille: ${args.newSize || 'inchangée'})`,
+              channel: 'WHATSAPP',
+            }).catch(() => {});
             if (!replyText) {
               replyText = `تمام! قمنا بتعديل الطلب ديالك بنجاح${args.newSize ? ` (المقاس: ${args.newSize})` : ''}${args.updatedPrice ? `، والمجموع الجديد أصبح ${args.updatedPrice} درهم` : ''}. واش العنوان والمدينة هما هادوك نيت؟`;
             }
@@ -767,6 +786,15 @@ export async function processCustomerWhatsAppMessage(
               googleMapsUrl: args.googleMapsUrl,
             });
             toolDetails.resultDescription = `Position GPS enregistrée: ${args.googleMapsUrl}`;
+            logAgentOperation({
+              orderId: context.orderId,
+              customerPhone: context.phoneNumber,
+              customerName: context.customerName,
+              actionType: 'TOOL_SAVE_GPS',
+              status: 'EXECUTED',
+              reasonDetails: `Position GPS enregistrée: ${args.googleMapsUrl}`,
+              channel: 'WHATSAPP',
+            }).catch(() => {});
             if (!replyText) {
               replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة 📍✅';
             }
@@ -778,6 +806,15 @@ export async function processCustomerWhatsAppMessage(
               reason: args.reason || 'Client cancellation via WhatsApp',
             });
             toolDetails.resultDescription = `Commande annulée: ${args.reason || 'Demande client'}`;
+            logAgentOperation({
+              orderId: context.orderId,
+              customerPhone: context.phoneNumber,
+              customerName: context.customerName,
+              actionType: 'TOOL_CANCEL_ORDER',
+              status: 'EXECUTED',
+              reasonDetails: `Annulation de commande: ${args.reason || 'Demande client'}`,
+              channel: 'WHATSAPP',
+            }).catch(() => {});
             if (!replyText) {
               replyText = 'مرحبا أخي، تم إلغاء الطلب بناءً على رغبتك بكل احترام. نتشرفو بيك في فرصة قادمة إن شاء الله! 🙏';
             }
@@ -1509,6 +1546,15 @@ export async function processCustomerVoiceNote(
               googleMapsUrl: args.googleMapsUrl,
             });
             toolDetails.resultDescription = `Position GPS enregistrée: ${args.googleMapsUrl}`;
+            logAgentOperation({
+              orderId: context.orderId,
+              customerPhone: context.phoneNumber,
+              customerName: context.customerName,
+              actionType: 'TOOL_SAVE_GPS',
+              status: 'EXECUTED',
+              reasonDetails: `Position GPS enregistrée: ${args.googleMapsUrl}`,
+              channel: 'WHATSAPP',
+            }).catch(() => {});
             if (!replyText) {
               replyText = 'شكراً جزيلاً! تسجل موقع التوصيل بدقة وغادي يسهل على الموزع يوصل عندك بالزربة 📍✅';
             }

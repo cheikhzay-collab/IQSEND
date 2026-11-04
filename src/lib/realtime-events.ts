@@ -16,6 +16,7 @@ export type RealtimeEventType =
   | 'FINANCE_TRANSACTION'
   | 'FINANCE_UPDATED'
   | 'AI_CONFIG_UPDATED'
+  | 'AGENT_OPERATION_LOGGED'
   | 'AUTOMATION_UPDATED'
   | 'TEAM_UPDATED'
   | 'NOTIFICATION';
@@ -23,7 +24,7 @@ export type RealtimeEventType =
 export interface AppRealtimeEvent {
   id?: number;
   eventType: RealtimeEventType;
-  entityType: 'ORDER' | 'PARCEL' | 'CUSTOMER' | 'PRODUCT' | 'PACKING' | 'WHATSAPP' | 'CALL' | 'FINANCE' | 'SYSTEM' | 'AI_AGENT' | 'AUTOMATION' | 'USER';
+  entityType: 'ORDER' | 'PARCEL' | 'CUSTOMER' | 'PRODUCT' | 'PACKING' | 'WHATSAPP' | 'CALL' | 'FINANCE' | 'SYSTEM' | 'AI_AGENT' | 'AUTOMATION' | 'USER' | 'AGENT_LOG';
   entityId: string;
   title: string;
   payload?: any;

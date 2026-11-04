@@ -277,13 +277,16 @@ export async function POST(req: NextRequest) {
         await triggerOutForDeliveryNotice(
           matchingOrder.customer.phone,
           matchingOrder.customer.name,
-          trackingCode
+          trackingCode,
+          'Sendit.ma Express',
+          matchingOrder.id
         );
         await triggerMorningCodReminder(
           matchingOrder.customer.phone,
           matchingOrder.customer.name,
           trackingCode,
-          matchingOrder.payment.amount
+          matchingOrder.payment.amount,
+          matchingOrder.id
         );
       }
     } else if (processed.mappedStatus === 'DELIVERED_PAID') {
@@ -291,7 +294,8 @@ export async function POST(req: NextRequest) {
         await triggerReviewInvitation(
           matchingOrder.customer.phone,
           matchingOrder.customer.name,
-          matchingOrder.orderNumber
+          matchingOrder.orderNumber,
+          matchingOrder.id
         );
       }
     }
