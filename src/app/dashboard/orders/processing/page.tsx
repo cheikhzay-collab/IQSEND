@@ -87,24 +87,19 @@ export default function ProcessingOrdersPage() {
       {/* Main Content Area */}
       <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
 
-        {/* Header with Title and Tools */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-sm shrink-0">
-              <Package className="w-5 h-5" />
+        {/* Compact Clean Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Package className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
-                  2. En préparation & Emballage
-                </h1>
-                <span className="bg-blue-100 text-blue-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-blue-200">
-                  {processingCount} à emballer
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Prélèvement (Picking), scan code-barres de conformité, impression des bordereaux Sendit et expédition.
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                2. En préparation & AWB
+              </h1>
+              <span className="bg-blue-100 text-blue-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-blue-200">
+                {processingCount} colis
+              </span>
             </div>
           </div>
 

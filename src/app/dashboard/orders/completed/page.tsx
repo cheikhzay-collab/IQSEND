@@ -77,22 +77,17 @@ export default function CompletedOrdersPage() {
 
         {/* Header with Title and Financial Clearance Summary */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shadow-sm">
-              <CheckCircle2 className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+              <CheckCircle2 className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  4. Commandes Livrées & Encaissées
-                </h1>
-                <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  {completedCount} commandes clôturées
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Preuves de livraison (POD), réconciliation des fonds COD encaissés, factures commerciales et collecte des avis clients.
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                4. Livrées & Encaissées
+              </h1>
+              <span className="bg-emerald-100 text-emerald-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-emerald-200">
+                {completedCount} livrées
+              </span>
             </div>
           </div>
 

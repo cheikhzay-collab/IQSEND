@@ -568,18 +568,11 @@ export default function TrackingPage() {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-sm sm:text-base font-black text-slate-900 leading-tight">
-                  3. En cours de livraison — Suivi Sendit.ma
+                  Suivi des Expéditions Sendit
                 </h1>
                 <LiveBadge state={connectionState} eventCount={eventCount} />
               </div>
-              <p className="text-[11px] text-slate-500">
-                Pipeline COD en direct • {orders.length} colis enregistrés
-                {lastEventAt && (
-                  <span className="ml-1 text-emerald-600 font-semibold">
-                    · Dernier événement : {new Date(lastEventAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </p>
+              
             </div>
           </div>
 

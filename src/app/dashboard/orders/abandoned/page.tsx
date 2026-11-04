@@ -56,21 +56,13 @@ export default function AbandonedCartsPage() {
             <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-sm">
               <ShoppingCart className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Paniers Abandonnés
-                </h1>
-                <span className="text-xs font-bold text-slate-400">
-                  (À relancer)
-                </span>
-                <span className="bg-rose-100 text-rose-700 text-xs font-black px-2 py-0.5 rounded-full border border-rose-200">
-                  {carts.length} paniers
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Paniers commencés mais non finalisés sur le formulaire COD • Relance automatique via WhatsApp Bot
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                Paniers Abandonnés
+              </h1>
+              <span className="bg-rose-100 text-rose-700 text-[11px] font-black px-2 py-0.5 rounded-full border border-rose-200">
+                {carts.length}
+              </span>
             </div>
           </div>
 

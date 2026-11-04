@@ -87,21 +87,11 @@ export default function CustomersPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mb-2">
-            <Users className="w-3.5 h-3.5 text-blue-600" />
-            CRM & Score de Fiabilité Client COD Maroc
-            {isLiveDb && (
-              <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                <Database className="w-2.5 h-2.5" /> Base MySQL ({totalCustomers} Clients)
-              </span>
-            )}
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Base Clients & Anti-Fraude
+          
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            Clients & Score de Fiabilité
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Détection automatique des clients fiables, historique des réceptions d'argent et liste noire des refus abusifs synchronisés depuis la base de données.
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-2.5">

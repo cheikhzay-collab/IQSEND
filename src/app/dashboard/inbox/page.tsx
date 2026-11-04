@@ -243,12 +243,10 @@ export default function WhatsAppInboxPage() {
             <MessageSquare className="w-4 h-4" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-slate-900">
-              Boîte de Réception Omnicanale WhatsApp
+            <h1 className="text-sm font-black text-slate-900">
+              Messagerie WhatsApp
             </h1>
-            <p className="text-[11px] text-slate-500 hidden sm:block">
-              Gestion centralisée des conversations clients • Passage Humain/IA en un clic
-            </p>
+            
           </div>
         </div>
 

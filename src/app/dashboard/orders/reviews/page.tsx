@@ -72,21 +72,13 @@ export default function ReviewsPage() {
             <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
               <Star className="w-5 h-5 fill-current" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Avis Clients
-                </h1>
-                <span className="text-xs font-bold text-slate-400">
-                  (Retours &amp; Témoignages réels)
-                </span>
-                <span className="bg-amber-100 text-amber-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-amber-200">
-                  {reviews.length} {reviews.length > 1 ? 'avis collectés' : 'avis collecté'}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Retours clients authentiques collectés automatiquement par WhatsApp après livraison Sendit
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                Avis Clients
+              </h1>
+              <span className="bg-amber-100 text-amber-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-amber-200">
+                {reviews.length}
+              </span>
             </div>
           </div>
 

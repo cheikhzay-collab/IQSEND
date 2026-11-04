@@ -314,13 +314,11 @@ export default function LeadsConfirmationPage() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow-xs">
               <Sparkles className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">
-              Pipeline de Qualification & Confirmation IA
+            <h1 className="text-lg md:text-xl font-black text-slate-900">
+              Leads & Qualification
             </h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Cartes intelligentes avec visuel produit • Déclencheur WhatsApp Darija • Intégration Sendit.ma en 1-clic
-          </p>
+          
         </div>
 
         {/* Stats Pills */}

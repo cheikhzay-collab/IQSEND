@@ -227,8 +227,8 @@ export default function PackingPage() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
               <PackageCheck className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-black text-slate-900 tracking-tight">
-              Station d'Emballage & Bordereaux Sendit
+            <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+              Station d'Emballage (AWB)
             </h1>
             {isLiveDb && (
               <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 font-bold">
@@ -236,9 +236,7 @@ export default function PackingPage() {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Vérification physique des articles, scan code-barres, étiquetage thermique AWB et transmission directe au ramassage Sendit.ma
-          </p>
+          
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

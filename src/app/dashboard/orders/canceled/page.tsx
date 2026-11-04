@@ -91,25 +91,20 @@ export default function CanceledOrdersPage() {
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-sm shrink-0">
-              <XCircle className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <XCircle className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Annulations (Confirmation)
-                </h1>
-                <span className="bg-rose-100 text-rose-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-rose-200">
-                  {canceledOrders.length} annulées
-                </span>
-                <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                  Frais Sendit : 0 MAD
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Commandes annulées au stade de la confirmation téléphonique ou WhatsApp avant expédition physique.
-              </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                Commandes Annulées (Confirmation)
+              </h1>
+              <span className="bg-rose-100 text-rose-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-rose-200">
+                {canceledOrders.length}
+              </span>
+              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-200">
+                0 DH Frais
+              </span>
             </div>
           </div>
 

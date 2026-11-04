@@ -233,28 +233,21 @@ export default function PendingOrdersPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-16">
       {/* Main Content View */}
-      <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
+      <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-3 md:space-y-4">
         
-        {/* Header with Title, Counter and Tools */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shadow-sm shrink-0">
-                <ClipboardCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
-                    1. Confirmation des commandes
-                  </h1>
-                  <span className="bg-amber-500 text-white text-xs font-black px-2.5 py-0.5 rounded-full shadow-xs animate-pulse">
-                    {pendingCount} à traiter
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Appels de validation COD, gestion des relances (injoignables), programmation des rappels et transferts en préparation.
-                </p>
-              </div>
+        {/* Compact Clean Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-xs shrink-0">
+              <ClipboardCheck className="w-4 h-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                1. Confirmation
+              </h1>
+              <span className="bg-amber-500 text-white text-[11px] font-black px-2.5 py-0.5 rounded-full shadow-2xs">
+                {pendingCount} à traiter
+              </span>
             </div>
           </div>
 

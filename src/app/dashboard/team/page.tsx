@@ -223,21 +223,17 @@ export default function TeamAndPermissionsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Gestion des Membres & Permissions (RBAC)
+                <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+                  Équipe & Permissions
                 </h1>
-                <span className="text-[10px] bg-purple-100 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-full font-bold">
-                  Comptes Collaborateurs & Droits d'Accès
-                </span>
+                
                 {isLiveDb && (
                   <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full font-bold flex items-center gap-1">
                     <Database className="w-2.5 h-2.5" /> Connecté à Hostinger Cloud MySQL
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500 mt-1">
-                Gérez les identifiants de connexion, les intitulés de poste, les autorisations granulaires par module et le statut de présence de vos équipes.
-              </p>
+              
             </div>
           </div>
         </div>

@@ -191,12 +191,10 @@ export default function AutomationsPage() {
               </span>
             )}
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Automatisations & Scénarios COD
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            Automatisations COD
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Gestion des 6 scénarios clés de conversion, réduction des retours et sauvetage des livraisons sauvegardés en direct dans store_settings.
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-2.5">

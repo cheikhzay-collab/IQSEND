@@ -202,21 +202,11 @@ export default function CallCenterPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
-            <Headphones className="w-3.5 h-3.5 text-emerald-600" />
-            Poste Téléphonique & Confirmation d'Appels COD
-            {isLiveDb && (
-              <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1">
-                <Database className="w-2.5 h-2.5" /> Base MySQL ({tasks.length} Leads)
-              </span>
-            )}
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Centre d'Appels & Télé-opérateurs
+          
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            Centre d'Appels & Confirmation
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            File d'appels prioritaires, script interactif en Darija et validation directe des adresses synchronisées avec MySQL.
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-3">

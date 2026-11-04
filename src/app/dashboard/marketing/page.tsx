@@ -86,16 +86,11 @@ export default function MarketingPage() {
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full mb-2">
-            <Megaphone className="w-3.5 h-3.5 text-emerald-600" />
-            Marketing WhatsApp Broadcast & Rentabilité COD
-          </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Marketing & Acquisition
+          
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            Marketing & Campagnes
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Campagnes groupées WhatsApp, simulateur de rentabilité publicitaire et fidélisation client.
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-2">

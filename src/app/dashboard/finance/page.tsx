@@ -61,8 +61,8 @@ export default function FinanceReconciliationPage() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold">
               <BadgePercent className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">
-              Finances & Rapprochement Bancaire Sendit (COD)
+            <h1 className="text-lg md:text-xl font-black text-slate-900">
+              Finances & Rapprochement COD
             </h1>
             {isLiveDb && (
               <span className="ml-2 text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-300 flex items-center gap-1 font-bold">
@@ -70,9 +70,7 @@ export default function FinanceReconciliationPage() {
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Suivi des fonds encaissés en espèces, déduction automatique des frais de livraison et lettrage des virements en direct
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-2">

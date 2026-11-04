@@ -98,24 +98,19 @@ export default function InTransitOrdersPage() {
           </div>
         )}
 
-        {/* Header with Title */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
-              <Truck className="w-5 h-5" />
+        {/* Compact Clean Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Truck className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
-                  3. En cours de livraison
-                </h1>
-                <span className="bg-indigo-100 text-indigo-800 text-xs font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
-                  {inTransitCount} colis en route
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Suivi livreurs en direct, sauvetage WhatsApp et reprogrammation jusqu'à encaissement COD.
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                3. En cours de livraison
+              </h1>
+              <span className="bg-indigo-100 text-indigo-800 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-indigo-200">
+                {inTransitCount} colis
+              </span>
             </div>
           </div>
 

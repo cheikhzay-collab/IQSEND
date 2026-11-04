@@ -280,17 +280,14 @@ export function OrdersBoard() {
           </button>
 
           <div className="min-w-0">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-2">
               <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight truncate">
-                Vue Kanban des Commandes
+                Toutes les Commandes
               </h1>
-              <span className="bg-[#0F172A] text-white text-[11px] font-bold px-3 py-0.5 rounded-full shrink-0 shadow-2xs">
-                Cycle COD 4 Étapes
+              <span className="bg-[#0F172A] text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0 shadow-2xs">
+                {orders.length}
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-normal mt-0.5 truncate hidden sm:block">
-              Glissez et déposez les commandes entre les 4 étapes du cycle logistique
-            </p>
           </div>
         </div>
 

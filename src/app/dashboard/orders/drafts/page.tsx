@@ -57,21 +57,13 @@ export default function DraftsPage() {
             <div className="w-10 h-10 rounded-2xl bg-slate-800 text-white flex items-center justify-center shadow-sm">
               <FileText className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Brouillons & Drafts
-                </h1>
-                <span className="text-xs font-bold text-slate-400">
-                  (En attente de finalisation)
-                </span>
-                <span className="bg-slate-200 text-slate-700 text-xs font-black px-2 py-0.5 rounded-full">
-                  {drafts.length}
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Commandes en cours de saisie par vos agents ou brouillons WhatsApp avant envoi au call center.
-              </p>
+            <div className="flex items-center gap-2">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                Brouillons & Drafts
+              </h1>
+              <span className="bg-slate-200 text-slate-700 text-[11px] font-black px-2 py-0.5 rounded-full">
+                {drafts.length}
+              </span>
             </div>
           </div>
 

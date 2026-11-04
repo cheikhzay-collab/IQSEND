@@ -204,12 +204,10 @@ export default function DashboardOverviewPage() {
               </span>
             </div>
 
-            <h1 className="text-xl sm:text-3xl font-black tracking-tight leading-snug">
-              Centre de Pilotage COD & Expéditions Maroc
+            <h1 className="text-lg sm:text-2xl font-black tracking-tight leading-snug">
+              Tableau de Bord & Opérations COD
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed max-w-xl">
-              Bienvenue, <strong className="text-white">{currentUser?.name || 'Directeur'}</strong>. Contrôle unifié du cycle de vente : qualification IA Gemini en Darija, validation call center, expédition Sendit Express et sauvetage des retours.
-            </p>
+            
           </div>
 
           {/* Quick Action Bar */}

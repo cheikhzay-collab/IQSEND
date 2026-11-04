@@ -102,25 +102,20 @@ export default function ReturnsOrdersPage() {
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-600 text-white flex items-center justify-center shadow-sm shrink-0">
-              <RotateCcw className="w-5 h-5" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <RotateCcw className="w-4 h-4" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-black text-slate-900 tracking-tight">
-                  Retours & Colis Refusés (Livraison)
-                </h1>
-                <span className="bg-amber-100 text-amber-900 text-xs font-black px-2.5 py-0.5 rounded-full border border-amber-300">
-                  {returnedOrders.length} colis concernés
-                </span>
-                <span className="bg-slate-200 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Chez transporteur / Hub
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5">
-                Colis expédiés auprès de Sendit.ma mais refusés à la porte ou non livrés après plusieurs passages.
-              </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base md:text-lg font-black text-slate-900 tracking-tight">
+                Retours & Refus (Livraison)
+              </h1>
+              <span className="bg-amber-100 text-amber-900 text-[11px] font-black px-2.5 py-0.5 rounded-full border border-amber-300">
+                {returnedOrders.length} colis
+              </span>
+              <span className="bg-slate-100 text-slate-600 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200">
+                Chez Sendit
+              </span>
             </div>
           </div>
 

@@ -366,11 +366,9 @@ export default function SettingsPage() {
             <div className="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold">
               <Settings className="w-4 h-4" />
             </div>
-            <h1 className="text-xl font-bold text-slate-900">Paramètres & Intégrations</h1>
+            <h1 className="text-lg md:text-xl font-black text-slate-900">Paramètres du Compte & Système</h1>
           </div>
-          <p className="text-xs text-slate-500 mt-1">
-            Connexions Google Sheets, Sendit.ma, Google Gemini, passerelle WhatsApp et gestion COD
-          </p>
+          
         </div>
 
         <button

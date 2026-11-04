@@ -74,12 +74,10 @@ export default function ContentPage() {
             <Folder className="w-3.5 h-3.5 text-emerald-600" />
             Bibliothèque Multimédia & Scripts COD Maroc
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Contenu & Modèles de Vente
+          <h1 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            Contenu & Modèles
           </h1>
-          <p className="text-xs text-slate-500 mt-1">
-            Scripts de vente en Darija marocaine, vocaux WhatsApp de réassurance et médias visuels de conversion.
-          </p>
+          
         </div>
 
         <div className="flex items-center gap-2">
