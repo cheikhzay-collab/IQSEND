@@ -1,14 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  serverExternalPackages: [
-    '@whiskeysockets/baileys',
-    'whatsapp-rust-bridge',
-    'pino',
-    'sharp',
-    '@prisma/client',
-    'prisma',
-  ],
   experimental: {
     serverComponentsExternalPackages: [
       '@whiskeysockets/baileys',
