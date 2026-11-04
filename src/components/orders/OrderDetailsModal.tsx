@@ -262,8 +262,17 @@ export function OrderDetailsModal({
                 <span className="font-bold text-slate-800">{order.customerName}</span>
               </div>
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/60">
-                <span className="text-slate-400 text-[11px] block">Téléphone</span>
-                <a href={`tel:${order.phone}`} className="font-bold text-emerald-700 hover:underline">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 text-[11px] block">Téléphone</span>
+                  {order.whatsappStatus === 'NOT_AVAILABLE' && (
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
+                      <Phone className="w-2.5 h-2.5" />
+                      Sans WhatsApp (Appel GSM)
+                    </span>
+                  )}
+                </div>
+                <a href={`tel:${order.phone}`} className="font-bold text-emerald-700 hover:underline flex items-center gap-1.5 mt-0.5">
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
                   {order.phone}
                 </a>
               </div>
@@ -345,6 +354,12 @@ export function OrderDetailsModal({
 
           {/* Stage-Adapted WhatsApp & Agent Action */}
           <div className="p-4 rounded-xl bg-emerald-50/60 border border-emerald-200/80 space-y-2.5">
+            {order.whatsappStatus === 'NOT_AVAILABLE' && (
+              <div className="p-2.5 bg-amber-100/90 border border-amber-300 rounded-xl flex items-center gap-2 text-xs text-amber-900 font-bold">
+                <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
+                <span>⚠️ هذا الرقم غير مسجل على واتساب — يُرجى الاتصال المباشر بالعميل هاتفياً (Appel GSM).</span>
+              </div>
+            )}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2 text-emerald-800 font-bold text-xs">
                 <MessageCircle className="w-4 h-4 text-emerald-600" />

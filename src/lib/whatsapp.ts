@@ -102,6 +102,10 @@ export async function sendWhatsAppMessage(to: string, message: string) {
       if (directRes.success) {
         return directRes;
       }
+      if (directRes.notOnWhatsApp) {
+        console.warn(`[Baileys Direct Send Notice] Recipient ${formattedPhone} is NOT on WhatsApp.`);
+        return { success: false, notOnWhatsApp: true, recipient: formattedPhone, error: 'NO_WHATSAPP' };
+      }
       console.warn(`[Baileys Direct Send Notice] Live send returned: ${directRes.error}. Falling back to configured provider.`);
     }
   } catch (e) {
@@ -135,7 +139,13 @@ export async function sendWhatsAppMessage(to: string, message: string) {
       if (!response.ok) {
         const errText = await response.text();
         console.warn(`[Meta WhatsApp Error ${response.status}]:`, errText);
-        return { success: false, status: response.status, error: errText };
+        const isNotOnWa =
+          errText.includes('131026') ||
+          errText.includes('not on WhatsApp') ||
+          errText.includes('not in allowed list') ||
+          errText.includes('undeliverable') ||
+          errText.includes('user is not valid');
+        return { success: false, notOnWhatsApp: isNotOnWa, status: response.status, error: errText };
       }
 
       return await response.json();
@@ -345,4 +355,20 @@ export async function sendWhatsAppImage(to: string, imageUrl: string, caption?: 
  */
 export function verifyWebhookChallenge(challenge: string) {
   return challenge;
+}
+
+/**
+ * Check if a phone number is registered on WhatsApp
+ */
+export async function checkNumberOnWhatsApp(
+  phone: string
+): Promise<{ exists: boolean; formattedPhone: string }> {
+  const formattedPhone = formatMoroccanPhoneForWhatsApp(phone);
+  try {
+    const { checkWhatsAppNumberExists } = await import('@/lib/whatsapp/baileys-service');
+    const result = await checkWhatsAppNumberExists(formattedPhone);
+    return { exists: result.exists, formattedPhone };
+  } catch {
+    return { exists: true, formattedPhone };
+  }
 }

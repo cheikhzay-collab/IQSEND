@@ -35,6 +35,7 @@ export interface LifecycleOrder {
     address: string;
     city: string;
     notes?: string;
+    whatsappStatus?: 'AVAILABLE' | 'NOT_AVAILABLE' | 'UNKNOWN';
   };
   items: OrderItemDetail[];
   payment: {

@@ -26,6 +26,7 @@ export interface IngestedOrder {
     address: string;
     city: string;
     notes?: string;
+    whatsappStatus?: 'AVAILABLE' | 'NOT_AVAILABLE' | 'UNKNOWN';
   };
   items: Array<{
     id: string;

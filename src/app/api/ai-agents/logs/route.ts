@@ -133,6 +133,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, result: res });
     }
 
+    if (action === 'test_no_whatsapp') {
+      const { executeSafeAgentAction } = await import('@/lib/agent-rules-engine');
+      const res = await executeSafeAgentAction(
+        {
+          customerPhone: phone,
+          customerName,
+          orderId,
+          orderNumber: trackingCode,
+          actionType: 'ORDER_CONFIRMATION',
+          payloadPreview: 'Test payload for non-WhatsApp number',
+        },
+        async () => {
+          return { success: false, notOnWhatsApp: true, error: 'NO_WHATSAPP' };
+        }
+      );
+      return NextResponse.json({ success: true, result: res });
+    }
+
     return NextResponse.json({ success: false, error: 'Action non reconnue' }, { status: 400 });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

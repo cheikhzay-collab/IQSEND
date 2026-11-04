@@ -26,7 +26,7 @@ interface LogEntry {
   customer_phone: string;
   customer_name: string | null;
   action_type: string;
-  status: 'EXECUTED' | 'SKIPPED_COOLDOWN' | 'SKIPPED_QUIET_HOURS' | 'BLOCKED_DND' | 'SKIPPED_DAILY_CAP' | 'FAILED' | 'PENDING_APPROVAL';
+  status: 'EXECUTED' | 'SKIPPED_COOLDOWN' | 'SKIPPED_QUIET_HOURS' | 'BLOCKED_DND' | 'SKIPPED_DAILY_CAP' | 'FAILED' | 'PENDING_APPROVAL' | 'NO_WHATSAPP';
   reason_details: string | null;
   channel: string;
   payload: string | null;
@@ -108,6 +108,10 @@ export default function AgentAuditLogTab() {
         return { label: 'تعديل التفاصيل ✍️', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
       case 'TOOL_CANCEL_ORDER':
         return { label: 'إلغاء الطلب 🚫', bg: 'bg-red-50 text-red-700 border-red-200' };
+      case 'OWNER_CONFIRM_ALERT':
+        return { label: 'إشعار المالك: تأكيد طلبية 🔔', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
+      case 'OWNER_HANDOVER_ALERT':
+        return { label: 'إشعار المالك: تدخل بشري مطلوب 🚨', bg: 'bg-amber-50 text-amber-800 border-amber-300' };
       default:
         return { label: type, bg: 'bg-slate-50 text-slate-700 border-slate-200' };
     }
@@ -120,6 +124,13 @@ export default function AgentAuditLogTab() {
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
             تم الإرسال بنجاح
+          </span>
+        );
+      case 'NO_WHATSAPP':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            <Phone className="w-3 h-3 text-amber-700" />
+            غير متوفر على واتساب (اتصل هاتفياً)
           </span>
         );
       case 'SKIPPED_COOLDOWN':
@@ -230,6 +241,7 @@ export default function AgentAuditLogTab() {
             {[
               { id: 'ALL', label: 'الكل' },
               { id: 'EXECUTED', label: '✅ تم الإرسال' },
+              { id: 'NO_WHATSAPP', label: '⚠️ بدون واتساب (GSM)' },
               { id: 'SKIPPED_COOLDOWN', label: '🛡️ منع الإزعاج' },
               { id: 'SKIPPED_QUIET_HOURS', label: '🌙 ساعات الصمت' },
               { id: 'BLOCKED_DND', label: '🚫 محظور' },
@@ -476,3 +488,4 @@ export default function AgentAuditLogTab() {
     </div>
   );
 }
+

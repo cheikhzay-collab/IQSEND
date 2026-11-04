@@ -161,6 +161,24 @@ export async function POST(request: Request) {
             [order?.id || '', `%${cleanedFrom.slice(-9)}%`]
           );
         } catch (dbErr) {}
+
+        // 🔔 Notify Store Owner for Interactive Confirmation
+        import('@/lib/agent-rules-engine').then(({ notifyStoreOwner }) => {
+          notifyStoreOwner({
+            eventType: 'ORDER_CONFIRMED',
+            order: {
+              id: order?.id,
+              orderNumber: order?.orderNumber,
+              customerName: order?.customer?.name,
+              customerPhone: order?.customer?.phone || rawFrom,
+              city: order?.customer?.city,
+              address: order?.customer?.address,
+              totalAmount: order?.payment?.amount,
+              items: order?.items,
+            },
+          }).catch(() => {});
+        }).catch(() => {});
+
         const reply = `شكراً بزاف ليك أخي${order?.customer?.name ? ` ${order.customer.name}` : ''}! الطلب ديالك تأكد بنجاح وغادي يدوز دابا للتجهيز والتغليف. 📦
 باش يوصل الموزع عندك بالزربة وبدون تعثر، عفاك صيفط لينا اللوكاسيون (Location Pin) ديالك عبر هاد المحادثة 📍👇`;
         await sendWhatsAppMessage(rawFrom, reply);

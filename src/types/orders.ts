@@ -44,6 +44,7 @@ export interface OrderItem {
     text: string;
   };
   hasWhatsapp?: boolean;
+  whatsappStatus?: 'AVAILABLE' | 'NOT_AVAILABLE' | 'UNKNOWN';
   hasCall?: boolean;
   hasChat?: boolean;
   hasNote?: boolean;

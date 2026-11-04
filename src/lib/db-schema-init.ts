@@ -37,6 +37,7 @@ export const CREATE_TABLES_SQL = [
     city VARCHAR(100) NOT NULL,
     address TEXT NOT NULL,
     whatsapp_caller_name VARCHAR(255),
+    whatsapp_status ENUM('AVAILABLE', 'NOT_AVAILABLE', 'UNKNOWN') DEFAULT 'UNKNOWN',
     total_orders INT DEFAULT 1,
     delivered_orders INT DEFAULT 0,
     refused_orders INT DEFAULT 0,
@@ -135,6 +136,7 @@ export const CREATE_TABLES_SQL = [
     address TEXT NOT NULL,
     gps_location_url TEXT,
     preferred_delivery_time VARCHAR(100),
+    whatsapp_status ENUM('AVAILABLE', 'NOT_AVAILABLE', 'UNKNOWN') DEFAULT 'UNKNOWN',
     sku VARCHAR(100),
     product_name VARCHAR(255),
     quantity INT DEFAULT 1,
@@ -501,7 +503,7 @@ export const CREATE_TABLES_SQL = [
     customer_phone VARCHAR(50) NOT NULL,
     customer_name VARCHAR(255),
     action_type VARCHAR(100) NOT NULL,
-    status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'EXECUTED',
+    status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL', 'NO_WHATSAPP') NOT NULL DEFAULT 'EXECUTED',
     reason_details TEXT,
     channel VARCHAR(50) DEFAULT 'WHATSAPP',
     payload TEXT,
@@ -806,7 +808,7 @@ export const MIGRATION_STATEMENTS_SQL: { id: string; sql: string }[] = [
       customer_phone VARCHAR(50) NOT NULL,
       customer_name VARCHAR(255),
       action_type VARCHAR(100) NOT NULL,
-      status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL') NOT NULL DEFAULT 'EXECUTED',
+      status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL', 'NO_WHATSAPP') NOT NULL DEFAULT 'EXECUTED',
       reason_details TEXT,
       channel VARCHAR(50) DEFAULT 'WHATSAPP',
       payload TEXT,
@@ -817,6 +819,18 @@ export const MIGRATION_STATEMENTS_SQL: { id: string; sql: string }[] = [
       INDEX idx_agent_op_status (status),
       INDEX idx_agent_op_created (created_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;`,
+  },
+  {
+    id: 'add_whatsapp_status_to_order_leads',
+    sql: `ALTER TABLE order_leads ADD COLUMN IF NOT EXISTS whatsapp_status ENUM('AVAILABLE', 'NOT_AVAILABLE', 'UNKNOWN') DEFAULT 'UNKNOWN';`,
+  },
+  {
+    id: 'add_whatsapp_status_to_customers',
+    sql: `ALTER TABLE customers ADD COLUMN IF NOT EXISTS whatsapp_status ENUM('AVAILABLE', 'NOT_AVAILABLE', 'UNKNOWN') DEFAULT 'UNKNOWN';`,
+  },
+  {
+    id: 'modify_agent_operations_log_status_enum',
+    sql: `ALTER TABLE agent_operations_log MODIFY COLUMN status ENUM('EXECUTED', 'SKIPPED_COOLDOWN', 'SKIPPED_QUIET_HOURS', 'BLOCKED_DND', 'SKIPPED_DAILY_CAP', 'FAILED', 'PENDING_APPROVAL', 'NO_WHATSAPP') NOT NULL DEFAULT 'EXECUTED';`,
   },
 ];
 
@@ -1117,6 +1131,9 @@ export async function initializeDatabase(forceReset: boolean = false) {
       { key: 'AGENT_MAX_DAILY_MESSAGES_PER_CUSTOMER', value: '2' },
       { key: 'AGENT_OPERATION_MODE', value: 'AUTOPILOT' },
       { key: 'AGENT_DND_PHONES', value: '[]' },
+      { key: 'AGENT_OWNER_NOTIFY_PHONE', value: '' },
+      { key: 'AGENT_NOTIFY_OWNER_ON_CONFIRM', value: 'true' },
+      { key: 'AGENT_NOTIFY_OWNER_ON_INTERVENTION', value: 'true' },
       { key: 'DATABASE_VERSION', value: '2.0.0-hostinger-mysql-complete' },
     ];
 

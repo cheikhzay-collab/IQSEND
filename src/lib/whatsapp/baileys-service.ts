@@ -583,10 +583,43 @@ export async function disconnectWhatsAppSession(): Promise<WhatsAppBridgeState> 
   return waHolder.state;
 }
 
+export async function checkWhatsAppNumberExists(
+  phone: string
+): Promise<{ exists: boolean; jid?: string }> {
+  if (!waHolder.sock || waHolder.state.status !== 'CONNECTED') {
+    return { exists: true };
+  }
+  try {
+    const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
+    let jid = '';
+    if (phone.includes('@')) {
+      jid = jidNormalizedUser(phone);
+    } else {
+      let digits = phone.replace(/[^\d]/g, '');
+      if (digits.startsWith('0') && digits.length === 10) {
+        digits = '212' + digits.slice(1);
+      } else if (!digits.startsWith('212') && digits.length === 9) {
+        digits = '212' + digits;
+      }
+      jid = jidNormalizedUser(`${digits}@s.whatsapp.net`);
+    }
+
+    const results = await waHolder.sock.onWhatsApp(jid);
+    if (Array.isArray(results) && results.length > 0) {
+      const match = results[0];
+      return { exists: Boolean(match.exists), jid: match.jid || jid };
+    }
+    return { exists: false, jid };
+  } catch (err: any) {
+    console.warn(`[Baileys In-Process] onWhatsApp check warning for ${phone}:`, err.message);
+    return { exists: true };
+  }
+}
+
 export async function sendWhatsAppDirectMessage(
   to: string,
   message: string
-): Promise<{ success: boolean; recipient?: string; error?: string; msgId?: string }> {
+): Promise<{ success: boolean; notOnWhatsApp?: boolean; recipient?: string; error?: string; msgId?: string }> {
   if (!waHolder.sock || waHolder.state.status !== 'CONNECTED') {
     console.warn(`[Baileys In-Process] ⚠️ WhatsApp socket not connected (state: ${waHolder.state.status})`);
     return { success: false, error: 'WhatsApp not connected' };
@@ -612,12 +645,25 @@ export async function sendWhatsAppDirectMessage(
       return { success: false, error: 'Invalid destination JID' };
     }
 
+    // Verify recipient has WhatsApp active before dispatching
+    try {
+      const results = await waHolder.sock.onWhatsApp(jid);
+      if (Array.isArray(results) && results.length > 0 && results[0].exists === false) {
+        console.warn(`[Baileys In-Process] ⚠️ Recipient ${jid} is NOT registered on WhatsApp.`);
+        return { success: false, notOnWhatsApp: true, recipient: jid, error: 'NO_WHATSAPP' };
+      }
+    } catch (checkErr) {
+      // Continue if onWhatsApp verification check encounters a network hiccup
+    }
+
     console.log(`[Baileys In-Process] 📤 Sending live WhatsApp message to ${jid}: "${message.slice(0, 60)}..."`);
     const sent = await waHolder.sock.sendMessage(jid, { text: message });
     console.log(`[Baileys In-Process] ✅ Message DELIVERED to WhatsApp servers for ${jid}, msgId: ${sent?.key?.id}`);
     return { success: true, recipient: jid, msgId: sent?.key?.id };
   } catch (err: any) {
     console.error(`[Baileys In-Process] ❌ Exception in sendMessage to ${to}:`, err);
-    return { success: false, error: err.message || String(err) };
+    const msg = err.message || String(err);
+    const isNoWa = msg.includes('not-authorized') || msg.includes('item-not-found') || msg.includes('not on whatsapp');
+    return { success: false, notOnWhatsApp: isNoWa, error: msg };
   }
 }

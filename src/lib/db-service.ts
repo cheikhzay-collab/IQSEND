@@ -186,6 +186,7 @@ export async function getOrdersFromDb(forceFresh: boolean = false): Promise<Life
           address: lead.address || '',
           city: lead.city,
           notes: lead.notes || undefined,
+          whatsappStatus: (lead.whatsapp_status as any) || 'UNKNOWN',
         },
         items: orderItems.map((it: any) => ({
           id: it.id,
@@ -287,6 +288,7 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
     const address = 'customer' in order ? order.customer.address || '' : '';
     const notes = 'customer' in order ? order.customer.notes || '' : '';
     const totalAmount = order.payment?.amount || 0;
+    const whatsappStatus = (order.customer as any)?.whatsappStatus || 'UNKNOWN';
 
     const firstItem = Array.isArray(order.items) && order.items.length > 0 ? order.items[0] : null;
     const itemSku = firstItem?.sku || null;
@@ -298,8 +300,8 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
       `
       INSERT INTO order_leads (
         id, order_number, customer_name, phone_number, city, address, 
-        sku, product_name, quantity, total_amount, status, ai_confirmation_status, notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        sku, product_name, quantity, total_amount, status, ai_confirmation_status, notes, whatsapp_status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE
         customer_name = VALUES(customer_name),
         phone_number = VALUES(phone_number),
@@ -312,6 +314,7 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
         status = VALUES(status),
         ai_confirmation_status = VALUES(ai_confirmation_status),
         notes = VALUES(notes),
+        whatsapp_status = IF(VALUES(whatsapp_status) != 'UNKNOWN', VALUES(whatsapp_status), order_leads.whatsapp_status),
         updated_at = CURRENT_TIMESTAMP
     `,
       [
@@ -328,6 +331,7 @@ export async function saveOrderToDb(order: LifecycleOrder | IngestedOrder): Prom
         dbStatus,
         order.aiVerification?.status === 'CONFIRMED_BY_AI' ? 'CONFIRMED' : 'PENDING',
         notes,
+        whatsappStatus,
       ]
     );
 

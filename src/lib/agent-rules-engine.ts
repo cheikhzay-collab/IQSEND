@@ -13,7 +13,9 @@ export type AgentActionType =
   | 'TOOL_SAVE_GPS'
   | 'TOOL_CANCEL_ORDER'
   | 'AI_CHAT_REPLY'
-  | 'UPSELL_OFFER';
+  | 'UPSELL_OFFER'
+  | 'OWNER_CONFIRM_ALERT'
+  | 'OWNER_HANDOVER_ALERT';
 
 export type AgentOperationStatus =
   | 'EXECUTED'
@@ -22,7 +24,8 @@ export type AgentOperationStatus =
   | 'BLOCKED_DND'
   | 'SKIPPED_DAILY_CAP'
   | 'FAILED'
-  | 'PENDING_APPROVAL';
+  | 'PENDING_APPROVAL'
+  | 'NO_WHATSAPP';
 
 export interface AgentSettings {
   quietHoursEnabled: boolean;
@@ -36,6 +39,9 @@ export interface AgentSettings {
   maxDailyMessagesPerCustomer: number; // 2
   operationMode: 'AUTOPILOT' | 'SUPERVISED';
   dndPhones: string[];
+  ownerNotifyPhone: string;
+  notifyOwnerOnConfirmedOrder: boolean;
+  notifyOwnerOnIntervention: boolean;
 }
 
 export interface AgentOperationLogEntry {
@@ -75,6 +81,9 @@ export async function getAgentSettings(): Promise<AgentSettings> {
     maxDailyMessagesPerCustomer: 2,
     operationMode: 'AUTOPILOT',
     dndPhones: [],
+    ownerNotifyPhone: '',
+    notifyOwnerOnConfirmedOrder: true,
+    notifyOwnerOnIntervention: true,
   };
 
   try {
@@ -117,6 +126,15 @@ export async function getAgentSettings(): Promise<AgentSettings> {
             break;
           case 'AGENT_OPERATION_MODE':
             defaults.operationMode = val === 'SUPERVISED' ? 'SUPERVISED' : 'AUTOPILOT';
+            break;
+          case 'AGENT_OWNER_NOTIFY_PHONE':
+            defaults.ownerNotifyPhone = val || '';
+            break;
+          case 'AGENT_NOTIFY_OWNER_ON_CONFIRM':
+            defaults.notifyOwnerOnConfirmedOrder = val !== 'false' && val !== '0';
+            break;
+          case 'AGENT_NOTIFY_OWNER_ON_INTERVENTION':
+            defaults.notifyOwnerOnIntervention = val !== 'false' && val !== '0';
             break;
           case 'AGENT_DND_PHONES':
             try {
@@ -166,6 +184,13 @@ export async function saveAgentSettings(settings: Partial<AgentSettings>): Promi
       map['AGENT_MAX_DAILY_MESSAGES_PER_CUSTOMER'] = String(settings.maxDailyMessagesPerCustomer);
     }
     if (settings.operationMode) map['AGENT_OPERATION_MODE'] = settings.operationMode;
+    if (settings.ownerNotifyPhone !== undefined) map['AGENT_OWNER_NOTIFY_PHONE'] = settings.ownerNotifyPhone.trim();
+    if (settings.notifyOwnerOnConfirmedOrder !== undefined) {
+      map['AGENT_NOTIFY_OWNER_ON_CONFIRM'] = settings.notifyOwnerOnConfirmedOrder ? 'true' : 'false';
+    }
+    if (settings.notifyOwnerOnIntervention !== undefined) {
+      map['AGENT_NOTIFY_OWNER_ON_INTERVENTION'] = settings.notifyOwnerOnIntervention ? 'true' : 'false';
+    }
     if (settings.dndPhones) map['AGENT_DND_PHONES'] = JSON.stringify(settings.dndPhones);
 
     for (const [k, v] of Object.entries(map)) {
@@ -544,7 +569,49 @@ export async function executeSafeAgentAction<T>(
 
   // Step 3: Allowed -> Execute the action
   try {
-    const result = await actionFn();
+    const result: any = await actionFn();
+
+    // Check if recipient was detected not on WhatsApp
+    if (result && (result.notOnWhatsApp || result.error === 'NO_WHATSAPP')) {
+      const reasonNoWa = 'الرقم غير مسجل في تطبيق واتساب - يُرجى التواصل هاتفياً عبر مكالمة GSM مباشرة';
+      await logAgentOperation({
+        orderId: params.orderId,
+        orderNumber: params.orderNumber,
+        customerPhone: params.customerPhone,
+        customerName: params.customerName,
+        actionType: params.actionType,
+        status: 'NO_WHATSAPP',
+        reasonDetails: reasonNoWa,
+        channel: params.channel || 'WHATSAPP',
+        payload: params.payloadPreview,
+      });
+
+      // Update DB customer and order
+      try {
+        const pool = getMysqlPool();
+        const cleanPhone = cleanMoroccanPhone(params.customerPhone) || params.customerPhone;
+        await pool.execute(
+          `UPDATE order_leads SET whatsapp_status = 'NOT_AVAILABLE' WHERE id = ? OR phone_number LIKE ?`,
+          [params.orderId || 'none', `%${cleanPhone.slice(-9)}%`]
+        );
+        await pool.execute(
+          `UPDATE customers SET whatsapp_status = 'NOT_AVAILABLE' WHERE phone_number = ?`,
+          [cleanPhone]
+        );
+      } catch (dbErr: any) {
+        console.warn('[AgentRulesEngine] Could not update whatsapp_status in DB:', dbErr.message);
+      }
+
+      console.warn(`[AgentRulesEngine] ⚠️ ${params.actionType} recipient ${params.customerPhone} is NOT on WhatsApp`);
+
+      return {
+        success: false,
+        skipped: false,
+        status: 'NO_WHATSAPP',
+        reason: reasonNoWa,
+        result,
+      };
+    }
 
     // Log successful execution
     await logAgentOperation({
@@ -570,6 +637,32 @@ export async function executeSafeAgentAction<T>(
       result,
     };
   } catch (err: any) {
+    const msg = err.message || String(err);
+    const isNoWa =
+      msg.includes('NO_WHATSAPP') ||
+      msg.includes('not on whatsapp') ||
+      msg.includes('not-authorized') ||
+      msg.includes('item-not-found');
+    const finalStatus: AgentOperationStatus = isNoWa ? 'NO_WHATSAPP' : 'FAILED';
+    const reasonDetails = isNoWa
+      ? 'الرقم غير مسجل في تطبيق واتساب - يُرجى التواصل هاتفياً عبر مكالمة GSM مباشرة'
+      : `فشل التنفيذ التقني: ${msg}`;
+
+    if (isNoWa) {
+      try {
+        const pool = getMysqlPool();
+        const cleanPhone = cleanMoroccanPhone(params.customerPhone) || params.customerPhone;
+        await pool.execute(
+          `UPDATE order_leads SET whatsapp_status = 'NOT_AVAILABLE' WHERE id = ? OR phone_number LIKE ?`,
+          [params.orderId || 'none', `%${cleanPhone.slice(-9)}%`]
+        );
+        await pool.execute(
+          `UPDATE customers SET whatsapp_status = 'NOT_AVAILABLE' WHERE phone_number = ?`,
+          [cleanPhone]
+        );
+      } catch {}
+    }
+
     // Log failure
     await logAgentOperation({
       orderId: params.orderId,
@@ -577,19 +670,130 @@ export async function executeSafeAgentAction<T>(
       customerPhone: params.customerPhone,
       customerName: params.customerName,
       actionType: params.actionType,
-      status: 'FAILED',
-      reasonDetails: `فشل التنفيذ التقني: ${err.message}`,
+      status: finalStatus,
+      reasonDetails,
       channel: params.channel || 'WHATSAPP',
       payload: params.payloadPreview,
     });
 
-    console.error(`[AgentRulesEngine] ❌ ${params.actionType} FAILED:`, err);
+    console.error(`[AgentRulesEngine] ❌ ${params.actionType} ${finalStatus}:`, err);
 
     return {
       success: false,
       skipped: false,
-      status: 'FAILED',
-      reason: err.message,
+      status: finalStatus,
+      reason: reasonDetails,
     };
   }
 }
+
+/**
+ * Send real-time WhatsApp alert to the store owner (e.g. for confirmed orders or human interventions)
+ */
+export async function notifyStoreOwner(params: {
+  eventType: 'ORDER_CONFIRMED' | 'NEEDS_ATTENTION' | 'TEST_ALERT';
+  order: {
+    id?: string;
+    orderNumber?: string;
+    customerName?: string;
+    customerPhone?: string;
+    city?: string;
+    address?: string;
+    totalAmount?: number | string;
+    items?: Array<{ name: string; quantity: number; price: number }>;
+  };
+  reason?: string;
+}): Promise<{ success: boolean; error?: string; skipped?: boolean }> {
+  try {
+    const settings = await getAgentSettings();
+    const ownerPhone = settings.ownerNotifyPhone?.trim();
+
+    if (!ownerPhone) {
+      console.log('[StoreOwnerNotifier] ℹ️ No owner WhatsApp phone configured, skipping notification.');
+      return { success: false, skipped: true, error: 'NO_OWNER_PHONE_CONFIGURED' };
+    }
+
+    if (params.eventType === 'ORDER_CONFIRMED' && !settings.notifyOwnerOnConfirmedOrder) {
+      return { success: false, skipped: true, error: 'CONFIRMED_ALERTS_DISABLED' };
+    }
+
+    if (params.eventType === 'NEEDS_ATTENTION' && !settings.notifyOwnerOnIntervention) {
+      return { success: false, skipped: true, error: 'INTERVENTION_ALERTS_DISABLED' };
+    }
+
+    const { sendWhatsAppMessage } = await import('@/lib/whatsapp');
+
+    let messageBody = '';
+    let actionType: AgentActionType = 'OWNER_CONFIRM_ALERT';
+
+    if (params.eventType === 'ORDER_CONFIRMED') {
+      actionType = 'OWNER_CONFIRM_ALERT';
+      const itemsList = (params.order.items || [])
+        .map((it) => `  ▫️ ${it.name} (${it.quantity}x) - ${it.price} DH`)
+        .join('\n');
+
+      messageBody = `🎉 *تنبيه Sendit: تم تأكيد طلبية جديدة بنجاح!*
+━━━━━━━━━━━━━━━━━━━━
+📦 *الطلبية:* #${params.order.orderNumber || 'MA-NEW'}
+👤 *العميل:* ${params.order.customerName || 'عميل المتجر'}
+📱 *الهاتف:* ${params.order.customerPhone || 'غير محدد'}
+🏙️ *المدينة:* ${params.order.city || 'المغرب'}
+📍 *العنوان:* ${params.order.address || 'المحدد بالطلب'}
+
+🛒 *المنتجات:*
+${itemsList || '  ▫️ منتج من المتجر'}
+
+💰 *المبلغ المستحق (COD):* *${params.order.totalAmount || 0} درهم*
+🤖 *المؤكد:* الوكيل الذكي (AI Agent Confirmation)
+━━━━━━━━━━━━━━━━━━━━
+✅ تم حجز المخزون والطلبية جاهزة للتجهيز والشحن عبر Sendit!`.trim();
+    } else if (params.eventType === 'NEEDS_ATTENTION') {
+      actionType = 'OWNER_HANDOVER_ALERT';
+      messageBody = `🚨 *تنبيه عاجل Sendit: طلبية تتطلب تدخلاً بشرياً!*
+━━━━━━━━━━━━━━━━━━━━
+📦 *الطلبية:* #${params.order.orderNumber || 'MA-ALERT'}
+👤 *العميل:* ${params.order.customerName || 'عميل المتجر'}
+📱 *الهاتف:* ${params.order.customerPhone || 'غير محدد'}
+🏙️ *المدينة:* ${params.order.city || 'المغرب'}
+⚠️ *سبب التدخل:* ${params.reason || 'العميل طلب التحدث مع ممثل خدمة العملاء'}
+
+🔗 *رابط المتابعة في لوحة التحكم:*
+https://lawngreen-jaguar-315438.hostingersite.com/dashboard/orders
+━━━━━━━━━━━━━━━━━━━━
+يرجى التواصل مع العميل لحل الإشكال وإتمام الطلبية.`.trim();
+    } else {
+      // Test Alert
+      actionType = 'OWNER_CONFIRM_ALERT';
+      messageBody = `🔔 *رسالة اختبارية من الوكيل الذكي Sendit*
+━━━━━━━━━━━━━━━━━━━━
+مرحباً بك! تم ربط رقم صاحب المتجر (${ownerPhone}) بنجاح.
+ستصلك هنا إشعارات فورية عن:
+✅ ملخص الطلبيات المؤكدة آلياً
+🚨 تنبيهات الطلبيات التي تحتاج تدخلاً بشرياً
+━━━━━━━━━━━━━━━━━━━━
+النظام يعمل بكفاءة وأمان! ✨`.trim();
+    }
+
+    const sendRes = await sendWhatsAppMessage(ownerPhone, messageBody);
+
+    await logAgentOperation({
+      orderId: params.order.id,
+      orderNumber: params.order.orderNumber,
+      customerPhone: ownerPhone,
+      customerName: 'صاحب المتجر (Admin)',
+      actionType,
+      status: sendRes.success ? 'EXECUTED' : 'FAILED',
+      reasonDetails: sendRes.success
+        ? `تم إشعار صاحب المتجر بنجاح (${params.eventType})`
+        : `تعذر إشعار صاحب المتجر: ${sendRes.error}`,
+      channel: 'WHATSAPP',
+      payload: messageBody,
+    });
+
+    return { success: Boolean(sendRes.success), error: sendRes.error };
+  } catch (err: any) {
+    console.error('[StoreOwnerNotifier] Error notifying store owner:', err.message);
+    return { success: false, error: err.message };
+  }
+}
+

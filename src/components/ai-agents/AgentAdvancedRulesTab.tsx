@@ -30,6 +30,9 @@ interface AgentSettingsData {
   maxDailyMessagesPerCustomer: number;
   operationMode: 'AUTOPILOT' | 'SUPERVISED';
   dndPhones: string[];
+  ownerNotifyPhone: string;
+  notifyOwnerOnConfirmedOrder: boolean;
+  notifyOwnerOnIntervention: boolean;
 }
 
 export default function AgentAdvancedRulesTab() {
@@ -45,12 +48,49 @@ export default function AgentAdvancedRulesTab() {
     maxDailyMessagesPerCustomer: 2,
     operationMode: 'AUTOPILOT',
     dndPhones: [],
+    ownerNotifyPhone: '',
+    notifyOwnerOnConfirmedOrder: true,
+    notifyOwnerOnIntervention: true,
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
   const [newDndPhone, setNewDndPhone] = useState<string>('');
+  const [isTestingOwnerAlert, setIsTestingOwnerAlert] = useState<boolean>(false);
+  const [testOwnerResult, setTestOwnerResult] = useState<{ success: boolean; message: string } | null>(null);
+
+  const handleTestOwnerAlert = async () => {
+    if (!settings.ownerNotifyPhone.trim()) {
+      alert('يرجى إدخال رقم هاتف صاحب المتجر أولاً');
+      return;
+    }
+    setIsTestingOwnerAlert(true);
+    setTestOwnerResult(null);
+    try {
+      const res = await fetch('/api/ai-agents/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          testOwnerAlert: true,
+          ownerNotifyPhone: settings.ownerNotifyPhone.trim(),
+        }),
+      });
+      const data = await res.json();
+      setTestOwnerResult({
+        success: Boolean(data.success),
+        message: data.message || (data.success ? 'تم إرسال الرسالة بنجاح' : 'تعذر الإرسال'),
+      });
+      setTimeout(() => setTestOwnerResult(null), 6000);
+    } catch (err: any) {
+      setTestOwnerResult({
+        success: false,
+        message: `خطأ تقني: ${err.message}`,
+      });
+    } finally {
+      setIsTestingOwnerAlert(false);
+    }
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -400,7 +440,119 @@ export default function AgentAdvancedRulesTab() {
         </div>
       </div>
 
-      {/* ── CARD 4: BLACKLIST & DND PHONES (قائمة عدم الإزعاج) ── */}
+      {/* ── CARD 4: STORE OWNER WHATSAPP NOTIFICATIONS (إشعارات صاحب المتجر) ── */}
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
+        <div>
+          <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full mb-1.5">
+            <Phone className="w-3.5 h-3.5 text-indigo-600" />
+            إشعارات صاحب المتجر الفورية (Store Owner Alerts)
+          </div>
+          <h3 className="font-black text-sm text-slate-900">
+            رقم واتساب المشرف لتلقي ملخصات التأكيد والطلبات التي تحتاج تدخلاً
+          </h3>
+          <p className="text-xs text-slate-500">
+            يرسل الوكيل الذكي تلقائياً إلى هذا الرقم إشعارات فورية بكل طلبية مؤكدة بنجاح، وتنبيهات عاجلة إذا واجهت شحنة صعوبة في التسليم أو طلب العميل التحدث مع مسؤول بشري.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+          {/* Owner Phone Input */}
+          <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
+            <span className="font-bold text-xs text-slate-900 block">
+              رقم واتساب صاحب المتجر (WhatsApp)
+            </span>
+            <input
+              type="text"
+              placeholder="مثال: 0661234567 أو 212661234567..."
+              value={settings.ownerNotifyPhone}
+              onChange={(e) => setSettings({ ...settings, ownerNotifyPhone: e.target.value })}
+              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-blue-600 font-mono font-bold text-slate-800"
+            />
+            <p className="text-[11px] text-slate-400">
+              يمكنك كتابة الرقم بصيغة محلية (06...) أو دولية (212...).
+            </p>
+
+            <button
+              type="button"
+              onClick={handleTestOwnerAlert}
+              disabled={isTestingOwnerAlert || !settings.ownerNotifyPhone.trim()}
+              className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 rounded-xl text-xs font-bold transition-all disabled:opacity-40"
+            >
+              {isTestingOwnerAlert ? (
+                <>
+                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  جاري إرسال الإشعار التجريبي...
+                </>
+              ) : (
+                <>
+                  <Zap className="w-3.5 h-3.5 text-indigo-600" />
+                  إرسال رسالة تجريبية الآن
+                </>
+              )}
+            </button>
+
+            {testOwnerResult && (
+              <div
+                className={`p-2.5 rounded-xl text-xs font-bold flex items-center gap-2 ${
+                  testOwnerResult.success
+                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                }`}
+              >
+                {testOwnerResult.success ? (
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+                )}
+                <span>{testOwnerResult.message}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Alert Toggles */}
+          <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <span className="font-bold text-xs text-slate-900 block">
+              تحديد أنواع الإشعارات المرسلة للمالك:
+            </span>
+
+            <label className="flex items-start gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 cursor-pointer hover:border-slate-300 transition-all">
+              <input
+                type="checkbox"
+                checked={settings.notifyOwnerOnConfirmedOrder}
+                onChange={(e) =>
+                  setSettings({ ...settings, notifyOwnerOnConfirmedOrder: e.target.checked })
+                }
+                className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600"
+              />
+              <div className="text-xs">
+                <span className="font-bold text-slate-800 block">ملخص الطلبيات المؤكدة بنجاح</span>
+                <span className="text-[11px] text-slate-500">
+                  إرسال كشف يتضمن اسم العميل، المدينة، المنتجات والمبلغ المستحق.
+                </span>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 cursor-pointer hover:border-slate-300 transition-all">
+              <input
+                type="checkbox"
+                checked={settings.notifyOwnerOnIntervention}
+                onChange={(e) =>
+                  setSettings({ ...settings, notifyOwnerOnIntervention: e.target.checked })
+                }
+                className="w-4 h-4 mt-0.5 rounded text-rose-600 accent-rose-600"
+              />
+              <div className="text-xs">
+                <span className="font-bold text-slate-800 block">تنبيهات التدخل البشري والإنقاذ</span>
+                <span className="text-[11px] text-slate-500">
+                  إشعار فوري عند طلب العميل التحدث مع ممثل أو تعثر تسليم Sendit.
+                </span>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      {/* ── CARD 5: BLACKLIST & DND PHONES (قائمة عدم الإزعاج) ── */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full mb-1.5">
@@ -491,3 +643,4 @@ export default function AgentAdvancedRulesTab() {
     </div>
   );
 }
+

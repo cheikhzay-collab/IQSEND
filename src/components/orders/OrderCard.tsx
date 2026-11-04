@@ -179,9 +179,16 @@ export function OrderCard({
             <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
           </div>
 
-          <p className="text-[11px] text-slate-500 font-medium mt-0.5 truncate">
-            {order.customerName} • {order.city}, {order.countryCode}
-          </p>
+          <div className="flex items-center justify-between gap-1 mt-0.5">
+            <p className="text-[11px] text-slate-500 font-medium truncate">
+              {order.customerName} • {order.city}, {order.countryCode}
+            </p>
+            {order.whatsappStatus === 'NOT_AVAILABLE' && (
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shrink-0" title="Non enregistré sur WhatsApp (Appel GSM requis)">
+                ⚠️ Sans WhatsApp
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -205,16 +212,26 @@ export function OrderCard({
         <button
           type="button"
           onClick={handleDefaultWhatsApp}
-          title={`Message WhatsApp selon statut (${stageConfig.stageNameFr}) : "${stageConfig.shortLabel}"`}
-          className="flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-xl text-[11px] font-bold bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/90 hover:border-emerald-300 transition-all shadow-2xs group/msg active:scale-95"
+          title={
+            order.whatsappStatus === 'NOT_AVAILABLE'
+              ? `Attention: Ce numéro n'a pas WhatsApp (${order.phone}) - privilégier l'appel vocal`
+              : `Message WhatsApp selon statut (${stageConfig.stageNameFr}) : "${stageConfig.shortLabel}"`
+          }
+          className={`flex items-center justify-center gap-1 py-1.5 px-1.5 rounded-xl text-[11px] font-bold border transition-all shadow-2xs group/msg active:scale-95 ${
+            order.whatsappStatus === 'NOT_AVAILABLE'
+              ? 'bg-amber-50/90 hover:bg-amber-100 text-amber-900 border-amber-300'
+              : 'bg-emerald-50/80 hover:bg-emerald-100 text-emerald-800 border-emerald-200/90 hover:border-emerald-300'
+          }`}
         >
           <svg
-            className="w-3.5 h-3.5 fill-current text-[#25D366] group-hover/msg:scale-110 transition-transform shrink-0"
+            className={`w-3.5 h-3.5 fill-current transition-transform shrink-0 ${
+              order.whatsappStatus === 'NOT_AVAILABLE' ? 'text-amber-700' : 'text-[#25D366] group-hover/msg:scale-110'
+            }`}
             viewBox="0 0 24 24"
           >
             <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.529 1.838.805 2.791.805h.001c3.181 0 5.767-2.586 5.768-5.766 0-3.18-2.587-5.767-5.769-5.767zm3.364 8.204c-.14.394-.809.734-1.121.78-.31.047-.704.067-1.139-.074-.27-.087-.621-.202-1.071-.399-1.905-.829-3.14-2.76-3.235-2.888-.094-.128-.775-1.03-.775-1.964 0-.935.49-1.393.664-1.583.174-.19.38-.238.507-.238.127 0 .254.002.364.007.117.006.273-.044.428.328.16.38.547 1.332.595 1.429.047.097.079.21.016.335-.063.125-.095.203-.189.314-.094.111-.198.247-.283.332-.095.095-.194.198-.083.388.111.19.493.813 1.057 1.315.727.646 1.34.846 1.53.941.19.095.301.079.412-.048.111-.127.476-.554.603-.744.127-.19.254-.159.428-.095.174.063 1.109.523 1.299.618.19.095.317.143.364.222.048.079.048.459-.092.853z" />
           </svg>
-          <span className="truncate">{stageConfig.shortLabel}</span>
+          <span className="truncate">{order.whatsappStatus === 'NOT_AVAILABLE' ? 'Pas de WA' : stageConfig.shortLabel}</span>
         </button>
 
         {/* 3. Bouton Intervention Agent IA */}

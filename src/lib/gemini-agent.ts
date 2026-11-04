@@ -741,6 +741,22 @@ export async function processCustomerWhatsAppMessage(
               verifiedAddress: args.verifiedAddress || context.address,
               deliveryNotes: args.deliveryNotes,
             });
+            // 🔔 Notify Store Owner
+            import('./agent-rules-engine').then(({ notifyStoreOwner }) => {
+              notifyStoreOwner({
+                eventType: 'ORDER_CONFIRMED',
+                order: {
+                  id: context.orderId,
+                  orderNumber: context.orderNumber,
+                  customerName: context.customerName,
+                  customerPhone: context.phoneNumber,
+                  city: args.verifiedCity || context.city,
+                  address: args.verifiedAddress || context.address,
+                  totalAmount: context.totalAmount,
+                  items: context.items,
+                },
+              }).catch(() => {});
+            }).catch(() => {});
             toolDetails.resultDescription = `Confirmation validée pour ${args.verifiedCity || context.city}`;
             logAgentOperation({
               orderId: context.orderId,
@@ -826,6 +842,23 @@ export async function processCustomerWhatsAppMessage(
               orderId: context.orderId,
               reason: args.reason || 'Complex query / client request',
             });
+            // 🚨 Notify Store Owner for Human Handover
+            import('./agent-rules-engine').then(({ notifyStoreOwner }) => {
+              notifyStoreOwner({
+                eventType: 'NEEDS_ATTENTION',
+                order: {
+                  id: context.orderId,
+                  orderNumber: context.orderNumber,
+                  customerName: context.customerName,
+                  customerPhone: context.phoneNumber,
+                  city: context.city,
+                  address: context.address,
+                  totalAmount: context.totalAmount,
+                  items: context.items,
+                },
+                reason: args.reason || 'العميل طلب التحدث مع مسؤول بشري',
+              }).catch(() => {});
+            }).catch(() => {});
             toolDetails.resultDescription = `Transfert conseiller: ${args.reason || 'Demande client'}`;
             if (!replyText) {
               replyText = 'لحظة واحدة أخي، غادي نحول المحادثة مباشرة لواحد من الفريق ديالنا وغيتواصل معاك دابا باش يجاوبك على كامل التفاصيل 📞✨';
@@ -1460,6 +1493,22 @@ export async function processCustomerVoiceNote(
               verifiedAddress: args.verifiedAddress || context.address,
               deliveryNotes: args.deliveryNotes,
             });
+            // 🔔 Notify Store Owner
+            import('./agent-rules-engine').then(({ notifyStoreOwner }) => {
+              notifyStoreOwner({
+                eventType: 'ORDER_CONFIRMED',
+                order: {
+                  id: context.orderId,
+                  orderNumber: context.orderNumber,
+                  customerName: context.customerName,
+                  customerPhone: context.phoneNumber,
+                  city: args.verifiedCity || context.city,
+                  address: args.verifiedAddress || context.address,
+                  totalAmount: context.totalAmount,
+                  items: context.items,
+                },
+              }).catch(() => {});
+            }).catch(() => {});
             toolDetails.resultDescription = `Confirmation validée par audio pour ${args.verifiedCity || context.city}`;
             if (!replyText) {
               replyText = `شكراً بزاف على الأوديو ديالك أخي ${context.customerName}! الطلبية ديالك تأكدات بنجاح لـ ${args.verifiedCity || context.city} وغادي نجهزوها للتوصيل السريع مع Sendit. عفاك شارك معنا اللوكاسيون (Location Pin 📍) لتسهيل الوصول! 📦✨`;
@@ -1886,6 +1935,22 @@ export async function processCustomerImage(
               verifiedAddress: args.verifiedAddress || context.address,
               deliveryNotes: args.deliveryNotes,
             });
+            // 🔔 Notify Store Owner
+            import('./agent-rules-engine').then(({ notifyStoreOwner }) => {
+              notifyStoreOwner({
+                eventType: 'ORDER_CONFIRMED',
+                order: {
+                  id: context.orderId,
+                  orderNumber: context.orderNumber,
+                  customerName: context.customerName,
+                  customerPhone: context.phoneNumber,
+                  city: args.verifiedCity || context.city,
+                  address: args.verifiedAddress || context.address,
+                  totalAmount: context.totalAmount,
+                  items: context.items,
+                },
+              }).catch(() => {});
+            }).catch(() => {});
             toolDetails.resultDescription = `Confirmation validée suite à la photo`;
             break;
 
