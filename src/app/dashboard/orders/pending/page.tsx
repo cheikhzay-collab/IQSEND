@@ -19,7 +19,6 @@ import {
   ShieldAlert,
   ArrowRight,
   Bot,
-  FileSpreadsheet,
   Headphones,
   PhoneMissed,
   Calendar,
@@ -34,7 +33,6 @@ import {
 import { CreateOrderModal } from '@/components/orders/CreateOrderModal';
 import { QuickCallModal } from '@/components/orders/QuickCallModal';
 import { AgentInterventionModal } from '@/components/orders/AgentInterventionModal';
-import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 import { OrderItem } from '@/types/orders';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
@@ -134,7 +132,6 @@ export default function PendingOrdersPage() {
   }, [callingOrder]);
   const [quickCallOrder, setQuickCallOrder] = useState<OrderItem | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
-  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
 
   // All pending orders (Stage 1: Only incoming leads awaiting phone confirmation, never Sendit logistics parcels)
   const allPendingOrders = useMemo(() => {
@@ -288,16 +285,6 @@ export default function PendingOrdersPage() {
                 </option>
               ))}
             </select>
-
-            {/* Google Sheets Sync Button */}
-            <button
-              onClick={() => setIsSheetsModalOpen(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 text-xs font-bold transition-all shadow-2xs shrink-0 active:scale-95"
-              title="Lier Google Sheets pour synchronisation automatique des commandes"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Google Sheets</span>
-            </button>
 
             {/* Manual New Order Button */}
             <button
@@ -941,12 +928,6 @@ export default function PendingOrdersPage() {
         order={agentInterventionOrder}
         isOpen={!!agentInterventionOrder}
         onClose={() => setAgentInterventionOrder(null)}
-      />
-
-      {/* Google Sheets Sync Modal */}
-      <GoogleSheetsIntegrationModal
-        isOpen={isSheetsModalOpen}
-        onClose={() => setIsSheetsModalOpen(false)}
       />
 
       {/* Manual Create Order Modal */}

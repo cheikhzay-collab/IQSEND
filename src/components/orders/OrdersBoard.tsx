@@ -22,8 +22,7 @@ import {
   Phone,
   MessageCircle,
   Bot,
-  Sparkles,
-  FileSpreadsheet
+  Sparkles
 } from 'lucide-react';
 import { OrderItem, OrderStatus, PaymentBadge } from '@/types/orders';
 import { useOrderLifecycle, LifecycleOrder, LifecycleStage } from '@/context/OrderLifecycleContext';
@@ -32,7 +31,6 @@ import { OrderDetailsModal } from './OrderDetailsModal';
 import { CreateOrderModal } from './CreateOrderModal';
 import { QuickCallModal } from './QuickCallModal';
 import { AgentInterventionModal } from './AgentInterventionModal';
-import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 import { getStageMessageConfig, formatPhoneForWhatsApp, lifecycleToOrderItem } from '@/lib/order-stage-messages';
 import { safeOpenExternalUrl } from '@/lib/navigation-utils';
 
@@ -127,7 +125,6 @@ export function OrdersBoard() {
   const [callModalOrder, setCallModalOrder] = useState<OrderItem | null>(null);
   const [agentInterventionOrder, setAgentInterventionOrder] = useState<OrderItem | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
   const [draggedOrder, setDraggedOrder] = useState<OrderItem | null>(null);
   const [dragOverColumn, setDragOverColumn] = useState<LifecycleStage | null>(null);
 
@@ -299,16 +296,6 @@ export function OrdersBoard() {
 
         {/* Right Action Bar */}
         <div className="flex items-center justify-between sm:justify-end gap-2.5 shrink-0">
-          {/* Google Sheets Sync Button */}
-          <button
-            onClick={() => setIsSheetsModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs active:scale-95"
-            title="Liaison Google Sheets, modèle de commandes et synchronisation automatique"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Google Sheets</span>
-          </button>
-
           {/* New Order Button */}
           <button
             onClick={() => setIsCreateModalOpen(true)}
@@ -686,12 +673,6 @@ export function OrdersBoard() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreate={handleCreateOrder}
-      />
-
-      {/* Google Sheets Integration & Template Modal */}
-      <GoogleSheetsIntegrationModal
-        isOpen={isSheetsModalOpen}
-        onClose={() => setIsSheetsModalOpen(false)}
       />
     </div>
   );

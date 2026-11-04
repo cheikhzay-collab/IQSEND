@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { useOrderLifecycle } from '@/context/OrderLifecycleContext';
 import { CreateOrderModal } from '@/components/orders/CreateOrderModal';
-import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 import {
   TrendingUp,
   TrendingDown,
@@ -124,7 +123,6 @@ export default function DashboardOverviewPage() {
 
   // Modals
   const [isCreateOrderOpen, setIsCreateOrderOpen] = useState(false);
-  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
 
   const loadStats = async () => {
     setLoading(true);
@@ -222,14 +220,6 @@ export default function DashboardOverviewPage() {
             >
               <Plus className="w-4 h-4" />
               <span>Nouvelle Commande</span>
-            </button>
-
-            <button
-              onClick={() => setIsSheetsModalOpen(true)}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all cursor-pointer"
-            >
-              <Table className="w-4 h-4 text-emerald-400" />
-              <span>Google Sheets</span>
             </button>
 
             <button
@@ -744,14 +734,6 @@ export default function DashboardOverviewPage() {
             ],
             stage: 'PENDING_CONFIRMATION',
           });
-          loadStats();
-        }}
-      />
-
-      <GoogleSheetsIntegrationModal
-        isOpen={isSheetsModalOpen}
-        onClose={() => {
-          setIsSheetsModalOpen(false);
           loadStats();
         }}
       />

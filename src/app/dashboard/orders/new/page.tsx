@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  FileSpreadsheet,
   ArrowLeft,
   CheckCircle2,
   AlertCircle,
@@ -94,17 +93,6 @@ export default function NewOrderPage() {
     },
   ]);
 
-  // Google Sheets Direct 1-Click Sync State
-  const [sheetUrl, setSheetUrl] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState<{
-    success: boolean;
-    message: string;
-    count?: number;
-  } | null>(null);
-  const [showSheetGuide, setShowSheetGuide] = useState(false);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
-
   // Dynamic Shipping Fee & SLA Calculation
   const getDeliveryFee = (city: string) => {
     if (city === 'Casablanca') return 25;
@@ -157,53 +145,6 @@ export default function NewOrderPage() {
       });
   };
 
-  // Handle 1-Click Google Sheets Direct Sync
-  const handleDirectSheetSync = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sheetUrl.trim()) return;
-
-    setIsSyncing(true);
-    setSyncResult(null);
-
-    try {
-      const res = await fetch('/api/google-sheets/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sheetUrl }),
-      });
-
-      const data = await res.json();
-
-      if (data.success) {
-        setSyncResult({
-          success: true,
-          message: data.message,
-          count: data.importedCount,
-        });
-        showToast(`${data.importedCount} commandes synchronisées depuis Google Sheet!`);
-      } else {
-        setSyncResult({
-          success: false,
-          message: data.error || 'Erreur lors de la synchronisation.',
-        });
-      }
-    } catch (err: any) {
-      setSyncResult({
-        success: false,
-        message: err.message || 'Impossible de se connecter au Google Sheet.',
-      });
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const copyWebhookUrl = () => {
-    const url = 'https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets';
-    navigator.clipboard.writeText(url);
-    setCopiedWebhook(true);
-    setTimeout(() => setCopiedWebhook(false), 2000);
-  };
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-24">
       {/* 2. MAIN CONTAINER */}
@@ -228,154 +169,10 @@ export default function NewOrderPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Création manuelle de commande ou synchronisation automatique depuis Google Sheets.
+                Saisie manuelle et enregistrement direct d'une nouvelle commande COD au Maroc.
               </p>
             </div>
           </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowSheetGuide(!showSheetGuide)}
-              className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold text-xs shadow-2xs transition-colors"
-            >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span>{showSheetGuide ? 'Masquer Aide Google Sheets' : 'Lier Google Sheets (1-Clic)'}</span>
-            </button>
-          </div>
-        </div>
-
-        {/* 3. GOOGLE SHEETS 1-CLICK SYNC BANNER (L'option la plus simple) */}
-        <div className="bg-gradient-to-r from-emerald-50 via-emerald-50 to-white rounded-2xl border border-emerald-200/90 p-5 shadow-xs space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-slate-900">
-                    Synchronisation Google Sheet en 1-Clic (Sans Code)
-                  </h3>
-                  <span className="bg-emerald-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full">
-                    MÉTHODE ULTRA-FACILE
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mt-1 max-w-2xl leading-relaxed">
-                  Collez simplement le lien de votre feuille Google Sheets partagée (Lecteur). Vos commandes tomberont directement dans l'étape <strong>1. En attente de confirmation</strong>.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowSheetGuide(!showSheetGuide)}
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 underline whitespace-nowrap self-start md:self-center"
-            >
-              Comment ça marche ?
-            </button>
-          </div>
-
-          {/* Direct URL Form */}
-          <form onSubmit={handleDirectSheetSync} className="flex flex-col sm:flex-row items-center gap-2">
-            <div className="relative flex-1 w-full">
-              <input
-                type="url"
-                value={sheetUrl}
-                onChange={(e) => setSheetUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFM.../edit"
-                className="w-full bg-white border border-emerald-300 rounded-xl px-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono shadow-inner"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isSyncing || !sheetUrl.trim()}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-black text-xs shadow-sm transition-all shrink-0 active:scale-95"
-            >
-              {isSyncing ? (
-                <>
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  <span>Synchronisation...</span>
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Importer les Commandes</span>
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Sync Result Feedback */}
-          {syncResult && (
-            <div
-              className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-3 ${
-                syncResult.success
-                  ? 'bg-emerald-100/80 border-emerald-300 text-emerald-900'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {syncResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span className="font-semibold">{syncResult.message}</span>
-              </div>
-              {syncResult.success && (
-                <Link
-                  href="/dashboard/orders/pending"
-                  className="font-bold underline text-emerald-800 hover:text-emerald-950 shrink-0"
-                >
-                  Voir dans En attente ➔
-                </Link>
-              )}
-            </div>
-          )}
-
-          {/* Quick 3-Step Guide Drawer */}
-          {showSheetGuide && (
-            <div className="pt-3 border-t border-emerald-200/80 grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">
-                  1
-                </span>
-                <p className="font-bold text-slate-800">Partager le Google Sheet</p>
-                <p className="text-slate-500 text-[11px]">
-                  Cliquez sur <strong>Partager</strong> en haut à droite du Sheet, puis choisissez <em>« Tous les utilisateurs disposant du lien »</em> (Accès Lecteur).
-                </p>
-              </div>
-
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">
-                  2
-                </span>
-                <p className="font-bold text-slate-800">En-têtes automatiques</p>
-                <p className="text-slate-500 text-[11px]">
-                  Le système détecte automatiquement les colonnes en <strong>Français, Arabe ou Anglais</strong> (Nom, Téléphone, Ville, Montant, Article).
-                </p>
-              </div>
-
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs space-y-1">
-                <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] inline-flex items-center justify-center mb-1">
-                  3
-                </span>
-                <p className="font-bold text-slate-800">Webhook Temps Réel (Optionnel)</p>
-                <div className="flex items-center justify-between gap-1 pt-0.5">
-                  <span className="text-[10px] font-mono text-slate-500 truncate">
-                    /api/webhooks/google-sheets
-                  </span>
-                  <button
-                    onClick={copyWebhookUrl}
-                    className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 hover:bg-emerald-100 shrink-0"
-                  >
-                    {copiedWebhook ? 'Copié ✓' : 'Copier Webhook'}
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
         {/* 4. ORDER CREATION FORM (Exact Replica of Moroccan Logistics Standard) */}

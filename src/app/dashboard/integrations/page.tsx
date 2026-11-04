@@ -31,6 +31,7 @@ import {
   Layers,
   Sliders
 } from 'lucide-react';
+import { GoogleSheetsIntegrationModal } from '@/components/orders/lifecycle/GoogleSheetsIntegrationModal';
 
 export default function IntegrationsPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -38,6 +39,41 @@ export default function IntegrationsPage() {
     'https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit'
   );
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success'>('idle');
+  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
+  const [isSyncingSheet, setIsSyncingSheet] = useState(false);
+  const [sheetSyncAlert, setSheetSyncAlert] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleSyncSheetNow = async () => {
+    if (isSyncingSheet) return;
+    setIsSyncingSheet(true);
+    setSheetSyncAlert(null);
+    try {
+      const res = await fetch('/api/google-sheets/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sheetUrl: googleSheetUrl }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSheetSyncAlert({
+          type: 'success',
+          text: data.message || `${data.importedCount || 0} commandes synchronisées depuis Google Sheets !`,
+        });
+      } else {
+        setSheetSyncAlert({
+          type: 'error',
+          text: data.error || 'Erreur lors de la synchronisation de la feuille.',
+        });
+      }
+    } catch (err: any) {
+      setSheetSyncAlert({
+        type: 'error',
+        text: err.message || 'Impossible de se connecter à Google Sheets.',
+      });
+    } finally {
+      setIsSyncingSheet(false);
+    }
+  };
   // -------------------------------------------------------------
   // 🚚 Sendit.ma Logistics API & Webhooks State
   // -------------------------------------------------------------
@@ -952,82 +988,148 @@ export default function IntegrationsPage() {
       {/* ───────────────────────────────────────────────────────────── */}
       {/* INTÉGRATION 3 : GOOGLE SHEETS DIRECT SYNC                     */}
       {/* ───────────────────────────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div id="gsheet" className="bg-white border-2 border-emerald-500/30 rounded-2xl p-6 shadow-sm space-y-5 bg-gradient-to-br from-white via-white to-emerald-50/20">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs shrink-0">
               <FileSpreadsheet className="w-6 h-6" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h3 className="font-bold text-sm text-slate-900">Google Sheets Direct Sync</h3>
-                <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Connecté & Actif
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="font-black text-base text-slate-900">Google Sheets Direct Sync & Webhooks</h3>
+                <span className="bg-emerald-100 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Connecteur Actif (Temps Réel)
                 </span>
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                Chaque ligne ajoutée dans votre feuille Google Sheet tombe instantanément dans le statut "En attente".
+                Centralisation exclusive de la liaison Google Sheets : importation en 1-clic, synchronisation automatique et réception de commandes en continu.
               </p>
             </div>
           </div>
 
-          <a
-            href={googleSheetUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="px-3.5 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shrink-0"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Ouvrir la feuille
-          </a>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={handleSyncSheetNow}
+              disabled={isSyncingSheet}
+              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs shrink-0 cursor-pointer disabled:opacity-50 active:scale-95"
+              title="Lancer une synchronisation immédiate depuis la feuille Google Sheets"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isSyncingSheet ? 'animate-spin' : ''}`} />
+              <span>{isSyncingSheet ? 'Synchronisation...' : 'Synchroniser Maintenant'}</span>
+            </button>
+
+            <button
+              onClick={() => setIsSheetsModalOpen(true)}
+              className="px-3.5 py-2 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-xs font-bold text-emerald-800 flex items-center gap-1.5 transition-colors shrink-0 cursor-pointer"
+              title="Ouvrir le guide complet, le code Google Apps Script et le modèle de commande"
+            >
+              <Puzzle className="w-3.5 h-3.5 text-emerald-700" />
+              <span>Guide & Modèle Apps Script</span>
+            </button>
+
+            <a
+              href={googleSheetUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="px-3 py-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-700 flex items-center gap-1.5 transition-colors shrink-0"
+              title="Ouvrir le fichier Google Sheet dans un nouvel onglet"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Ouvrir</span>
+            </a>
+          </div>
         </div>
 
-        <div className="pt-2">
-          <label className="text-xs font-bold text-slate-700 block mb-1">
+        {/* Sync Alert Banner */}
+        {sheetSyncAlert && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold border flex items-center gap-2 ${
+              sheetSyncAlert.type === 'success'
+                ? 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                : 'bg-rose-50 text-rose-900 border-rose-200'
+            }`}
+          >
+            {sheetSyncAlert.type === 'success' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            )}
+            <span>{sheetSyncAlert.text}</span>
+          </div>
+        )}
+
+        {/* URL Form & Save */}
+        <div className="space-y-2">
+          <label className="text-xs font-bold text-slate-700 block">
             Lien partagé de votre feuille Google Sheet (Accès en lecture publique ou avec lien)
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
             <input
               type="text"
               value={googleSheetUrl}
               onChange={(e) => setGoogleSheetUrl(e.target.value)}
               className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 font-mono bg-slate-50/50 focus:outline-emerald-600"
+              placeholder="https://docs.google.com/spreadsheets/d/..."
             />
-            <button
-              onClick={async () => {
-                try {
-                  await fetch('/api/settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ GOOGLE_SHEET_URL: googleSheetUrl }),
-                  });
-                  setCopiedKey('gsheet_saved');
-                  setTimeout(() => setCopiedKey(null), 2500);
-                } catch (e) {
-                  console.error('Error saving Google Sheet URL:', e);
-                }
-              }}
-              className="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-2xs shrink-0"
-            >
-              {copiedKey === 'gsheet_saved' ? <Check className="w-3.5 h-3.5 text-white" /> : <Save className="w-3.5 h-3.5" />}
-              {copiedKey === 'gsheet_saved' ? 'Enregistré dans MySQL !' : 'Enregistrer'}
-            </button>
-            <button
-              onClick={() => copyToClipboard(googleSheetUrl, 'gsheet')}
-              className="px-3 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 flex items-center gap-1.5 shrink-0"
-            >
-              {copiedKey === 'gsheet' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-              {copiedKey === 'gsheet' ? 'Copié' : 'Copier'}
-            </button>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={async () => {
+                  try {
+                    await fetch('/api/settings', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ GOOGLE_SHEET_URL: googleSheetUrl }),
+                    });
+                    setCopiedKey('gsheet_saved');
+                    setTimeout(() => setCopiedKey(null), 2500);
+                  } catch (e) {
+                    console.error('Error saving Google Sheet URL:', e);
+                  }
+                }}
+                className="flex-1 sm:flex-none px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
+              >
+                {copiedKey === 'gsheet_saved' ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Save className="w-3.5 h-3.5" />}
+                {copiedKey === 'gsheet_saved' ? 'Enregistré dans MySQL !' : 'Enregistrer'}
+              </button>
+              <button
+                onClick={() => copyToClipboard(googleSheetUrl, 'gsheet')}
+                className="px-3.5 py-2.5 border border-slate-200 hover:bg-slate-50 rounded-xl text-xs font-bold text-slate-600 flex items-center justify-center gap-1.5"
+                title="Copier le lien"
+              >
+                {copiedKey === 'gsheet' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                {copiedKey === 'gsheet' ? 'Copié' : 'Copier'}
+              </button>
+            </div>
           </div>
         </div>
 
-        <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+        {/* Webhook Endpoint Strip */}
+        <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="min-w-0">
+            <span className="font-bold text-slate-800 block">
+              URL Webhook pour soumission en temps réel :
+            </span>
+            <code className="text-[11px] font-mono text-emerald-700 bg-white px-2 py-0.5 rounded border border-slate-200 mt-1 inline-block truncate max-w-full">
+              https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets
+            </code>
+          </div>
+          <button
+            onClick={() => {
+              copyToClipboard('https://lawngreen-jaguar-315438.hostingersite.com/api/webhooks/google-sheets', 'webhook_gs');
+            }}
+            className="px-3 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg text-slate-700 font-bold flex items-center gap-1.5 shrink-0 self-start sm:self-center cursor-pointer"
+          >
+            {copiedKey === 'webhook_gs' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+            {copiedKey === 'webhook_gs' ? 'Copié ✓' : 'Copier Webhook'}
+          </button>
+        </div>
+
+        <div className="p-3 bg-emerald-50/50 rounded-xl border border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
           <span className="text-slate-600">
             <strong>Colonnes reconnues :</strong> Nom Client, Téléphone (06...), Ville, Adresse, Produit, Prix (MAD).
           </span>
           <span className="text-emerald-700 font-bold shrink-0">
-            Dernière vérification: il y a 2 min (4 nouveaux leads traités)
+            ⚡ Synchronisation automatique active en arrière-plan
           </span>
         </div>
       </div>
@@ -1498,6 +1600,12 @@ export default function IntegrationsPage() {
           )}
         </div>
       </div>
+
+      {/* Google Sheets Modal for Advanced Guide, Template & Apps Script */}
+      <GoogleSheetsIntegrationModal
+        isOpen={isSheetsModalOpen}
+        onClose={() => setIsSheetsModalOpen(false)}
+      />
     </div>
   );
 }
