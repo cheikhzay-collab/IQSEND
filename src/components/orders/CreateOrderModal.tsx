@@ -244,7 +244,7 @@ export function CreateOrderModal({
               required
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
-              placeholder="Ex: Salma R. أو رشيد العلوي"
+              placeholder="Ex: Salma R. ou Rachid El Alaoui"
               className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
             />
           </div>
@@ -259,7 +259,7 @@ export function CreateOrderModal({
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="06******** أو 07********"
+                placeholder="06******** ou 07********"
                 className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
               />
             </div>
@@ -379,7 +379,7 @@ export function CreateOrderModal({
               rows={2}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Ex: ملاحظات للطلب أو للمندوب (القياس 42، اللون أسود، يفضل التوصيل بعد العصر، الاتصال قبل المجيء...)"
+              placeholder="Ex: Instructions pour le livreur (Taille 42, Noir, livraison après 16h, appeler avant le passage...)"
               className="w-full text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium placeholder:text-slate-400 resize-none"
             />
           </div>

@@ -363,7 +363,7 @@ export function TrackingKanban({
                         </>
                       )}
 
-                      {/* ── 2. LIVRÉE & ENCAISSÉE STATUS BADGE (و حالتها) ── */}
+                      {/* ── 2. LIVRÉE & ENCAISSÉE STATUS BADGE ── */}
                       {isDelivered && (
                         <div className="mt-2.5 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5 text-[11px] text-emerald-900 space-y-1">
                           <div className="flex items-center justify-between font-bold">
@@ -381,7 +381,7 @@ export function TrackingKanban({
                         </div>
                       )}
 
-                      {/* ── 3. RETOURNÉE & REFUSÉE STATUS BADGE (و حالتها) ── */}
+                      {/* ── 3. RETOURNÉE & REFUSÉE STATUS BADGE ── */}
                       {isReturned && (
                         <div className="mt-2.5 bg-purple-50 border border-purple-200 rounded-xl p-2.5 text-[11px] text-purple-900 space-y-1">
                           <div className="flex items-center justify-between font-bold">
@@ -399,7 +399,7 @@ export function TrackingKanban({
                         </div>
                       )}
 
-                      {/* ── 4. ANNULÉE STATUS BADGE (و حالتها) ── */}
+                      {/* ── 4. ANNULÉE STATUS BADGE ── */}
                       {isCanceled && (
                         <div className="mt-2.5 bg-slate-100 border border-slate-300 rounded-xl p-2.5 text-[11px] text-slate-800 space-y-1">
                           <div className="flex items-center justify-between font-bold">

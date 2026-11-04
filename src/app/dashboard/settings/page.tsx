@@ -148,7 +148,7 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        showToast(data.message || '✅ تم مسح وتفريغ قاعدة البيانات بنجاح!');
+        showToast(data.message || '✅ Base de données purgée avec succès !');
         setDbMessage({
           type: 'success',
           text: data.message,
@@ -429,7 +429,7 @@ export default function SettingsPage() {
               className="flex items-center justify-center gap-1.5 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
             >
               <User className="w-4 h-4" />
-              <span>Modifier mon profil & photo (تعديل البروفايل)</span>
+              <span>Modifier mon profil & photo</span>
             </button>
           </div>
         </div>
@@ -700,10 +700,10 @@ export default function SettingsPage() {
             <button
               onClick={() => openWipeModal('OPERATIONAL')}
               className="px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-              title="مسح وتفريغ قاعدة البيانات"
+              title="Purger et réinitialiser la base de données"
             >
               <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-              <span>مسح قاعدة البيانات</span>
+              <span>Purger la base</span>
             </button>
           </div>
         </div>
@@ -798,16 +798,15 @@ export default function SettingsPage() {
               </div>
               <div>
                 <h3 className="text-xs font-bold text-rose-950 flex items-center gap-1.5">
-                  <span>منطقة الخطر : مسح وتفريغ قاعدة البيانات</span>
-                  <span className="text-[10px] font-normal text-rose-600">(Zone de Danger : Purge MySQL)</span>
+                  <span>Zone de Danger : Purge & Réinitialisation MySQL</span>
                 </h3>
                 <p className="text-[10px] text-slate-500">
-                  إمكانية مسح سجلات قاعدة البيانات لتنظيف المنصة، إزالة البيانات التجريبية، أو البدء من الصفر.
+                  Purger les tables pour nettoyer la plateforme, éliminer les données de test ou réinitialiser le système.
                 </p>
               </div>
             </div>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-200">
-              عمليات لا رجعة فيها
+              Opérations irréversibles
             </span>
           </div>
 
@@ -817,10 +816,10 @@ export default function SettingsPage() {
               <div>
                 <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <Trash2 className="w-3.5 h-3.5 text-rose-600" />
-                  <span>مسح الطلبات والعمليات</span>
+                  <span>Purger commandes & activités</span>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                  يمسح كافة الطلبات، الزبائن، الشحنات، سجلات المكالمات، الرسائل، والتنبيهات (15 جدول). مع الحفاظ الكامل على المنتجات والمستخدمين والإعدادات.
+                  Supprime l'ensemble des commandes, clients, expéditions, journaux d'appels, messages et alertes (15 tables). Conserve les produits, utilisateurs et réglages.
                 </p>
               </div>
               <button
@@ -828,7 +827,7 @@ export default function SettingsPage() {
                 className="mt-3 w-full py-1.5 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Trash2 className="w-3 h-3" />
-                <span>مسح سجلات الطلبات</span>
+                <span>Purger les commandes</span>
               </button>
             </div>
 
@@ -837,10 +836,10 @@ export default function SettingsPage() {
               <div>
                 <div className="font-bold text-slate-900 text-xs flex items-center gap-1.5">
                   <HardDrive className="w-3.5 h-3.5 text-amber-600" />
-                  <span>مسح كتالوج المنتجات</span>
+                  <span>Purger le catalogue produits</span>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                  يمسح كافة المنتجات في الكتالوج، تفرعاتها (Variants)، وأرصدة حركات المخزون، مع بقاء الطلبات السابقة كما هي.
+                  Supprime tous les produits du catalogue, leurs déclinaisons (variantes) et mouvements de stock, tout en préservant les commandes existantes.
                 </p>
               </div>
               <button
@@ -848,7 +847,7 @@ export default function SettingsPage() {
                 className="mt-3 w-full py-1.5 px-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <Trash2 className="w-3 h-3" />
-                <span>مسح المنتجات والمخزون</span>
+                <span>Purger les produits & stocks</span>
               </button>
             </div>
 
@@ -857,10 +856,10 @@ export default function SettingsPage() {
               <div>
                 <div className="font-bold text-red-950 text-xs flex items-center gap-1.5">
                   <ShieldAlert className="w-3.5 h-3.5 text-red-600" />
-                  <span>إعادة ضبط المصنع الكاملة</span>
+                  <span>Réinitialisation d'usine complète</span>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1 leading-relaxed">
-                  مسح شامل وتفريغ كامل لجميع جداول قاعدة البيانات وإعادة تهيئتها نظيفة مع الحفاظ على حساب المدير الافتراضي (admin@sendit.ma).
+                  Purge totale de toutes les tables MySQL et remise à zéro avec conservation propre du compte administrateur (admin@sendit.ma).
                 </p>
               </div>
               <button
@@ -868,7 +867,7 @@ export default function SettingsPage() {
                 className="mt-3 w-full py-1.5 px-3 bg-red-700 hover:bg-red-800 text-white font-bold rounded-lg text-[11px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
               >
                 <AlertOctagon className="w-3 h-3" />
-                <span>مسح شامل (Reset Factory)</span>
+                <span>Reset complet (Factory Reset)</span>
               </button>
             </div>
           </div>
@@ -931,10 +930,10 @@ export default function SettingsPage() {
                 <div>
                   <h3 className="font-bold text-sm">
                     {wipeTarget === 'OPERATIONAL'
-                      ? 'تأكيد مسح الطلبات والبيانات التشغيلية'
+                      ? 'Confirmer la purge des commandes et données d\'activité'
                       : wipeTarget === 'CATALOG'
-                      ? 'تأكيد مسح كتالوج المنتجات والمخزون'
-                      : 'تأكيد المسح الشامل وإعادة ضبط المصنع'}
+                      ? 'Confirmer la purge du catalogue produits et stocks'
+                      : 'Confirmer la réinitialisation complète d\'usine'}
                   </h3>
                   <p className="text-[10px] text-white/80">
                     Hostinger Cloud MySQL • {dbStatus?.database || 'u663560985_sendit'}
@@ -955,9 +954,9 @@ export default function SettingsPage() {
               <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-900 flex items-start gap-2.5">
                 <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
-                  <strong className="block font-bold">⚠️ تنبيه خطير ولا يمكن التراجع عنه :</strong>
+                  <strong className="block font-bold">⚠️ Avertissement critique & irréversible :</strong>
                   <span>
-                    هذه العملية ستقوم بحذف السجلات المحددة نهائياً من قاعدة بيانات MySQL. لا يمكن استرجاع هذه البيانات بعد الضغط على تأكيد المسح.
+                    Cette opération supprimera définitivement les enregistrements sélectionnés de la base de données MySQL. Aucune récupération n'est possible après confirmation.
                   </span>
                 </div>
               </div>
@@ -966,44 +965,44 @@ export default function SettingsPage() {
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-700 text-[11px]">
-                    {isLoadingSummary ? 'جارٍ احتساب السجلات...' : 'ملخص السجلات الحالية في قاعدة البيانات :'}
+                    {isLoadingSummary ? 'Calcul des enregistrements...' : 'Résumé des enregistrements actuels dans MySQL :'}
                   </span>
                   {isLoadingSummary && <RotateCcw className="w-3.5 h-3.5 animate-spin text-slate-400" />}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-[10px]">
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">📋 الطلبات (order_leads)</span>
+                    <span className="text-slate-400 block">📋 Commandes (order_leads)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.order_leads ?? '...'}
                     </strong>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">📦 عناصر الطلب (items)</span>
+                    <span className="text-slate-400 block">📦 Articles (order_items)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.order_items ?? '...'}
                     </strong>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">🚚 الشحنات (shipments)</span>
+                    <span className="text-slate-400 block">🚚 Expéditions (shipments)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.shipment_details ?? '...'}
                     </strong>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">👥 الزبائن (customers)</span>
+                    <span className="text-slate-400 block">👥 Clients (customers)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.customers ?? '...'}
                     </strong>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">💬 الرسائل (messages)</span>
+                    <span className="text-slate-400 block">💬 Messages (messages)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.whatsapp_messages ?? '...'}
                     </strong>
                   </div>
                   <div className="p-2 bg-white rounded-lg border border-slate-200">
-                    <span className="text-slate-400 block">📞 المكالمات (call_logs)</span>
+                    <span className="text-slate-400 block">📞 Appels (call_logs)</span>
                     <strong className="text-slate-800 text-xs font-mono">
                       {wipeSummary?.counts?.call_logs ?? '...'}
                     </strong>
@@ -1013,13 +1012,13 @@ export default function SettingsPage() {
                 {wipeTarget === 'OPERATIONAL' && (
                   <div className="pt-1 text-[11px] text-emerald-700 flex items-center gap-1.5 font-medium">
                     <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span>سيتم الحفاظ على: كتالوج المنتجات، حسابات المستخدمين، وإعدادات الربط.</span>
+                    <span>Seront conservés : le catalogue produits, les comptes utilisateurs et les clés API.</span>
                   </div>
                 )}
                 {wipeTarget === 'FULL' && (
                   <div className="pt-1 text-[11px] text-amber-700 flex items-center gap-1.5 font-medium">
                     <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
-                    <span>سيتم إعادة إنشاء حساب المدير الافتراضي (admin@sendit.ma) والإعدادات فوراً.</span>
+                    <span>Le compte administrateur (admin@sendit.ma) et les paramètres par défaut seront réinitialisés immédiatement.</span>
                   </div>
                 )}
               </div>
@@ -1027,11 +1026,11 @@ export default function SettingsPage() {
               {/* Confirmation Input Verification */}
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5">
-                  للتأكيد، اكتب كلمة <span className="text-rose-600 font-mono font-black">مسح</span> أو <span className="text-rose-600 font-mono font-black">DELETE</span> في المربع أسفله :
+                  Pour confirmer, tapez <span className="text-rose-600 font-mono font-black">DELETE</span> ou <span className="text-rose-600 font-mono font-black">SUPPRIMER</span> dans le champ ci-dessous :
                 </label>
                 <input
                   type="text"
-                  placeholder="اكتب مسح أو DELETE للتأكيد"
+                  placeholder="Tapez DELETE ou SUPPRIMER pour confirmer"
                   value={wipeConfirmationInput}
                   onChange={(e) => setWipeConfirmationInput(e.target.value)}
                   className="w-full p-2.5 bg-slate-50 border-2 border-slate-200 rounded-xl font-mono text-center text-xs font-bold text-slate-800 focus:bg-white focus:border-rose-500 focus:outline-none"
@@ -1047,15 +1046,15 @@ export default function SettingsPage() {
                 disabled={isWipingDb}
                 className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 font-bold rounded-xl text-xs transition-colors cursor-pointer"
               >
-                إلغاء / Annuler
+                Annuler
               </button>
 
               <button
                 onClick={handleExecuteWipe}
                 disabled={
                   isWipingDb ||
-                  (wipeConfirmationInput.trim() !== 'مسح' &&
-                    wipeConfirmationInput.trim().toUpperCase() !== 'DELETE' &&
+                  (wipeConfirmationInput.trim().toUpperCase() !== 'DELETE' &&
+                    wipeConfirmationInput.trim().toUpperCase() !== 'SUPPRIMER' &&
                     wipeConfirmationInput.trim().toUpperCase() !== 'CONFIRM')
                 }
                 className="px-5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-colors cursor-pointer shadow-sm"
@@ -1063,12 +1062,12 @@ export default function SettingsPage() {
                 {isWipingDb ? (
                   <>
                     <RotateCcw className="w-3.5 h-3.5 animate-spin" />
-                    <span>جارٍ مسح وتفريغ الجداول...</span>
+                    <span>Purge et nettoyage en cours...</span>
                   </>
                 ) : (
                   <>
                     <Trash2 className="w-3.5 h-3.5" />
-                    <span>تأكيد المسح النهائي للبيانات</span>
+                    <span>Confirmer la purge définitive</span>
                   </>
                 )}
               </button>

@@ -289,7 +289,7 @@ export function OrderDetailsModal({
                       className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <Edit2 className="w-3 h-3" />
-                      <span>تعديل المدينة</span>
+                      <span>Modifier la ville</span>
                     </button>
                   ) : (
                     <div className="flex items-center gap-1.5">
@@ -298,7 +298,7 @@ export function OrderDetailsModal({
                         onClick={() => setIsEditingCity(false)}
                         className="text-[10px] text-slate-500 hover:text-slate-700 px-2 py-0.5 rounded bg-slate-200/70"
                       >
-                        إلغاء
+                        Annuler
                       </button>
                       <button
                         type="button"
@@ -306,7 +306,7 @@ export function OrderDetailsModal({
                         disabled={isSavingCity}
                         className="text-[10px] font-bold text-white bg-emerald-600 hover:bg-emerald-700 px-2 py-0.5 rounded shadow-2xs disabled:opacity-50"
                       >
-                        {isSavingCity ? 'جاري الحفظ...' : 'حفظ'}
+                        {isSavingCity ? 'Enregistrement...' : 'Enregistrer'}
                       </button>
                     </div>
                   )}
@@ -329,7 +329,7 @@ export function OrderDetailsModal({
                         type="text"
                         value={editableCity}
                         onChange={(e) => setEditableCity(e.target.value)}
-                        placeholder="المدينة..."
+                        placeholder="Ville..."
                         className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-900 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                         required
                       />
@@ -343,7 +343,7 @@ export function OrderDetailsModal({
                       type="text"
                       value={editableAddress}
                       onChange={(e) => setEditableAddress(e.target.value)}
-                      placeholder="العنوان أو الحي بالتفصيل..."
+                      placeholder="Adresse ou quartier détaillé..."
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                     />
                   </div>
@@ -357,7 +357,7 @@ export function OrderDetailsModal({
             {order.whatsappStatus === 'NOT_AVAILABLE' && (
               <div className="p-2.5 bg-amber-100/90 border border-amber-300 rounded-xl flex items-center gap-2 text-xs text-amber-900 font-bold">
                 <AlertCircle className="w-4 h-4 text-amber-700 shrink-0" />
-                <span>⚠️ هذا الرقم غير مسجل على واتساب — يُرجى الاتصال المباشر بالعميل هاتفياً (Appel GSM).</span>
+                <span>⚠️ Ce numéro n'a pas WhatsApp — veuillez contacter le client par téléphone direct (Appel GSM).</span>
               </div>
             )}
             <div className="flex items-center justify-between">

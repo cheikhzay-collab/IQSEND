@@ -134,10 +134,10 @@ export default function CanceledOrdersPage() {
             </div>
             <div>
               <h3 className="text-xs font-black text-rose-950">
-                الطلبيات الملغاة أثناء التأكيد (قبل تجهيز الشحنة - 0 درهم مصاريف شحن)
+                Commandes annulées en phase de confirmation (Avant expédition — 0 DH frais de port)
               </h3>
               <p className="text-[11px] text-rose-800 mt-0.5">
-                هذه الطلبيات أُلغيت هاتفياً أو عبر واتساب قبل خروجها من المستودع. المخزون محمي بالكامل ومصاريف الشحن = 0 درهم. للطرود المرجعة عند الموزع، راجع قسم Retours.
+                Ces commandes ont été annulées par téléphone ou WhatsApp avant sortie d'entrepôt. Le stock est préservé et les frais d'expédition = 0 DH. Pour les colis refusés par le livreur, consultez la section Retours.
               </p>
             </div>
           </div>
@@ -146,7 +146,7 @@ export default function CanceledOrdersPage() {
             className="px-3 py-1.5 rounded-xl bg-white border border-rose-300 hover:bg-rose-100/50 text-rose-900 text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 shrink-0"
           >
             <RotateCcw className="w-3.5 h-3.5 text-amber-600" />
-            <span>انتقل إلى طرود الموزع المرجعة</span>
+            <span>Voir les retours livreur (Sendit)</span>
           </Link>
         </div>
 

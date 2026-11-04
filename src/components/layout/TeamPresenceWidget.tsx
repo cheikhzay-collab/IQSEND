@@ -296,7 +296,7 @@ export function TeamPresenceWidget() {
                   className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-emerald-600/30 hover:bg-emerald-600/50 text-emerald-200 hover:text-white rounded-lg text-xs font-bold border border-emerald-500/40 transition-colors cursor-pointer"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span>Modifier mon profil & photo (تعديل البروفايل)</span>
+                  <span>Modifier mon profil & photo</span>
                 </button>
               </div>
             </div>
@@ -309,7 +309,7 @@ export function TeamPresenceWidget() {
               <div className="flex items-center justify-between px-1 mb-1">
                 <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Connectés حالياً ({onlineMembers.length})
+                  Connectés actuellement ({onlineMembers.length})
                 </span>
               </div>
 

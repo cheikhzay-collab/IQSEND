@@ -11,9 +11,7 @@ import {
   CheckCircle2,
   Ban,
   Plus,
-  Trash2,
   Zap,
-  HelpCircle,
   Phone,
   RefreshCw,
 } from 'lucide-react';
@@ -62,7 +60,7 @@ export default function AgentAdvancedRulesTab() {
 
   const handleTestOwnerAlert = async () => {
     if (!settings.ownerNotifyPhone.trim()) {
-      alert('يرجى إدخال رقم هاتف صاحب المتجر أولاً');
+      alert('Veuillez d’abord saisir le numéro WhatsApp du propriétaire du magasin.');
       return;
     }
     setIsTestingOwnerAlert(true);
@@ -79,13 +77,13 @@ export default function AgentAdvancedRulesTab() {
       const data = await res.json();
       setTestOwnerResult({
         success: Boolean(data.success),
-        message: data.message || (data.success ? 'تم إرسال الرسالة بنجاح' : 'تعذر الإرسال'),
+        message: data.message || (data.success ? 'Message test envoyé avec succès !' : 'Échec de l’envoi.'),
       });
       setTimeout(() => setTestOwnerResult(null), 6000);
     } catch (err: any) {
       setTestOwnerResult({
         success: false,
-        message: `خطأ تقني: ${err.message}`,
+        message: `Erreur technique : ${err.message}`,
       });
     } finally {
       setIsTestingOwnerAlert(false);
@@ -154,26 +152,26 @@ export default function AgentAdvancedRulesTab() {
     return (
       <div className="py-16 text-center text-slate-400 text-xs">
         <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
-        جاري تحميل قواعد وإعدادات الوكيل المتقدمة...
+        Chargement des règles et paramètres avancés de l'agent...
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 text-right">
-      {/* ── CARD 1: QUIET HOURS (ساعات الهدوء وحماية راحة العملاء) ── */}
+    <div className="space-y-6 text-left">
+      {/* ── CARD 1: QUIET HOURS (Heures de silence & Protection nocturne) ── */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-3 py-1 rounded-full">
               <Moon className="w-3.5 h-3.5 text-purple-600" />
-              ساعات الهدوء ومنع المراسلة الليلية (Quiet Hours Protection)
+              Heures de silence & Protection nocturne (Quiet Hours)
             </div>
             <h3 className="font-black text-sm text-slate-900 mt-1">
-              حظر التنبيهات التلقائية ليلاً
+              Bloquer les notifications automatiques la nuit
             </h3>
             <p className="text-xs text-slate-500 max-w-xl leading-relaxed">
-              يمنع الوكيل من إرسال أي إشعار أو تذكير تلقائي (شحن، تسليم، تذكير مالي) خلال فترة الليل لعدم إزعاج الزبائن وحماية حساب الواتساب من التبليغات.
+              Empêche l'agent d'envoyer toute notification ou relance automatique (expédition, livraison, rappel COD) pendant la nuit pour préserver les clients et protéger le compte WhatsApp contre les signalements.
             </p>
           </div>
 
@@ -193,7 +191,7 @@ export default function AgentAdvancedRulesTab() {
           <div className="pt-3 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="bg-purple-50/50 border border-purple-100 rounded-2xl p-4 space-y-1">
               <label className="block text-[11px] font-bold text-purple-900">
-                بداية ساعات الهدوء (مساءً) :
+                Début des heures de silence (soir) :
               </label>
               <input
                 type="time"
@@ -201,12 +199,12 @@ export default function AgentAdvancedRulesTab() {
                 onChange={(e) => setSettings({ ...settings, quietHoursStart: e.target.value })}
                 className="w-full text-xs font-bold font-mono bg-white border border-purple-200 rounded-xl p-2.5 text-slate-800 focus:outline-purple-600"
               />
-              <span className="text-[10px] text-purple-600 block mt-1">افتراضياً: 21:30 ليلاً بتوقيت المغرب</span>
+              <span className="text-[10px] text-purple-600 block mt-1">Par défaut : 21:30 (Heure Maroc)</span>
             </div>
 
             <div className="bg-purple-50/50 border border-purple-100 rounded-2xl p-4 space-y-1">
               <label className="block text-[11px] font-bold text-purple-900">
-                نهاية ساعات الهدوء (صباحاً) :
+                Fin des heures de silence (matin) :
               </label>
               <input
                 type="time"
@@ -214,24 +212,24 @@ export default function AgentAdvancedRulesTab() {
                 onChange={(e) => setSettings({ ...settings, quietHoursEnd: e.target.value })}
                 className="w-full text-xs font-bold font-mono bg-white border border-purple-200 rounded-xl p-2.5 text-slate-800 focus:outline-purple-600"
               />
-              <span className="text-[10px] text-purple-600 block mt-1">افتراضياً: 08:30 صباحاً بتوقيت المغرب</span>
+              <span className="text-[10px] text-purple-600 block mt-1">Par défaut : 08:30 (Heure Maroc)</span>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── CARD 2: COOLDOWN MATRIX (مصفوفة فترات التهدئة ومنع التكرار) ── */}
+      {/* ── CARD 2: COOLDOWN MATRIX (Matrice de temporisation anti-spam) ── */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full mb-1.5">
             <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
-            مصفوفة فترات التهدئة الذكية (Smart Anti-Spam Cooldown Matrix)
+            Matrice de temporisation anti-spam (Smart Cooldown Matrix)
           </div>
           <h3 className="font-black text-sm text-slate-900">
-            قواعد منع تكرار الرسائل في نفس اليوم والنافذة الزمنية
+            Règles anti-répétition dans la même journée et fenêtre temporelle
           </h3>
           <p className="text-xs text-slate-500">
-            تحدد هذه القيم المدة الزمنية الدنيا (بالساعات) التي يجب أن تنقضي قبل أن يُسمح للوكيل بإعادة إرسال نفس نوع الرسالة للعميل نفسه.
+            Ces valeurs définissent la durée minimale (en heures) avant qu'une relance du même type ne puisse être envoyée au même client.
           </p>
         </div>
 
@@ -240,14 +238,14 @@ export default function AgentAdvancedRulesTab() {
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-slate-900">
-                إشعار "الطلبية قيد التسليم مع الموزع"
+                Notification « Colis en cours de livraison (Livreur) »
               </span>
               <span className="text-xs font-bold font-mono bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
-                {settings.cooldownOutForDeliveryHours} ساعة
+                {settings.cooldownOutForDeliveryHours} h
               </span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              إذا تكرر تحديث حالة Sendit عدة مرات في نفس اليوم، لن يتكرر إرسال الإشعار للزبون خلال هذه المدة لتفادي الإزعاج.
+              Si le statut Sendit est mis à jour plusieurs fois dans la même journée, aucune notification en double ne sera envoyée pendant cette période.
             </p>
             <input
               type="range"
@@ -261,9 +259,9 @@ export default function AgentAdvancedRulesTab() {
               className="w-full h-1.5 bg-slate-200 rounded-lg accent-amber-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
-              <span>12 ساعة</span>
-              <span className="font-bold text-amber-700">24 ساعة (الموصى به)</span>
-              <span>48 ساعة</span>
+              <span>12 h</span>
+              <span className="font-bold text-amber-700">24 h (Recommandé)</span>
+              <span>48 h</span>
             </div>
           </div>
 
@@ -271,14 +269,14 @@ export default function AgentAdvancedRulesTab() {
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-slate-900">
-                تذكير الدفع عند الاستلام الصباحي (COD)
+                Rappel matinal de paiement à la livraison (COD)
               </span>
               <span className="text-xs font-bold font-mono bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">
-                {settings.cooldownMorningReminderHours} ساعة
+                {settings.cooldownMorningReminderHours} h
               </span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              تذكير الزبون بتحضير المبلغ نقداً في الصباح، بحد أقصى مرة واحدة في اليوم.
+              Rappeler au client de préparer le montant en espèces le matin, avec un plafond d'une fois par jour.
             </p>
             <input
               type="range"
@@ -292,9 +290,9 @@ export default function AgentAdvancedRulesTab() {
               className="w-full h-1.5 bg-slate-200 rounded-lg accent-amber-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
-              <span>12 ساعة</span>
-              <span className="font-bold text-amber-700">24 ساعة (الموصى به)</span>
-              <span>48 ساعة</span>
+              <span>12 h</span>
+              <span className="font-bold text-amber-700">24 h (Recommandé)</span>
+              <span>48 h</span>
             </div>
           </div>
 
@@ -302,14 +300,14 @@ export default function AgentAdvancedRulesTab() {
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-slate-900">
-                طلب تأكيد الطلب والعنوان التفاعلي
+                Relance de confirmation interactive & adresse
               </span>
               <span className="text-xs font-bold font-mono bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full">
-                {settings.cooldownConfirmationHours} ساعات
+                {settings.cooldownConfirmationHours} h
               </span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              الفارق الزمني بين إرسال رسالة التأكيد الأولى ومحاولة التذكير التالية في حال لم يرد العميل.
+              Délai minimal entre le premier message de confirmation et la relance suivante si le client n'a pas répondu.
             </p>
             <input
               type="range"
@@ -323,9 +321,9 @@ export default function AgentAdvancedRulesTab() {
               className="w-full h-1.5 bg-slate-200 rounded-lg accent-emerald-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
-              <span>1 ساعة</span>
-              <span className="font-bold text-emerald-700">4 ساعات (الموصى به)</span>
-              <span>12 ساعة</span>
+              <span>1 h</span>
+              <span className="font-bold text-emerald-700">4 h (Recommandé)</span>
+              <span>12 h</span>
             </div>
           </div>
 
@@ -333,14 +331,14 @@ export default function AgentAdvancedRulesTab() {
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <div className="flex items-center justify-between">
               <span className="font-bold text-xs text-slate-900">
-                رسائل إنقاذ الشحنة عند فشل التسليم
+                Messages de sauvetage en cas d'échec de livraison
               </span>
               <span className="text-xs font-bold font-mono bg-rose-100 text-rose-800 px-2.5 py-0.5 rounded-full">
-                {settings.cooldownRescueHours} ساعة
+                {settings.cooldownRescueHours} h
               </span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              الفارق الزمني الأدنى لإرسال رسالة إنقاذ بديلة في حال تعذر الوصول للعميل.
+              Délai minimal avant d'envoyer un message alternatif de sauvetage si le client était injoignable par le livreur.
             </p>
             <input
               type="range"
@@ -354,9 +352,9 @@ export default function AgentAdvancedRulesTab() {
               className="w-full h-1.5 bg-slate-200 rounded-lg accent-rose-600 cursor-pointer"
             />
             <div className="flex justify-between text-[10px] text-slate-400">
-              <span>6 ساعات</span>
-              <span className="font-bold text-rose-700">18 ساعة (الموصى به)</span>
-              <span>36 ساعة</span>
+              <span>6 h</span>
+              <span className="font-bold text-rose-700">18 h (Recommandé)</span>
+              <span>36 h</span>
             </div>
           </div>
         </div>
@@ -367,10 +365,10 @@ export default function AgentAdvancedRulesTab() {
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full mb-1.5">
             <Sliders className="w-3.5 h-3.5 text-blue-600" />
-            سقف المراسلات اليومي ونمط التشغيل
+            Plafond journalier & Mode opérationnel
           </div>
           <h3 className="font-black text-sm text-slate-900">
-            الحد الأقصى للرسائل ودرجة الاستقلالية
+            Nombre maximal de messages & Degré d'autonomie
           </h3>
         </div>
 
@@ -378,10 +376,10 @@ export default function AgentAdvancedRulesTab() {
           {/* Daily Cap */}
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <label className="block text-xs font-bold text-slate-900">
-              الحد الأقصى للرسائل التلقائية اليومية لكل زبون:
+              Limite maximale de messages automatiques par client et par jour :
             </label>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              مهما حدثت حالات الشحنة في يوم واحد، لن يتجاوز الوكيل هذا السقف لتفادي حظر رقم الواتساب.
+              Quels que soient les événements du colis dans la même journée, l'agent ne dépassera pas ce plafond pour éviter tout signalement WhatsApp.
             </p>
             <div className="flex items-center gap-2 pt-1">
               {[1, 2, 3, 4].map((cap) => (
@@ -395,7 +393,7 @@ export default function AgentAdvancedRulesTab() {
                       : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
-                  {cap} {cap === 1 ? 'رسالة' : 'رسائل'}
+                  {cap} {cap === 1 ? 'message' : 'messages'}
                 </button>
               ))}
             </div>
@@ -404,10 +402,10 @@ export default function AgentAdvancedRulesTab() {
           {/* Operation Mode */}
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <label className="block text-xs font-bold text-slate-900">
-              نمط عمل الوكيل (Autopilot vs Supervised):
+              Mode d'exécution de l'agent (Autopilote vs Supervisé) :
             </label>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              اختر بين الإرسال المستقل الفوري أو طلب موافقة مسبقة من المشرف.
+              Choisissez entre un envoi autonome direct ou une validation préalable requise par un opérateur.
             </p>
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
@@ -420,7 +418,7 @@ export default function AgentAdvancedRulesTab() {
                 }`}
               >
                 <Zap className="w-3.5 h-3.5 mx-auto mb-1" />
-                طيار آلي مستقل
+                Pilote automatique
               </button>
 
               <button
@@ -433,25 +431,25 @@ export default function AgentAdvancedRulesTab() {
                 }`}
               >
                 <Clock className="w-3.5 h-3.5 mx-auto mb-1" />
-                إشراف وموافقة مسبقة
+                Validation supervisée
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── CARD 4: STORE OWNER WHATSAPP NOTIFICATIONS (إشعارات صاحب المتجر) ── */}
+      {/* ── CARD 4: STORE OWNER WHATSAPP NOTIFICATIONS (Alertes WhatsApp du Propriétaire) ── */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-full mb-1.5">
             <Phone className="w-3.5 h-3.5 text-indigo-600" />
-            إشعارات صاحب المتجر الفورية (Store Owner Alerts)
+            Alertes WhatsApp du Propriétaire (Store Owner Alerts)
           </div>
           <h3 className="font-black text-sm text-slate-900">
-            رقم واتساب المشرف لتلقي ملخصات التأكيد والطلبات التي تحتاج تدخلاً
+            Numéro WhatsApp du superviseur pour recevoir les confirmations et les alertes d'intervention
           </h3>
           <p className="text-xs text-slate-500">
-            يرسل الوكيل الذكي تلقائياً إلى هذا الرقم إشعارات فورية بكل طلبية مؤكدة بنجاح، وتنبيهات عاجلة إذا واجهت شحنة صعوبة في التسليم أو طلب العميل التحدث مع مسؤول بشري.
+            L'agent intelligent envoie automatiquement à ce numéro un récapitulatif pour chaque commande confirmée, ainsi que des alertes urgentes si un colis rencontre un problème de livraison ou si le client demande un conseiller humain.
           </p>
         </div>
 
@@ -459,17 +457,17 @@ export default function AgentAdvancedRulesTab() {
           {/* Owner Phone Input */}
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-2">
             <span className="font-bold text-xs text-slate-900 block">
-              رقم واتساب صاحب المتجر (WhatsApp)
+              Numéro WhatsApp du Propriétaire (Store Owner)
             </span>
             <input
               type="text"
-              placeholder="مثال: 0661234567 أو 212661234567..."
+              placeholder="Ex: 0661234567 ou 212661234567..."
               value={settings.ownerNotifyPhone}
               onChange={(e) => setSettings({ ...settings, ownerNotifyPhone: e.target.value })}
               className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-white focus:outline-blue-600 font-mono font-bold text-slate-800"
             />
             <p className="text-[11px] text-slate-400">
-              يمكنك كتابة الرقم بصيغة محلية (06...) أو دولية (212...).
+              Format local (06...) ou international (212...) accepté.
             </p>
 
             <button
@@ -481,12 +479,12 @@ export default function AgentAdvancedRulesTab() {
               {isTestingOwnerAlert ? (
                 <>
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                  جاري إرسال الإشعار التجريبي...
+                  Envoi du message test en cours...
                 </>
               ) : (
                 <>
                   <Zap className="w-3.5 h-3.5 text-indigo-600" />
-                  إرسال رسالة تجريبية الآن
+                  Envoyer un message test maintenant
                 </>
               )}
             </button>
@@ -512,7 +510,7 @@ export default function AgentAdvancedRulesTab() {
           {/* Alert Toggles */}
           <div className="bg-slate-50/60 border border-slate-200 rounded-2xl p-4 space-y-3">
             <span className="font-bold text-xs text-slate-900 block">
-              تحديد أنواع الإشعارات المرسلة للمالك:
+              Types de notifications à transmettre au propriétaire :
             </span>
 
             <label className="flex items-start gap-3 p-2.5 rounded-xl bg-white border border-slate-200/80 cursor-pointer hover:border-slate-300 transition-all">
@@ -525,9 +523,9 @@ export default function AgentAdvancedRulesTab() {
                 className="w-4 h-4 mt-0.5 rounded text-blue-600 accent-blue-600"
               />
               <div className="text-xs">
-                <span className="font-bold text-slate-800 block">ملخص الطلبيات المؤكدة بنجاح</span>
+                <span className="font-bold text-slate-800 block">Récapitulatif des commandes confirmées</span>
                 <span className="text-[11px] text-slate-500">
-                  إرسال كشف يتضمن اسم العميل، المدينة، المنتجات والمبلغ المستحق.
+                  Envoi d'une fiche avec nom du client, ville, produits et montant COD encaissable.
                 </span>
               </div>
             </label>
@@ -542,9 +540,9 @@ export default function AgentAdvancedRulesTab() {
                 className="w-4 h-4 mt-0.5 rounded text-rose-600 accent-rose-600"
               />
               <div className="text-xs">
-                <span className="font-bold text-slate-800 block">تنبيهات التدخل البشري والإنقاذ</span>
+                <span className="font-bold text-slate-800 block">Alertes d'intervention humaine & sauvetage</span>
                 <span className="text-[11px] text-slate-500">
-                  إشعار فوري عند طلب العميل التحدث مع ممثل أو تعثر تسليم Sendit.
+                  Notification instantanée quand le client demande un conseiller ou en cas d'échec de livraison Sendit.
                 </span>
               </div>
             </label>
@@ -552,18 +550,18 @@ export default function AgentAdvancedRulesTab() {
         </div>
       </div>
 
-      {/* ── CARD 5: BLACKLIST & DND PHONES (قائمة عدم الإزعاج) ── */}
+      {/* ── CARD 5: BLACKLIST & DND PHONES (Liste noire & Ne pas déranger) ── */}
       <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
         <div>
           <div className="inline-flex items-center gap-1.5 text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full mb-1.5">
             <Ban className="w-3.5 h-3.5 text-rose-600" />
-            قائمة عدم الإزعاج والحظر (DND & Blacklist)
+            Liste noire & Ne pas déranger (DND & Blacklist)
           </div>
           <h3 className="font-black text-sm text-slate-900">
-            أرقام الهواتف المحظورة من المراسلة التلقائية
+            Numéros de téléphone exclus des messages automatiques
           </h3>
           <p className="text-xs text-slate-500">
-            أي رقم مدرج هنا لن يتلقى أي رسالة آلية أو تنبيه شحن من الوكيل نهائياً احتراماً لطلب العميل.
+            Tout numéro ajouté ici ne recevra plus aucun message automatique ni notification de suivi de la part de l'agent, respectant ainsi le choix du client.
           </p>
         </div>
 
@@ -571,7 +569,7 @@ export default function AgentAdvancedRulesTab() {
         <div className="flex items-center gap-2 max-w-md">
           <input
             type="text"
-            placeholder="أدخل رقم الهاتف (مثال: 0661234567)..."
+            placeholder="Entrez le numéro de téléphone (Ex: 0661234567)..."
             value={newDndPhone}
             onChange={(e) => setNewDndPhone(e.target.value)}
             className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-blue-600 font-mono"
@@ -581,14 +579,14 @@ export default function AgentAdvancedRulesTab() {
             className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
-            إضافة للحظر
+            Ajouter à la liste
           </button>
         </div>
 
         {/* List of blocked numbers */}
         <div className="flex flex-wrap gap-2 pt-2">
           {settings.dndPhones.length === 0 ? (
-            <div className="text-xs text-slate-400 py-2">لا توجد أرقام محظورة حالياً.</div>
+            <div className="text-xs text-slate-400 py-2">Aucun numéro bloqué actuellement.</div>
           ) : (
             settings.dndPhones.map((phone) => (
               <span
@@ -600,7 +598,7 @@ export default function AgentAdvancedRulesTab() {
                 <button
                   onClick={() => removeDndPhone(phone)}
                   className="hover:text-rose-950 font-black text-sm"
-                  title="حذف من القائمة"
+                  title="Supprimer de la liste"
                 >
                   ×
                 </button>
@@ -613,29 +611,29 @@ export default function AgentAdvancedRulesTab() {
       {/* ── SAVE ACTION BAR ─────────────────────────────────────── */}
       <div className="sticky bottom-4 z-20 bg-slate-900/95 backdrop-blur-md p-4 rounded-2xl flex items-center justify-between text-white shadow-xl">
         <div className="flex items-center gap-2 text-xs">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>القواعد المحدثة تُطبق فوراً على جميع إشارات Webhooks والرسائل الصادرة.</span>
+          <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+          <span>Les règles mises à jour s'appliquent immédiatement à tous les webhooks et messages sortants.</span>
         </div>
 
         <button
           onClick={handleSave}
           disabled={isSaving}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 disabled:opacity-50 shrink-0 ml-4"
         >
           {isSaving ? (
             <>
               <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-              جاري الحفظ...
+              Enregistrement en cours...
             </>
           ) : saveSuccess ? (
             <>
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
-              تم الحفظ في قاعدة البيانات بنجاح!
+              Enregistré avec succès !
             </>
           ) : (
             <>
               <Save className="w-3.5 h-3.5" />
-              حفظ القواعد المتقدمة
+              Enregistrer les règles avancées
             </>
           )}
         </button>
@@ -643,4 +641,3 @@ export default function AgentAdvancedRulesTab() {
     </div>
   );
 }
-

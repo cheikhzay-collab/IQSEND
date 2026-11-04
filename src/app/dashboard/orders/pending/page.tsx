@@ -758,10 +758,10 @@ export default function PendingOrdersPage() {
                 <div className="flex items-center justify-between">
                   <label className="text-[11px] font-black text-slate-800 flex items-center gap-1">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>تعديل مدينة وعنوان التوصيل (Destination) :</span>
+                    <span>Modifier ville & adresse de livraison (Destination) :</span>
                   </label>
                   <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/70 px-1.5 py-0.5 rounded">
-                    تعديل فوري
+                    Édition directe
                   </span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -771,7 +771,7 @@ export default function PendingOrdersPage() {
                       type="text"
                       value={callingCity}
                       onChange={(e) => setCallingCity(e.target.value)}
-                      placeholder="المدينة..."
+                      placeholder="Ville..."
                       className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white font-bold text-slate-900 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                       required
                     />
@@ -785,7 +785,7 @@ export default function PendingOrdersPage() {
                     type="text"
                     value={callingAddress}
                     onChange={(e) => setCallingAddress(e.target.value)}
-                    placeholder="العنوان أو الحي بالتفصيل..."
+                    placeholder="Adresse ou quartier détaillé..."
                     className="w-full px-2.5 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-800 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>

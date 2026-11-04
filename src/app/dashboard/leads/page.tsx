@@ -661,7 +661,7 @@ export default function LeadsConfirmationPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 1: EDIT ORDER FORM (تعديل form الطلب) */}
+      {/* MODAL 1: MODIFIER LA COMMANDE */}
       {/* ========================================================================= */}
       {editingLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
@@ -918,7 +918,7 @@ export default function LeadsConfirmationPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL 2: CUSTOM WHATSAPP MESSAGE (رسالة مخصصة واتساب) */}
+      {/* MODAL 2: MESSAGE WHATSAPP PERSONNALISÉ */}
       {/* ========================================================================= */}
       {customWhatsAppLead && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">

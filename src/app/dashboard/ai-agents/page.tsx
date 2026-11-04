@@ -414,7 +414,7 @@ export default function AiAgentsPage() {
             mimetype: audioBlob.type || 'audio/webm',
             duration: `0:0${Math.max(1, recordingSeconds)}`,
             localUrl,
-            hintText: 'تسجيل صوتي مباشر للزبون عبر المتصفح',
+            hintText: 'Enregistrement vocal direct du client via le navigateur',
           });
         };
         reader.readAsDataURL(audioBlob);
@@ -857,7 +857,7 @@ export default function AiAgentsPage() {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <FileText className="w-3.5 h-3.5" /> 📋 سجل العمليات (Audit Log)
+          <FileText className="w-3.5 h-3.5" /> 📋 Journal d'audit (Audit Log)
         </button>
         <button
           onClick={() => setActiveTab('advanced-rules')}
@@ -867,7 +867,7 @@ export default function AiAgentsPage() {
               : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Sliders className="w-3.5 h-3.5" /> ⚙️ قواعد التهدئة وساعات الهدوء
+          <Sliders className="w-3.5 h-3.5" /> ⚙️ Règles avancées & Anti-spam
         </button>
         <button
           onClick={() => setActiveTab('simulator')}
@@ -2049,7 +2049,7 @@ export default function AiAgentsPage() {
             <div className="flex items-center gap-2 max-w-md pt-1">
               <input
                 type="text"
-                placeholder="Ajouter un mot-clé (ex: نصب, شكاية, directeur)..."
+                placeholder="Ajouter un mot-clé (ex: responsable, réclamation, annulation)..."
                 value={newKeyword}
                 onChange={(e) => setNewKeyword(e.target.value)}
                 className="flex-1 text-xs p-2.5 rounded-xl border border-slate-200 focus:outline-emerald-600"

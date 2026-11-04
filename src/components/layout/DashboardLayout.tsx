@@ -239,7 +239,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             <button
               onClick={() => setIsProfileModalOpen(true)}
               className="flex items-center gap-2 p-1.5 rounded-xl hover:bg-slate-100/90 transition-all cursor-pointer group text-left border border-transparent hover:border-slate-200"
-              title="Modifier mon profil et ma photo (تعديل البروفايل)"
+              title="Modifier mon profil et ma photo"
             >
               <div className="relative">
                 {currentUser?.avatarUrl ? (
@@ -1051,7 +1051,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 type="button"
                 onClick={() => setIsProfileModalOpen(true)}
                 className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/70 transition-all text-left cursor-pointer group"
-                title="Modifier mon profil et ma photo (تعديل البروفايل)"
+                title="Modifier mon profil et ma photo"
               >
                 {currentUser?.avatarUrl ? (
                   <img

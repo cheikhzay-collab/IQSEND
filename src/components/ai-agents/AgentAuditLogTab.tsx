@@ -70,7 +70,7 @@ export default function AgentAuditLogTab() {
         setLogs(data.logs || []);
         if (data.stats) setStats(data.stats);
         setLastRefreshedAt(
-          new Date().toLocaleTimeString('ar-MA', {
+          new Date().toLocaleTimeString('fr-FR', {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
@@ -91,27 +91,27 @@ export default function AgentAuditLogTab() {
   const getActionLabel = (type: string) => {
     switch (type) {
       case 'OUT_FOR_DELIVERY_NOTICE':
-        return { label: 'إشعار الخروج للتسليم 🚚', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
+        return { label: 'Colis en cours de livraison 🚚', bg: 'bg-indigo-50 text-indigo-700 border-indigo-200' };
       case 'MORNING_COD_REMINDER':
-        return { label: 'تذكير الدفع عند الاستلام 💵', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
+        return { label: 'Rappel paiement COD 💵', bg: 'bg-amber-50 text-amber-700 border-amber-200' };
       case 'ORDER_CONFIRMATION':
-        return { label: 'تأكيد الطلبية 📋', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+        return { label: 'Confirmation de commande 📋', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
       case 'DELIVERY_RESCUE':
-        return { label: 'إنقاذ التسليم الفاشل 🛟', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
+        return { label: 'Sauvetage livraison échouée 🛟', bg: 'bg-rose-50 text-rose-700 border-rose-200' };
       case 'POST_DELIVERY_REVIEW':
-        return { label: 'دعوة التقييم ⭐', bg: 'bg-blue-50 text-blue-700 border-blue-200' };
+        return { label: 'Invitation avis client ⭐', bg: 'bg-blue-50 text-blue-700 border-blue-200' };
       case 'TOOL_CONFIRM_ORDER':
-        return { label: 'تأكيد آلي (أداة الذكاء)', bg: 'bg-teal-50 text-teal-700 border-teal-200' };
+        return { label: 'Validation auto (Outil IA)', bg: 'bg-teal-50 text-teal-700 border-teal-200' };
       case 'TOOL_SAVE_GPS':
-        return { label: 'حفظ موقع GPS 📍', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' };
+        return { label: 'Enregistrement position GPS 📍', bg: 'bg-cyan-50 text-cyan-700 border-cyan-200' };
       case 'TOOL_UPDATE_DETAILS':
-        return { label: 'تعديل التفاصيل ✍️', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
+        return { label: 'Modification commande ✍️', bg: 'bg-slate-100 text-slate-700 border-slate-200' };
       case 'TOOL_CANCEL_ORDER':
-        return { label: 'إلغاء الطلب 🚫', bg: 'bg-red-50 text-red-700 border-red-200' };
+        return { label: 'Annulation commande 🚫', bg: 'bg-red-50 text-red-700 border-red-200' };
       case 'OWNER_CONFIRM_ALERT':
-        return { label: 'إشعار المالك: تأكيد طلبية 🔔', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
+        return { label: 'Alerte Propriétaire: Commande confirmée 🔔', bg: 'bg-emerald-50 text-emerald-800 border-emerald-300' };
       case 'OWNER_HANDOVER_ALERT':
-        return { label: 'إشعار المالك: تدخل بشري مطلوب 🚨', bg: 'bg-amber-50 text-amber-800 border-amber-300' };
+        return { label: 'Alerte Propriétaire: Intervention requise 🚨', bg: 'bg-amber-50 text-amber-800 border-amber-300' };
       default:
         return { label: type, bg: 'bg-slate-50 text-slate-700 border-slate-200' };
     }
@@ -123,56 +123,56 @@ export default function AgentAuditLogTab() {
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
             <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-            تم الإرسال بنجاح
+            Envoyé avec succès
           </span>
         );
       case 'NO_WHATSAPP':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
             <Phone className="w-3 h-3 text-amber-700" />
-            غير متوفر على واتساب (اتصل هاتفياً)
+            Sans WhatsApp (Appel GSM)
           </span>
         );
       case 'SKIPPED_COOLDOWN':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
             <ShieldCheck className="w-3 h-3 text-amber-600" />
-            تخطي: تفادي الإزعاج (تهدئة)
+            Anti-Spam (Délai d'attente)
           </span>
         );
       case 'SKIPPED_QUIET_HOURS':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
             <Moon className="w-3 h-3 text-purple-600" />
-            تخطي: ساعات الهدوء
+            Heures de silence (Nuit)
           </span>
         );
       case 'SKIPPED_DAILY_CAP':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
             <AlertTriangle className="w-3 h-3 text-orange-600" />
-            تخطي: بلوغ السقف اليومي
+            Plafond journalier atteint
           </span>
         );
       case 'BLOCKED_DND':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
             <Ban className="w-3 h-3 text-rose-600" />
-            حظر: قائمة عدم الإزعاج
+            Bloqué (Liste Noire / DND)
           </span>
         );
       case 'FAILED':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200">
             <XCircle className="w-3 h-3 text-red-600" />
-            فشل تقني
+            Échec technique
           </span>
         );
       case 'PENDING_APPROVAL':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
             <Clock className="w-3 h-3 text-blue-600" />
-            بانتظار موافقة المشرف
+            En attente d'approbation
           </span>
         );
       default:
@@ -187,49 +187,49 @@ export default function AgentAuditLogTab() {
         {/* Total Today */}
         <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-slate-500">إجمالي العمليات اليوم</span>
+            <span className="text-[11px] font-bold text-slate-500">Opérations aujourd'hui</span>
             <div className="w-7 h-7 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600">
-              <Clock className="w-3.5 h-3.5" />
+              <Clock className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-slate-900 mt-2">{stats.totalToday}</div>
-          <div className="text-[10px] text-slate-400 mt-1">تفاعلات وتنبيهات مجدولة</div>
+          <div className="text-[10px] text-slate-400 mt-1">Interactions & rappels planifiés</div>
         </div>
 
-        {/* Executed Successfully */}
-        <div className="bg-white border border-emerald-100 rounded-2xl p-4 shadow-2xs">
+        {/* Executed Today */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-emerald-700">تم الإرسال والتنفيذ</span>
+            <span className="text-[11px] font-bold text-emerald-700">Envoyées & Exécutées</span>
             <div className="w-7 h-7 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
-              <CheckCircle2 className="w-3.5 h-3.5" />
+              <CheckCircle2 className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-emerald-600 mt-2">{stats.executedToday}</div>
-          <div className="text-[10px] text-emerald-600/70 mt-1">رسائل مستوفية للشروط</div>
+          <div className="text-[10px] text-emerald-600/70 mt-1">Messages conformes aux règles</div>
         </div>
 
-        {/* Spam Prevented (Cooldown) */}
-        <div className="bg-white border border-amber-100 rounded-2xl p-4 shadow-2xs">
+        {/* Cooldown Prevented Today */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-amber-700">حماية من التكرار الإزعاجي</span>
+            <span className="text-[11px] font-bold text-amber-700">Doublons évités (Anti-Spam)</span>
             <div className="w-7 h-7 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
-              <ShieldCheck className="w-3.5 h-3.5" />
+              <ShieldCheck className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-amber-600 mt-2">{stats.cooldownPreventedToday}</div>
-          <div className="text-[10px] text-amber-600/70 mt-1">تم إيقاف تكرارها في نفس اليوم</div>
+          <div className="text-[10px] text-amber-600/70 mt-1">Envois répétés bloqués le même jour</div>
         </div>
 
-        {/* Quiet Hours Skipped */}
-        <div className="bg-white border border-purple-100 rounded-2xl p-4 shadow-2xs">
+        {/* Quiet Hours Skipped Today */}
+        <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs">
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold text-purple-700">تخطي ساعات الصمت</span>
+            <span className="text-[11px] font-bold text-purple-700">Heures de silence respectées</span>
             <div className="w-7 h-7 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-              <Moon className="w-3.5 h-3.5" />
+              <Moon className="w-4 h-4" />
             </div>
           </div>
           <div className="text-2xl font-black text-purple-600 mt-2">{stats.quietHoursSkippedToday}</div>
-          <div className="text-[10px] text-purple-600/70 mt-1">مؤجلة لحماية راحة العميل ليلاً</div>
+          <div className="text-[10px] text-purple-600/70 mt-1">Reporté pour préserver le client</div>
         </div>
       </div>
 
@@ -239,13 +239,13 @@ export default function AgentAuditLogTab() {
           {/* Status filters */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
             {[
-              { id: 'ALL', label: 'الكل' },
-              { id: 'EXECUTED', label: '✅ تم الإرسال' },
-              { id: 'NO_WHATSAPP', label: '⚠️ بدون واتساب (GSM)' },
-              { id: 'SKIPPED_COOLDOWN', label: '🛡️ منع الإزعاج' },
-              { id: 'SKIPPED_QUIET_HOURS', label: '🌙 ساعات الصمت' },
-              { id: 'BLOCKED_DND', label: '🚫 محظور' },
-              { id: 'FAILED', label: '❌ فشل' },
+              { id: 'ALL', label: 'Tous' },
+              { id: 'EXECUTED', label: '✅ Envoyés' },
+              { id: 'NO_WHATSAPP', label: '⚠️ Sans WhatsApp (GSM)' },
+              { id: 'SKIPPED_COOLDOWN', label: '🛡️ Anti-Spam' },
+              { id: 'SKIPPED_QUIET_HOURS', label: '🌙 Heures de silence' },
+              { id: 'BLOCKED_DND', label: '🚫 Bloqués' },
+              { id: 'FAILED', label: '❌ Échecs' },
             ].map((f) => (
               <button
                 key={f.id}
@@ -267,7 +267,7 @@ export default function AgentAuditLogTab() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
-                placeholder="بحث برقم الهاتف أو الطلب..."
+                placeholder="Rechercher par téléphone, client ou commande..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pr-9 pl-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-blue-600"
@@ -285,82 +285,76 @@ export default function AgentAuditLogTab() {
             <button
               onClick={fetchLogs}
               disabled={isLoading}
-              className="p-2 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-xl text-xs font-bold transition-all shrink-0 active:scale-95"
-              title="تحديث السجل"
+              title="Actualiser le journal"
+              className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-600 transition-colors shrink-0"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-blue-600' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             </button>
           </div>
         </div>
 
         {lastRefreshedAt && (
-          <div className="text-[10px] text-slate-400 text-left">
-            آخر تحديث لحظي: {lastRefreshedAt}
+          <div className="text-[11px] text-slate-400">
+            Dernière mise à jour : {lastRefreshedAt}
           </div>
         )}
       </div>
 
-      {/* ── 3. LOGS TABLE ────────────────────────────────────────── */}
+      {/* ── 3. AUDIT LOGS TABLE ─────────────────────────────────── */}
       <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-2xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-right text-xs">
-            <thead className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold">
-              <tr>
-                <th className="py-3 px-4">التوقيت</th>
-                <th className="py-3 px-4">الزبون</th>
-                <th className="py-3 px-4">الطلبية</th>
-                <th className="py-3 px-4">نوع العملية</th>
-                <th className="py-3 px-4">الحالة والقرار</th>
-                <th className="py-3 px-4">السبب بالتفصيل</th>
-                <th className="py-3 px-4 text-center">المعاينة</th>
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50/80 border-b border-slate-200 text-slate-600 font-bold">
+                <th className="py-3 px-4">Heure</th>
+                <th className="py-3 px-4">Client</th>
+                <th className="py-3 px-4">Commande</th>
+                <th className="py-3 px-4">Type d'action</th>
+                <th className="py-3 px-4">Statut & Décision</th>
+                <th className="py-3 px-4">Détail de la décision</th>
+                <th className="py-3 px-4 text-center">Aperçu</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 text-slate-700">
               {isLoading && logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-blue-600" />
-                    جاري تحميل سجل عمليات الوكيل الذكي...
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-2 text-slate-300" />
+                    Chargement du journal d'audit...
                   </td>
                 </tr>
               ) : logs.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                    <ShieldCheck className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    لا توجد عمليات مسجلة تطابق معايير الفلترة المحددة
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <ShieldCheck className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                    Aucune opération enregistrée pour ces filtres
                   </td>
                 </tr>
               ) : (
                 logs.map((log) => {
-                  const actionMeta = getActionLabel(log.action_type);
-                  const formattedTime = new Date(log.created_at).toLocaleTimeString('ar-MA', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit',
-                  });
-                  const formattedDate = new Date(log.created_at).toLocaleDateString('ar-MA', {
-                    day: 'numeric',
-                    month: 'short',
-                  });
-
+                  const actionBadge = getActionLabel(log.action_type);
                   return (
-                    <tr
-                      key={log.id}
-                      className="hover:bg-slate-50/60 transition-colors group cursor-pointer"
-                      onClick={() => setInspectModalLog(log)}
-                    >
-                      {/* Time */}
-                      <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="font-bold text-slate-900">{formattedTime}</div>
-                        <div className="text-[10px] text-slate-400">{formattedDate}</div>
+                    <tr key={log.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* Created At */}
+                      <td className="py-3 px-4 whitespace-nowrap text-slate-500 font-mono text-[11px]">
+                        {new Date(log.created_at).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                        <span className="block text-[10px] text-slate-400">
+                          {new Date(log.created_at).toLocaleDateString('fr-FR', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </span>
                       </td>
 
                       {/* Customer */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="font-bold text-slate-900">
-                          {log.customer_name || 'عميل'}
+                          {log.customer_name || 'Client'}
                         </div>
-                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1 mt-0.5">
+                        <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1">
                           <Phone className="w-3 h-3 text-slate-400" />
                           {log.customer_phone}
                         </div>
@@ -369,41 +363,40 @@ export default function AgentAuditLogTab() {
                       {/* Order */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         {log.order_number ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-mono font-bold bg-slate-100 text-slate-800">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold bg-slate-100 text-slate-800 border border-slate-200">
                             <Package className="w-3 h-3 text-slate-500" />
                             #{log.order_number}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-slate-400">—</span>
+                          <span className="text-slate-400 text-[11px]">-</span>
                         )}
                       </td>
 
                       {/* Action Type */}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${actionMeta.bg}`}
+                          className={`inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border ${actionBadge.bg}`}
                         >
-                          {actionMeta.label}
+                          {actionBadge.label}
                         </span>
                       </td>
 
                       {/* Status */}
-                      <td className="py-3 px-4 whitespace-nowrap">{getStatusBadge(log.status)}</td>
+                      <td className="py-3 px-4 whitespace-nowrap">
+                        {getStatusBadge(log.status)}
+                      </td>
 
                       {/* Reason Details */}
                       <td className="py-3 px-4 max-w-xs truncate text-[11px] text-slate-600" title={log.reason_details || ''}>
-                        {log.reason_details || '—'}
+                        {log.reason_details || 'Règles satisfaites.'}
                       </td>
 
-                      {/* Inspect Button */}
+                      {/* Inspect Action */}
                       <td className="py-3 px-4 text-center whitespace-nowrap">
                         <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setInspectModalLog(log);
-                          }}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="عرض التفاصيل والرسالة"
+                          onClick={() => setInspectModalLog(log)}
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+                          title="Voir les détails et le message"
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -420,66 +413,69 @@ export default function AgentAuditLogTab() {
       {/* ── 4. INSPECTION MODAL ─────────────────────────────────── */}
       {inspectModalLog && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-4 text-right animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in-50 zoom-in-95 duration-150">
+            {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-blue-600" />
+                <span className="font-black text-sm text-slate-900">Détails de l'opération de l'Agent IA</span>
+              </div>
               <button
                 onClick={() => setInspectModalLog(null)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
               >
                 <X className="w-4 h-4" />
               </button>
-              <div className="flex items-center gap-2">
-                <span className="font-black text-sm text-slate-900">تفاصيل عملية الوكيل الذكي</span>
-                <ShieldCheck className="w-4 h-4 text-blue-600" />
-              </div>
             </div>
 
+            {/* Content Details */}
             <div className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl">
+              <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200/60">
                 <div>
-                  <span className="text-slate-400 block text-[10px]">الزبون:</span>
-                  <strong className="text-slate-800 font-bold">{inspectModalLog.customer_name || 'عميل'}</strong>
-                  <div className="text-slate-600 font-mono mt-0.5">{inspectModalLog.customer_phone}</div>
+                  <span className="text-slate-400 block text-[10px]">Client :</span>
+                  <strong className="text-slate-800 font-bold">{inspectModalLog.customer_name || 'Client'}</strong>
+                  <div className="text-slate-500 font-mono text-[11px]">{inspectModalLog.customer_phone}</div>
                 </div>
                 <div>
-                  <span className="text-slate-400 block text-[10px]">الطلبية المرتبطة:</span>
+                  <span className="text-slate-400 block text-[10px]">Commande liée :</span>
                   <strong className="text-slate-800 font-bold">
-                    {inspectModalLog.order_number ? `#${inspectModalLog.order_number}` : 'غير محدد'}
+                    {inspectModalLog.order_number ? `#${inspectModalLog.order_number}` : 'Non spécifié'}
                   </strong>
-                  <div className="text-slate-400 text-[10px] mt-0.5">
-                    {new Date(inspectModalLog.created_at).toLocaleString('ar-MA')}
+                  <div className="text-slate-400 text-[10px]">
+                    Canal : {inspectModalLog.channel || 'WHATSAPP'}
                   </div>
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[10px] mb-1">القرار والحالة:</span>
-                <div>{getStatusBadge(inspectModalLog.status)}</div>
+                <span className="text-slate-400 block text-[10px] mb-1">Décision & Statut :</span>
+                {getStatusBadge(inspectModalLog.status)}
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[10px] mb-1">السبب والشرح الرقابي:</span>
-                <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl text-slate-700 leading-relaxed font-sans">
-                  {inspectModalLog.reason_details || 'تم استيفاء جميع الشروط.'}
+                <span className="text-slate-400 block text-[10px] mb-1">Justification & Audit :</span>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80 text-slate-700 font-medium text-xs leading-relaxed">
+                  {inspectModalLog.reason_details || 'Toutes les conditions ont été remplies.'}
                 </div>
               </div>
 
               {inspectModalLog.payload && (
                 <div>
-                  <span className="text-slate-400 block text-[10px] mb-1">نص الرسالة / البيانات (Payload):</span>
-                  <div className="bg-slate-900 text-emerald-400 p-3 rounded-xl font-mono text-[11px] whitespace-pre-wrap max-h-48 overflow-y-auto">
+                  <span className="text-slate-400 block text-[10px] mb-1">Message envoyé / Données (Payload) :</span>
+                  <pre className="p-3 bg-slate-900 text-slate-200 rounded-xl font-mono text-[11px] max-h-48 overflow-y-auto whitespace-pre-wrap leading-relaxed">
                     {inspectModalLog.payload}
-                  </div>
+                  </pre>
                 </div>
               )}
             </div>
 
+            {/* Footer */}
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setInspectModalLog(null)}
-                className="px-4 py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-colors"
               >
-                إغلاق
+                Fermer
               </button>
             </div>
           </div>
@@ -488,4 +484,3 @@ export default function AgentAuditLogTab() {
     </div>
   );
 }
-

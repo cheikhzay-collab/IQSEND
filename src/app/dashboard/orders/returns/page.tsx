@@ -145,10 +145,10 @@ export default function ReturnsOrdersPage() {
             </div>
             <div>
               <h3 className="text-xs font-black text-amber-950">
-                الطرود المرجعة عند شركة التوصيل (بعد الشحن الفعلي - Sendit Express)
+                Colis en retour chez le transporteur (Après expédition — Sendit Express)
               </h3>
               <p className="text-[11px] text-amber-800 mt-0.5">
-                هذه الطرود خرجت مع الموزع ورُفضت عند التسليم أو تعذر الوصول للزبون. يتم احتساب مصاريف الإرجاع وتتطلب فحصاً لإعادة السلعة إلى رفوف المستودع. للطلبيات الملغاة قبل الشحن (0 درهم)، راجع قسم Annulations.
+                Ces colis sont partis en livraison et ont été refusés ou sont restés injoignables. Les frais de retour s'appliquent et les articles nécessitent un contrôle de réintégration en stock. Pour les annulations avant expédition (0 DH), consultez la section Annulations.
               </p>
             </div>
           </div>
@@ -157,7 +157,7 @@ export default function ReturnsOrdersPage() {
             className="px-3 py-1.5 rounded-xl bg-white border border-amber-300 hover:bg-amber-100/50 text-amber-900 text-xs font-bold transition-all shadow-2xs inline-flex items-center gap-1.5 shrink-0"
           >
             <XCircle className="w-3.5 h-3.5 text-rose-600" />
-            <span>انتقل إلى ملغيات التأكيد (0 DH)</span>
+            <span>Voir les annulations avant envoi (0 DH)</span>
           </Link>
         </div>
 

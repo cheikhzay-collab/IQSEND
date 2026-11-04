@@ -301,7 +301,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
               {/* Profile Avatar Selection Box */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-3">
                 <span className="text-xs font-bold text-slate-800 block">
-                  Photo de Profil Personnelle (الصورة الشخصية)
+                  Photo de Profil Personnelle
                 </span>
 
                 <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -445,7 +445,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                     required
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Ex: Youssef El Amrani أو يوسف العمراني"
+                    placeholder="Ex: Youssef El Amrani"
                     className="w-full text-xs p-2.5 pl-8 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
                   />
                   <User className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
@@ -463,7 +463,7 @@ export function UserProfileModal({ isOpen, onClose }: UserProfileModalProps) {
                       type="text"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="0661****** أو 07********"
+                      placeholder="0661****** ou 07********"
                       className="w-full text-xs p-2.5 pl-8 rounded-xl border border-slate-200 focus:outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 font-medium"
                     />
                     <Phone className="w-4 h-4 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
