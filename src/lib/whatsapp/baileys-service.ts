@@ -667,3 +667,110 @@ export async function sendWhatsAppDirectMessage(
     return { success: false, notOnWhatsApp: isNoWa, error: msg };
   }
 }
+
+export interface WhatsAppMediaOptions {
+  mediaUrl?: string | null;
+  mediaType?: 'NONE' | 'IMAGE' | 'VIDEO';
+  caption: string;
+  buttonLabel?: string | null;
+  quickReplyText?: string | null;
+}
+
+/**
+ * Send rich media message (image/video with caption and optional quick-reply button CTA)
+ */
+export async function sendWhatsAppDirectMedia(
+  to: string,
+  options: WhatsAppMediaOptions
+): Promise<{ success: boolean; notOnWhatsApp?: boolean; recipient?: string; error?: string; msgId?: string }> {
+  if (!waHolder.sock || waHolder.state.status !== 'CONNECTED') {
+    console.warn(`[Baileys In-Process] ⚠️ WhatsApp socket not connected (state: ${waHolder.state.status})`);
+    return { success: false, error: 'WhatsApp not connected' };
+  }
+  try {
+    const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
+    let jid = '';
+
+    if (to.includes('@')) {
+      jid = jidNormalizedUser(to);
+    } else {
+      let digits = to.replace(/[^\d]/g, '');
+      if (digits.startsWith('0') && digits.length === 10) {
+        digits = '212' + digits.slice(1);
+      } else if (!digits.startsWith('212') && digits.length === 9) {
+        digits = '212' + digits;
+      }
+      jid = jidNormalizedUser(`${digits}@s.whatsapp.net`);
+    }
+
+    if (!jid || !jid.includes('@')) {
+      return { success: false, error: 'Invalid destination JID' };
+    }
+
+    // Check WhatsApp existence
+    try {
+      const results = await waHolder.sock.onWhatsApp(jid);
+      if (Array.isArray(results) && results.length > 0 && results[0].exists === false) {
+        return { success: false, notOnWhatsApp: true, recipient: jid, error: 'NO_WHATSAPP' };
+      }
+    } catch {
+      // Continue
+    }
+
+    // Build CTA quick-reply block if requested
+    let finalCaption = options.caption.trim();
+    if (options.quickReplyText) {
+      const myPhoneRaw = waHolder.state.connectedPhone || '212600000000';
+      const myPhoneDigits = myPhoneRaw.replace(/[^\d]/g, '');
+      const encodedQuickReply = encodeURIComponent(options.quickReplyText.trim());
+      const ctaLink = `https://wa.me/${myPhoneDigits}?text=${encodedQuickReply}`;
+      const label = options.buttonLabel?.trim() || 'Répondre en 1 clic';
+
+      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n💬 *${label}*\n👉 Appuyez ici pour répondre directement :\n${ctaLink}`;
+    }
+
+    let messageContent: any = { text: finalCaption };
+
+    if (options.mediaUrl && options.mediaType && options.mediaType !== 'NONE') {
+      let mediaSource: any = null;
+
+      if (options.mediaUrl.startsWith('/uploads/')) {
+        const localPath = path.join(process.cwd(), 'public', options.mediaUrl);
+        if (fs.existsSync(localPath)) {
+          mediaSource = fs.readFileSync(localPath);
+        } else {
+          mediaSource = { url: options.mediaUrl };
+        }
+      } else if (options.mediaUrl.startsWith('data:')) {
+        const base64Data = options.mediaUrl.split(',')[1];
+        if (base64Data) {
+          mediaSource = Buffer.from(base64Data, 'base64');
+        }
+      } else {
+        mediaSource = { url: options.mediaUrl };
+      }
+
+      if (options.mediaType === 'VIDEO') {
+        messageContent = {
+          video: mediaSource,
+          caption: finalCaption,
+        };
+      } else {
+        messageContent = {
+          image: mediaSource,
+          caption: finalCaption,
+        };
+      }
+    }
+
+    console.log(`[Baileys In-Process] 📤 Sending media (${options.mediaType || 'TEXT'}) to ${jid}...`);
+    const sent = await waHolder.sock.sendMessage(jid, messageContent);
+    console.log(`[Baileys In-Process] ✅ Media DELIVERED for ${jid}, msgId: ${sent?.key?.id}`);
+    return { success: true, recipient: jid, msgId: sent?.key?.id };
+  } catch (err: any) {
+    console.error(`[Baileys In-Process] ❌ Exception in sendWhatsAppDirectMedia to ${to}:`, err);
+    const msg = err.message || String(err);
+    const isNoWa = msg.includes('not-authorized') || msg.includes('item-not-found') || msg.includes('not on whatsapp');
+    return { success: false, notOnWhatsApp: isNoWa, error: msg };
+  }
+}

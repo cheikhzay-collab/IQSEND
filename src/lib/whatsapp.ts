@@ -303,10 +303,14 @@ export async function sendWhatsAppMedia(
 
   // PRIORITY 2: Check if live in-process Baileys direct WhatsApp session is CONNECTED
   try {
-    const { getWhatsAppDirectStatus, sendWhatsAppDirectMessage } = await import('@/lib/whatsapp/baileys-service');
+    const { getWhatsAppDirectStatus, sendWhatsAppDirectMedia } = await import('@/lib/whatsapp/baileys-service');
     const directStatus = getWhatsAppDirectStatus();
     if (directStatus.status === 'CONNECTED') {
-      const directRes = await sendWhatsAppDirectMessage(formattedPhone, `${caption}\n${mediaUrl}`);
+      const directRes = await sendWhatsAppDirectMedia(formattedPhone, {
+        mediaUrl,
+        mediaType: mediaType === 'video' ? 'VIDEO' : 'IMAGE',
+        caption,
+      });
       if (directRes.success) return directRes;
     }
   } catch (e) {}
