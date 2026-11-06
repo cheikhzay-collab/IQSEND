@@ -3,6 +3,16 @@ import { getMysqlPool } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+function safeJsonParse(val: any) {
+  if (!val) return null;
+  if (typeof val === 'object') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return null;
+  }
+}
+
 interface RouteContext {
   params: {
     id: string;
@@ -48,7 +58,7 @@ export async function GET(req: Request, { params }: RouteContext) {
         name: campaign.name,
         status: campaign.status,
         targetAudienceType: campaign.target_audience_type,
-        targetFilter: campaign.target_filter_json ? JSON.parse(campaign.target_filter_json) : null,
+        targetFilter: safeJsonParse(campaign.target_filter_json),
         messageText: campaign.message_text,
         mediaUrl: campaign.media_url,
         mediaType: campaign.media_type,
@@ -106,3 +116,4 @@ export async function DELETE(req: Request, { params }: RouteContext) {
     );
   }
 }
+

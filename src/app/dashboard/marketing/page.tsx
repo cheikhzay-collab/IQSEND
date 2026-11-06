@@ -469,8 +469,11 @@ export default function MarketingPage() {
       <CreateCampaignModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(createdCampaignId) => {
           fetchCampaigns();
+          if (createdCampaignId) {
+            setSelectedCampaignId(createdCampaignId);
+          }
         }}
       />
 

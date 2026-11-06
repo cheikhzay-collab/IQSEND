@@ -6,6 +6,78 @@ import { formatMoroccanPhoneForWhatsApp } from '@/lib/whatsapp';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Safe JSON parser helper (handles objects already parsed by mysql2, strings, and null/undefined)
+ */
+function safeJsonParse(val: any) {
+  if (!val) return null;
+  if (typeof val === 'object') return val;
+  try {
+    return JSON.parse(val);
+  } catch {
+    return null;
+  }
+}
+
+let tablesEnsured = false;
+async function ensureCampaignTables(pool: any) {
+  if (tablesEnsured) return;
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_campaigns (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        status ENUM('DRAFT', 'SCHEDULED', 'RUNNING', 'PAUSED', 'COMPLETED', 'FAILED') DEFAULT 'DRAFT',
+        target_audience_type VARCHAR(50) NOT NULL DEFAULT 'PAST_DELIVERED',
+        target_filter_json JSON NULL,
+        message_text TEXT NOT NULL,
+        media_url VARCHAR(500) NULL,
+        media_type ENUM('NONE', 'IMAGE', 'VIDEO') DEFAULT 'NONE',
+        quick_reply_text VARCHAR(255) NULL,
+        button_label VARCHAR(100) NULL,
+        total_recipients INT DEFAULT 0,
+        sent_count INT DEFAULT 0,
+        delivered_count INT DEFAULT 0,
+        failed_count INT DEFAULT 0,
+        delay_min_seconds INT DEFAULT 6,
+        delay_max_seconds INT DEFAULT 15,
+        scheduled_at DATETIME NULL,
+        started_at DATETIME NULL,
+        completed_at DATETIME NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_camp_status (status),
+        INDEX idx_camp_created (created_at)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS whatsapp_campaign_recipients (
+        id VARCHAR(36) PRIMARY KEY,
+        campaign_id VARCHAR(36) NOT NULL,
+        customer_id VARCHAR(36) NULL,
+        order_id VARCHAR(36) NULL,
+        phone VARCHAR(50) NOT NULL,
+        customer_name VARCHAR(255) NULL,
+        city VARCHAR(100) NULL,
+        product_name VARCHAR(255) NULL,
+        interpolated_message TEXT NULL,
+        status ENUM('PENDING', 'SENT', 'FAILED', 'SKIPPED_DND', 'SKIPPED_NO_WHATSAPP') DEFAULT 'PENDING',
+        error_message VARCHAR(255) NULL,
+        msg_id VARCHAR(100) NULL,
+        sent_at TIMESTAMP NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_recip_camp (campaign_id),
+        INDEX idx_recip_status (status),
+        INDEX idx_recip_phone (phone)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+    `);
+    tablesEnsured = true;
+  } catch (e) {
+    console.warn('[Campaign Tables Ensure Warning]:', e);
+  }
+}
+
+/**
  * Helper to interpolate template variables like {nom}, {ville}, {produit}
  */
 function interpolateMessage(
@@ -32,6 +104,7 @@ function interpolateMessage(
 export async function GET() {
   try {
     const pool = getMysqlPool();
+    await ensureCampaignTables(pool);
 
     const [rows]: any = await pool.query(`
       SELECT 
@@ -51,7 +124,7 @@ export async function GET() {
       name: row.name,
       status: row.status,
       targetAudienceType: row.target_audience_type,
-      targetFilter: row.target_filter_json ? JSON.parse(row.target_filter_json) : null,
+      targetFilter: safeJsonParse(row.target_filter_json),
       messageText: row.message_text,
       mediaUrl: row.media_url,
       mediaType: row.media_type,
@@ -118,6 +191,7 @@ export async function POST(req: Request) {
     }
 
     const pool = getMysqlPool();
+    await ensureCampaignTables(pool);
     const campaignId = `camp_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
     // 1. Gather all unique recipients based on chosen audience
@@ -178,7 +252,8 @@ export async function POST(req: Request) {
         `SELECT setting_value FROM store_settings WHERE setting_key = 'AGENT_DND_PHONES' LIMIT 1`
       );
       if (Array.isArray(settingRows) && settingRows.length > 0) {
-        const dndList: string[] = JSON.parse(settingRows[0].setting_value || '[]');
+        const parsedDnd = safeJsonParse(settingRows[0].setting_value);
+        const dndList: string[] = Array.isArray(parsedDnd) ? parsedDnd : [];
         for (const dndPhone of dndList) {
           const formattedDnd = formatMoroccanPhoneForWhatsApp(dndPhone);
           recipientsMap.delete(formattedDnd);

@@ -124,7 +124,17 @@ export async function POST(req: Request) {
         `SELECT setting_value FROM store_settings WHERE setting_key = 'AGENT_DND_PHONES' LIMIT 1`
       );
       if (Array.isArray(settingRows) && settingRows.length > 0) {
-        const dndList: string[] = JSON.parse(settingRows[0].setting_value || '[]');
+        const raw = settingRows[0].setting_value;
+        let dndList: string[] = [];
+        if (Array.isArray(raw)) {
+          dndList = raw;
+        } else if (typeof raw === 'string') {
+          try {
+            dndList = JSON.parse(raw);
+          } catch {
+            dndList = [];
+          }
+        }
         for (const dndPhone of dndList) {
           const formattedDnd = formatMoroccanPhoneForWhatsApp(dndPhone);
           combinedRecipientsMap.delete(formattedDnd);

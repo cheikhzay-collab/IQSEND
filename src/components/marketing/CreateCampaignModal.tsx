@@ -206,6 +206,12 @@ export default function CreateCampaignModal({
 
       const data = await res.json();
       if (data.success) {
+        setName('');
+        setManualText('');
+        setMediaFile(null);
+        setMediaUrl('');
+        setMediaType('NONE');
+        setMediaPreview(null);
         onSuccess(data.campaignId);
         onClose();
       } else {
@@ -647,3 +653,4 @@ export default function CreateCampaignModal({
     </div>
   );
 }
+
