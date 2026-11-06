@@ -319,10 +319,18 @@ export async function startBaileysService(): Promise<void> {
           unwrap.templateButtonReplyMessage?.selectedId ||
           unwrap.listResponseMessage?.singleSelectReply?.selectedRowId ||
           unwrap.listResponseMessage?.title ||
+          unwrap.interactiveResponseMessage?.body?.text ||
           unwrap.imageMessage?.caption ||
           unwrap.videoMessage?.caption ||
           ''
         ).trim();
+
+        if (unwrap.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson) {
+          try {
+            const parsed = JSON.parse(unwrap.interactiveResponseMessage.nativeFlowResponseMessage.paramsJson);
+            if (parsed.id) incomingText = parsed.id;
+          } catch {}
+        }
 
         // If audio message without explicit text, provide clear voice placeholder so agent processes it
         if (!incomingText && isAudio) {
@@ -688,7 +696,7 @@ export async function sendWhatsAppDirectMedia(
     return { success: false, error: 'WhatsApp not connected' };
   }
   try {
-    const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
+    const { jidNormalizedUser, proto, generateWAMessageFromContent, prepareWAMessageMedia } = await import('@whiskeysockets/baileys');
     let jid = '';
 
     if (to.includes('@')) {
@@ -717,23 +725,14 @@ export async function sendWhatsAppDirectMedia(
       // Continue
     }
 
-    // Build CTA quick-reply block if requested
-    let finalCaption = options.caption.trim();
-    if (options.quickReplyText) {
-      const myPhoneRaw = waHolder.state.connectedPhone || '212600000000';
-      const myPhoneDigits = myPhoneRaw.replace(/[^\d]/g, '');
-      const encodedQuickReply = encodeURIComponent(options.quickReplyText.trim());
-      const ctaLink = `https://wa.me/${myPhoneDigits}?text=${encodedQuickReply}`;
-      const label = options.buttonLabel?.trim() || 'Répondre en 1 clic';
+    const hasButtons = Boolean(options.buttonLabel?.trim() || options.quickReplyText?.trim());
+    const displayLabel = options.buttonLabel?.trim() || 'Commander avec -30% 🛍️';
+    const quickReply = options.quickReplyText?.trim() || 'سلام بغيت نستافد من العرض';
+    const cleanCaption = options.caption.trim();
 
-      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n💬 *${label}*\n👉 Appuyez ici pour répondre directement :\n${ctaLink}`;
-    }
-
-    let messageContent: any = { text: finalCaption };
-
+    // Prepare local media source if provided
+    let mediaSource: any = null;
     if (options.mediaUrl && options.mediaType && options.mediaType !== 'NONE') {
-      let mediaSource: any = null;
-
       if (options.mediaUrl.startsWith('/uploads/')) {
         const localPath = path.join(process.cwd(), 'public', options.mediaUrl);
         if (fs.existsSync(localPath)) {
@@ -749,7 +748,110 @@ export async function sendWhatsAppDirectMedia(
       } else {
         mediaSource = { url: options.mediaUrl };
       }
+    }
 
+    // ─────────────────────────────────────────────────────────────
+    // STRATEGY 1: NATIVE WHATSAPP INTERACTIVE BUTTON (Real Button UI)
+    // ─────────────────────────────────────────────────────────────
+    if (hasButtons) {
+      try {
+        console.log(`[Baileys In-Process] 🚀 Building native interactive WhatsApp button for ${jid}...`);
+
+        let headerObj: any = {
+          hasMediaAttachment: false,
+        };
+
+        if (mediaSource && waHolder.sock.waUploadToServer) {
+          try {
+            const mediaPayload = options.mediaType === 'VIDEO' ? { video: mediaSource } : { image: mediaSource };
+            const uploadedMedia = await prepareWAMessageMedia(mediaPayload, {
+              upload: waHolder.sock.waUploadToServer,
+            });
+
+            if (options.mediaType === 'VIDEO' && uploadedMedia.videoMessage) {
+              headerObj = {
+                title: '',
+                hasMediaAttachment: true,
+                videoMessage: uploadedMedia.videoMessage,
+              };
+            } else if (uploadedMedia.imageMessage) {
+              headerObj = {
+                title: '',
+                hasMediaAttachment: true,
+                imageMessage: uploadedMedia.imageMessage,
+              };
+            }
+          } catch (uploadErr: any) {
+            console.warn('[Baileys In-Process] ⚠️ Upload media for interactive header note:', uploadErr?.message);
+          }
+        }
+
+        const nativeButtons: any[] = [
+          {
+            name: 'quick_reply',
+            buttonParamsJson: JSON.stringify({
+              display_text: displayLabel,
+              id: quickReply,
+            }),
+          },
+        ];
+
+        const interactiveMessage = proto.Message.InteractiveMessage.create({
+          body: proto.Message.InteractiveMessage.Body.create({
+            text: cleanCaption,
+          }),
+          footer: proto.Message.InteractiveMessage.Footer.create({
+            text: 'SENDIT COD • Service Client',
+          }),
+          header: proto.Message.InteractiveMessage.Header.create(headerObj),
+          nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+            buttons: nativeButtons,
+          }),
+        });
+
+        const generatedMsg = generateWAMessageFromContent(
+          jid,
+          {
+            viewOnceMessage: {
+              message: {
+                messageContextInfo: {
+                  deviceListMetadata: {},
+                  deviceListMetadataVersion: 2,
+                },
+                interactiveMessage,
+              },
+            },
+          },
+          { userJid: waHolder.sock.user?.id || undefined }
+        );
+
+        await waHolder.sock.relayMessage(jid, generatedMsg.message, {
+          messageId: generatedMsg.key.id,
+        });
+
+        console.log(`[Baileys In-Process] ✅ Native Interactive Button message DELIVERED to ${jid}, msgId: ${generatedMsg.key?.id}`);
+        return { success: true, recipient: jid, msgId: generatedMsg.key?.id || undefined };
+      } catch (interactiveErr: any) {
+        console.warn(`[Baileys In-Process] ⚠️ Native interactive message relay failed, using clean fallback:`, interactiveErr.message);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // STRATEGY 2: CLEAN STANDARD MESSAGE (Fallback or No-Button)
+    // ─────────────────────────────────────────────────────────────
+    let finalCaption = cleanCaption;
+    if (hasButtons) {
+      const myPhoneRaw = waHolder.state.connectedPhone || '';
+      const myPhoneDigits = myPhoneRaw.replace(/[^\d]/g, '');
+      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n💬 *${displayLabel}*\n👉 Répondez directement : *${quickReply}*`;
+      if (myPhoneDigits) {
+        finalCaption += `\nou écrivez-nous : https://wa.me/${myPhoneDigits}`;
+      }
+    }
+
+    let messageContent: any = { text: finalCaption };
+
+    if (mediaSource) {
       if (options.mediaType === 'VIDEO') {
         messageContent = {
           video: mediaSource,
@@ -763,10 +865,10 @@ export async function sendWhatsAppDirectMedia(
       }
     }
 
-    console.log(`[Baileys In-Process] 📤 Sending media (${options.mediaType || 'TEXT'}) to ${jid}...`);
+    console.log(`[Baileys In-Process] 📤 Sending standard message (${options.mediaType || 'TEXT'}) to ${jid}...`);
     const sent = await waHolder.sock.sendMessage(jid, messageContent);
     console.log(`[Baileys In-Process] ✅ Media DELIVERED for ${jid}, msgId: ${sent?.key?.id}`);
-    return { success: true, recipient: jid, msgId: sent?.key?.id };
+    return { success: true, recipient: jid, msgId: sent?.key?.id || undefined };
   } catch (err: any) {
     console.error(`[Baileys In-Process] ❌ Exception in sendWhatsAppDirectMedia to ${to}:`, err);
     const msg = err.message || String(err);
