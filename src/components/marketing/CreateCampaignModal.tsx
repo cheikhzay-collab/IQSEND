@@ -54,7 +54,8 @@ export default function CreateCampaignModal({
     'Salam {nom} ! 👋 Suite à votre commande livrée à {ville}, nous vous offrons une remise exclusive de -30% sur notre nouvelle collection. Stock limité ! ✨'
   );
   
-  // Interactive Buttons (Support multiple buttons)
+  // Interactive Buttons (Support multiple buttons or NO buttons)
+  const [enableButtons, setEnableButtons] = useState(false);
   interface CampaignButton {
     id: string;
     label: string;
@@ -70,13 +71,16 @@ export default function CreateCampaignModal({
 
   const handleAddButton = () => {
     if (buttons.length >= 3) return;
+    setEnableButtons(true);
     const nextIdx = buttons.length + 1;
     setButtons([
       ...buttons,
       {
         id: `btn-${Date.now()}`,
-        label: nextIdx === 2 ? 'Voir le catalogue 📦' : 'Parler à un conseiller 💬',
-        quickReplyText: nextIdx === 2
+        label: nextIdx === 1 ? 'Commander avec -30% 🛍️' : nextIdx === 2 ? 'Voir le catalogue 📦' : 'Parler à un conseiller 💬',
+        quickReplyText: nextIdx === 1
+          ? 'سلام بغيت نستافد من عرض التخفيض، عفاك واش باقي متوفر؟'
+          : nextIdx === 2
           ? 'سلام عفاك بغيت نشوف الكاتالوج كامل'
           : 'سلام باغي نتواصل مع مستشار خدمة العملاء',
       },
@@ -84,8 +88,28 @@ export default function CreateCampaignModal({
   };
 
   const handleRemoveButton = (id: string) => {
-    if (buttons.length <= 1) return;
-    setButtons(buttons.filter((b) => b.id !== id));
+    const updated = buttons.filter((b) => b.id !== id);
+    setButtons(updated);
+    if (updated.length === 0) {
+      setEnableButtons(false);
+    }
+  };
+
+  const handleToggleButtons = () => {
+    if (!enableButtons) {
+      setEnableButtons(true);
+      if (buttons.length === 0) {
+        setButtons([
+          {
+            id: 'btn-1',
+            label: 'Commander avec -30% 🛍️',
+            quickReplyText: 'سلام بغيت نستافد من عرض التخفيض، عفاك واش باقي متوفر؟',
+          },
+        ]);
+      }
+    } else {
+      setEnableButtons(false);
+    }
   };
 
   const handleUpdateButton = (id: string, field: 'label' | 'quickReplyText', value: string) => {
@@ -221,9 +245,11 @@ export default function CreateCampaignModal({
     if (useDeliveredAudience && useManualPaste) targetAudienceType = 'HYBRID';
     else if (useManualPaste) targetAudienceType = 'MANUAL_PASTE';
 
-    const validButtons = buttons
-      .filter((b) => b.label.trim())
-      .map((b) => ({ label: b.label.trim(), quickReplyText: b.quickReplyText.trim() }));
+    const validButtons = enableButtons
+      ? buttons
+          .filter((b) => b.label.trim())
+          .map((b) => ({ label: b.label.trim(), quickReplyText: b.quickReplyText.trim() }))
+      : [];
 
     try {
       const res = await fetch('/api/campaigns', {
@@ -533,79 +559,127 @@ export default function CreateCampaignModal({
               />
             </div>
 
-            {/* 5. Quick Reply Buttons (Boutons d'action rapide en 1 clic) */}
-            <div className="bg-emerald-50/50 border border-emerald-200/80 rounded-2xl p-4 space-y-4">
+            {/* 5. Quick Reply Buttons (Boutons d'action rapide - Optionnels) */}
+            <div className={`border rounded-2xl p-4 space-y-4 transition-all duration-200 ${
+              enableButtons ? 'bg-emerald-50/50 border-emerald-200/80' : 'bg-slate-50/60 border-slate-200'
+            }`}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-black text-emerald-950">
-                  <MessageSquare className="w-4 h-4 text-emerald-600" />
-                  <span>Boutons de Réponse Rapide en 1 Clic ({buttons.length})</span>
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                    enableButtons ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-black text-slate-900 block leading-tight">
+                      Boutons d'Action Rapide (Optionnel)
+                    </span>
+                    <span className="text-[10px] text-slate-500 block">
+                      {enableButtons
+                        ? `${buttons.length} bouton(s) configuré(s) (jusqu'à 3)`
+                        : 'Désactivé — Message simple sans boutons'}
+                    </span>
+                  </div>
                 </div>
-                {buttons.length < 3 && (
+
+                <div className="flex items-center gap-3">
+                  {enableButtons && buttons.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={handleAddButton}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Ajouter</span>
+                    </button>
+                  )}
+
+                  {/* Toggle Switch */}
                   <button
                     type="button"
-                    onClick={handleAddButton}
-                    className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] rounded-xl flex items-center gap-1 shadow-2xs transition-all cursor-pointer active:scale-95"
+                    onClick={handleToggleButtons}
+                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                      enableButtons ? 'bg-emerald-600' : 'bg-slate-300'
+                    }`}
+                    title={enableButtons ? 'Désactiver les boutons' : 'Activer les boutons'}
                   >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Ajouter un bouton</span>
+                    <span
+                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                        enableButtons ? 'translate-x-5' : 'translate-x-0'
+                      }`}
+                    />
                   </button>
-                )}
+                </div>
               </div>
-              <p className="text-[11px] text-emerald-800">
-                Permet au client de répondre instantanément d'un seul clic avec des options pré-remplies (jusqu'à 3 boutons).
-              </p>
 
-              <div className="space-y-3">
-                {buttons.map((btn, index) => (
-                  <div
-                    key={btn.id}
-                    className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs space-y-2 relative"
+              {!enableButtons ? (
+                <div className="p-3 bg-white/70 rounded-xl border border-dashed border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+                  <span>ℹ️ Envoi simple sans boutons (texte et/ou image/vidéo avec légende pure, aucun sondage ni lien).</span>
+                  <button
+                    type="button"
+                    onClick={handleToggleButtons}
+                    className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline cursor-pointer ml-2 whitespace-nowrap text-xs"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black uppercase text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md">
-                        Bouton {index + 1}
-                      </span>
-                      {buttons.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveButton(btn.id)}
-                          className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
-                          title="Supprimer ce bouton"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                    </div>
+                    + Activer les boutons
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-[11px] text-emerald-800">
+                    Permet au client de répondre instantanément d'un seul clic avec des options pré-remplies.
+                  </p>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                          Texte affiché sur le bouton :
-                        </label>
-                        <input
-                          type="text"
-                          value={btn.label}
-                          onChange={(e) => handleUpdateButton(btn.id, 'label', e.target.value)}
-                          placeholder="Ex: Commander l'offre 🛍️"
-                          className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-bold text-slate-800 focus:outline-emerald-600"
-                        />
+                  <div className="space-y-3">
+                    {buttons.map((btn, index) => (
+                      <div
+                        key={btn.id}
+                        className="p-3 bg-white rounded-xl border border-emerald-200 shadow-2xs space-y-2 relative"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black uppercase text-emerald-900 bg-emerald-100 px-2 py-0.5 rounded-md">
+                            Bouton {index + 1}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveButton(btn.id)}
+                            className="text-slate-400 hover:text-rose-600 p-1 transition-colors cursor-pointer"
+                            title="Supprimer ce bouton"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                              Texte affiché sur le bouton :
+                            </label>
+                            <input
+                              type="text"
+                              value={btn.label}
+                              onChange={(e) => handleUpdateButton(btn.id, 'label', e.target.value)}
+                              placeholder="Ex: Commander l'offre 🛍️"
+                              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-bold text-slate-800 focus:outline-emerald-600"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-bold text-slate-700 block mb-1">
+                              Message pré-rempli envoyé par le client :
+                            </label>
+                            <input
+                              type="text"
+                              value={btn.quickReplyText}
+                              onChange={(e) => handleUpdateButton(btn.id, 'quickReplyText', e.target.value)}
+                              placeholder="Ex: سلام بغيت نستافد من العرض..."
+                              className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-medium text-slate-800 focus:outline-emerald-600"
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-700 block mb-1">
-                          Message pré-rempli envoyé par le client :
-                        </label>
-                        <input
-                          type="text"
-                          value={btn.quickReplyText}
-                          onChange={(e) => handleUpdateButton(btn.id, 'quickReplyText', e.target.value)}
-                          placeholder="Ex: سلام بغيت نستافد من العرض..."
-                          className="w-full text-xs p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-medium text-slate-800 focus:outline-emerald-600"
-                        />
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                </>
+              )}
             </div>
 
             {/* 6. Anti-Ban Throttling Settings */}
@@ -704,7 +778,7 @@ export default function CreateCampaignModal({
                     </p>
 
                     {/* Quick Reply Buttons Mockup */}
-                    {buttons.filter((b) => b.label.trim()).length > 0 && (
+                    {enableButtons && buttons.filter((b) => b.label.trim()).length > 0 && (
                       <div className="pt-2 border-t border-slate-100 space-y-1.5">
                         {buttons
                           .filter((b) => b.label.trim())

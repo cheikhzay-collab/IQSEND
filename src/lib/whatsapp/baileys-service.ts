@@ -890,9 +890,9 @@ export async function sendWhatsAppDirectMedia(
     }
 
     const buttonsList: WhatsAppMediaButton[] = [];
-    if (Array.isArray(options.buttons) && options.buttons.length > 0) {
+    if (Array.isArray(options.buttons)) {
       for (const b of options.buttons) {
-        if (b.label && b.label.trim()) {
+        if (b && b.label && b.label.trim()) {
           buttonsList.push({
             label: b.label.trim(),
             quickReplyText: b.quickReplyText?.trim() || b.label.trim(),
@@ -929,15 +929,95 @@ export async function sendWhatsAppDirectMedia(
       }
     }
 
-    // Format clean professional caption (NO ugly url-encoded links)
-    let finalCaption = cleanCaption;
+    // ─────────────────────────────────────────────────────────────
+    // STRATEGY 1: NATIVE INTERACTIVE BUTTONS (NativeFlowMessage)
+    // ─────────────────────────────────────────────────────────────
     if (hasButtons) {
-      finalCaption += '\n\n━━━━━━━━━━━━━━━━━━━━';
-      for (const btn of buttonsList) {
-        finalCaption += `\n🔘 *${btn.label}*`;
+      try {
+        const { prepareWAMessageMedia, generateWAMessageFromContent, proto } = await import('@whiskeysockets/baileys');
+
+        let mediaMessage: any = null;
+        if (mediaSource && waHolder.sock.waUploadToServer) {
+          try {
+            const uploadPayload =
+              options.mediaType === 'VIDEO' ? { video: mediaSource } : { image: mediaSource };
+            mediaMessage = await prepareWAMessageMedia(uploadPayload, {
+              upload: waHolder.sock.waUploadToServer,
+            });
+          } catch (uploadErr: any) {
+            console.warn('[Baileys In-Process] ⚠️ Upload media for interactive header warning:', uploadErr?.message);
+          }
+        }
+
+        const nativeButtons = buttonsList.map((btn) => ({
+          name: 'quick_reply',
+          buttonParamsJson: JSON.stringify({
+            display_text: btn.label,
+            id: btn.quickReplyText || btn.label,
+          }),
+        }));
+
+        const headerConfig: any = {
+          title: '',
+          hasMediaAttachment: Boolean(mediaMessage),
+        };
+        if (mediaMessage) {
+          Object.assign(headerConfig, mediaMessage);
+        }
+
+        const interactiveMessage = proto.Message.InteractiveMessage.create({
+          body: proto.Message.InteractiveMessage.Body.create({
+            text: cleanCaption,
+          }),
+          footer: proto.Message.InteractiveMessage.Footer.create({
+            text: 'Service Client • Réponse Rapide',
+          }),
+          header: proto.Message.InteractiveMessage.Header.create(headerConfig),
+          nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
+            buttons: nativeButtons,
+          }),
+        });
+
+        const rawUserJid = waHolder.sock?.user?.id || '212000000000@s.whatsapp.net';
+        const senderUserJid = jidNormalizedUser(rawUserJid);
+
+        const generatedMsg = generateWAMessageFromContent(
+          jid,
+          {
+            viewOnceMessage: {
+              message: {
+                messageContextInfo: {
+                  deviceListMetadata: {},
+                  deviceListMetadataVersion: 2,
+                },
+                interactiveMessage,
+              },
+            },
+          },
+          { userJid: senderUserJid }
+        );
+
+        console.log(`[Baileys In-Process] 🔘 Sending native interactive buttons (${buttonsList.length}) to ${jid}...`);
+        await waHolder.sock.relayMessage(jid, generatedMsg.message, {
+          messageId: generatedMsg.key.id,
+        });
+
+        const msgId = generatedMsg.key?.id;
+        if (msgId && generatedMsg.message) {
+          cacheMessage(msgId, generatedMsg.message);
+        }
+
+        console.log(`[Baileys In-Process] ✅ Native Interactive Buttons DELIVERED to ${jid}, msgId: ${msgId}`);
+        return { success: true, recipient: jid, msgId: msgId || undefined };
+      } catch (interactiveErr: any) {
+        console.warn(`[Baileys In-Process] ⚠️ Native interactive relay warning:`, interactiveErr?.message);
       }
-      finalCaption += '\n💬 إختر من الأزرار التفاعلية أسفله 👇 أو رد باختيارك مباشرة.';
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // STRATEGY 2: CLEAN STANDARD MESSAGE (No Buttons or Clean Fallback)
+    // ─────────────────────────────────────────────────────────────
+    let finalCaption = cleanCaption;
 
     let messageContent: any = { text: finalCaption };
 
@@ -955,49 +1035,13 @@ export async function sendWhatsAppDirectMedia(
       }
     }
 
-    console.log(`[Baileys In-Process] 📤 Sending WhatsApp campaign message to ${jid}...`);
+    console.log(`[Baileys In-Process] 📤 Sending standard message (${options.mediaType || 'TEXT'}) to ${jid}...`);
     const sent = await waHolder.sock.sendMessage(jid, messageContent);
     const msgId = sent?.key?.id;
     if (msgId && sent?.message) {
       cacheMessage(msgId, sent.message);
     }
-    console.log(`[Baileys In-Process] ✅ WhatsApp message DELIVERED to ${jid}, msgId: ${msgId}`);
-
-    // If buttons/CTA requested: send native 1-click Poll button directly below
-    if (hasButtons) {
-      try {
-        await new Promise((r) => setTimeout(r, 600));
-        const pollValues = buttonsList.map((b) => b.label);
-        if (pollValues.length === 1) {
-          pollValues.push('استفسار أو مساعدة 💬');
-        }
-
-        const pollTitle = buttonsList.length === 1
-          ? `🎯 ${buttonsList[0].label}`
-          : '👇 إختر خيارك للمتابعة / Choisissez :';
-
-        const pollSent = await waHolder.sock.sendMessage(jid, {
-          poll: {
-            name: pollTitle,
-            values: pollValues,
-            selectableCount: 1,
-          },
-        });
-        if (pollSent?.key?.id && pollSent?.message) {
-          cacheMessage(pollSent.key.id, pollSent.message);
-          activePollTracker.set(pollSent.key.id, {
-            pollMsg: pollSent.message,
-            buttons: buttonsList,
-            customerJid: jid,
-            customerPhone: to.replace(/[^\d]/g, ''),
-          });
-          console.log(`[Baileys In-Process] 🔘 1-Click Poll (${pollValues.length} buttons) sent to ${jid}, pollId: ${pollSent.key.id}`);
-        }
-      } catch (pollErr: any) {
-        console.warn(`[Baileys In-Process] ⚠️ Poll button send warning (non-fatal):`, pollErr?.message);
-      }
-    }
-
+    console.log(`[Baileys In-Process] ✅ Standard WhatsApp message DELIVERED to ${jid}, msgId: ${msgId}`);
     return { success: true, recipient: jid, msgId: msgId || undefined };
   } catch (err: any) {
     console.error(`[Baileys In-Process] ❌ Exception in sendWhatsAppDirectMedia to ${to}:`, err);
