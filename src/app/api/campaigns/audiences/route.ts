@@ -75,7 +75,7 @@ export async function POST(req: Request) {
           COALESCE(customer_name, 'Client') as name,
           phone_number as phone,
           COALESCE(city, 'Maroc') as city,
-          COALESCE(items_summary, '') as productName,
+          COALESCE(product_name, '') as productName,
           MAX(created_at) as last_order_at
         FROM order_leads 
         WHERE status = 'DELIVERED_PAID'
