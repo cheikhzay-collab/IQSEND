@@ -1,5 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import QRCode from 'qrcode';
 import { processCustomerWhatsAppMessage, cleanGeminiReply, OrderContext } from '@/lib/gemini-agent';
 import { getInboundOrders, cleanMoroccanPhone } from '@/lib/orders-store';
@@ -77,7 +78,71 @@ if (!globalForWa.__waBridge) {
   globalForWa.__waBridge = waHolder;
 }
 
-const AUTH_DIR = path.join(process.cwd(), 'whatsapp_sessions');
+function copyDirSync(src: string, dest: string) {
+  try {
+    if (!fs.existsSync(src)) return;
+    if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      if (entry.isDirectory()) {
+        copyDirSync(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[Baileys Auth] copyDirSync warning:', err?.message);
+  }
+}
+
+function resolvePersistentAuthDir(): string {
+  let preferredDir = path.join(process.cwd(), 'whatsapp_sessions');
+  try {
+    const home = os.homedir();
+    if (home && home !== '/' && fs.existsSync(home)) {
+      preferredDir = path.join(home, '.sendit_whatsapp_sessions');
+    }
+  } catch {}
+
+  try {
+    if (!fs.existsSync(preferredDir)) {
+      fs.mkdirSync(preferredDir, { recursive: true });
+    }
+
+    const targetCreds = path.join(preferredDir, 'creds.json');
+    if (!fs.existsSync(targetCreds)) {
+      // 1. Check local cwd
+      const localDir = path.join(process.cwd(), 'whatsapp_sessions');
+      if (fs.existsSync(path.join(localDir, 'creds.json'))) {
+        copyDirSync(localDir, preferredDir);
+      } else {
+        // 2. Scan sibling version directories (Hostinger multi-version deployment folders)
+        try {
+          const parentDir = path.resolve(process.cwd(), '..');
+          if (fs.existsSync(parentDir)) {
+            const siblings = fs.readdirSync(parentDir);
+            for (const sib of siblings) {
+              const candidate = path.join(parentDir, sib, 'whatsapp_sessions', 'creds.json');
+              if (fs.existsSync(candidate)) {
+                console.log(`[Baileys Auth] 🔄 Recovered previous WhatsApp credentials from ${candidate}`);
+                copyDirSync(path.join(parentDir, sib, 'whatsapp_sessions'), preferredDir);
+                break;
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch (e: any) {
+    console.warn('[Baileys Auth] Error preparing persistent auth dir:', e?.message);
+  }
+
+  return preferredDir;
+}
+
+const AUTH_DIR = resolvePersistentAuthDir();
 
 function cleanupSocket() {
   if (waHolder.reconnectTimer) {
