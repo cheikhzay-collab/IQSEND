@@ -34,6 +34,7 @@ async function ensureCampaignTables(pool: any) {
         media_type ENUM('NONE', 'IMAGE', 'VIDEO') DEFAULT 'NONE',
         quick_reply_text VARCHAR(255) NULL,
         button_label VARCHAR(100) NULL,
+        buttons_json JSON NULL,
         total_recipients INT DEFAULT 0,
         sent_count INT DEFAULT 0,
         delivered_count INT DEFAULT 0,
@@ -71,6 +72,11 @@ async function ensureCampaignTables(pool: any) {
         INDEX idx_recip_phone (phone)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    try {
+      await pool.query(`ALTER TABLE whatsapp_campaigns ADD COLUMN buttons_json JSON NULL`);
+    } catch {}
+
     tablesEnsured = true;
   } catch (e) {
     console.warn('[Campaign Tables Ensure Warning]:', e);
@@ -130,6 +136,7 @@ export async function GET() {
       mediaType: row.media_type,
       quickReplyText: row.quick_reply_text,
       buttonLabel: row.button_label,
+      buttons: safeJsonParse(row.buttons_json) || (row.button_label ? [{ label: row.button_label, quickReplyText: row.quick_reply_text }] : []),
       totalRecipients: row.total_recipients || row.actual_recipients_count || 0,
       sentCount: row.sent_total || row.sent_count || 0,
       deliveredCount: row.delivered_count || row.sent_total || 0,
@@ -172,6 +179,7 @@ export async function POST(req: Request) {
       mediaType = 'NONE', // 'NONE' | 'IMAGE' | 'VIDEO'
       quickReplyText = null,
       buttonLabel = null,
+      buttons = null,
       delayMinSeconds = 6,
       delayMaxSeconds = 15,
     } = body;
@@ -274,13 +282,33 @@ export async function POST(req: Request) {
       );
     }
 
+    // Process multiple buttons
+    let buttonsArray: Array<{ label: string; quickReplyText: string }> = [];
+    if (Array.isArray(buttons) && buttons.length > 0) {
+      buttonsArray = buttons
+        .filter((b: any) => b && typeof b.label === 'string' && b.label.trim().length > 0)
+        .map((b: any) => ({
+          label: b.label.trim(),
+          quickReplyText: (b.quickReplyText && typeof b.quickReplyText === 'string' && b.quickReplyText.trim()) || b.label.trim(),
+        }));
+    } else if (buttonLabel && buttonLabel.trim()) {
+      buttonsArray = [{
+        label: buttonLabel.trim(),
+        quickReplyText: (quickReplyText && quickReplyText.trim()) || buttonLabel.trim(),
+      }];
+    }
+
+    const primaryButtonLabel = buttonsArray[0]?.label || null;
+    const primaryQuickReplyText = buttonsArray[0]?.quickReplyText || null;
+    const buttonsJson = buttonsArray.length > 0 ? JSON.stringify(buttonsArray) : null;
+
     // 2. Insert Campaign record
     await pool.query(
       `INSERT INTO whatsapp_campaigns (
         id, name, status, target_audience_type, target_filter_json,
         message_text, media_url, media_type, quick_reply_text, button_label,
-        total_recipients, delay_min_seconds, delay_max_seconds
-      ) VALUES (?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        buttons_json, total_recipients, delay_min_seconds, delay_max_seconds
+      ) VALUES (?, ?, 'DRAFT', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         campaignId,
         name.trim(),
@@ -289,8 +317,9 @@ export async function POST(req: Request) {
         messageText.trim(),
         mediaUrl || null,
         mediaType || 'NONE',
-        quickReplyText ? quickReplyText.trim() : null,
-        buttonLabel ? buttonLabel.trim() : null,
+        primaryQuickReplyText,
+        primaryButtonLabel,
+        buttonsJson,
         recipientsList.length,
         parseInt(delayMinSeconds) || 6,
         parseInt(delayMaxSeconds) || 15,

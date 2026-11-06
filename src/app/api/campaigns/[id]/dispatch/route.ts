@@ -130,13 +130,27 @@ export async function POST(req: Request, { params }: RouteContext) {
 
       const caption = recipient.interpolated_message || campaign.message_text;
 
-      // Dispatch via Baileys Direct Media with Quick Reply CTA
+      // Parse buttons_json if multiple buttons exist
+      let buttonsList: Array<{ label: string; quickReplyText: string }> | undefined = undefined;
+      if (campaign.buttons_json) {
+        try {
+          const parsed = typeof campaign.buttons_json === 'string'
+            ? JSON.parse(campaign.buttons_json)
+            : campaign.buttons_json;
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            buttonsList = parsed;
+          }
+        } catch {}
+      }
+
+      // Dispatch via Baileys Direct Media with multi-button CTA
       const sendRes = await sendWhatsAppDirectMedia(recipient.phone, {
         mediaUrl: campaign.media_url,
         mediaType: campaign.media_type,
         caption,
         quickReplyText: campaign.quick_reply_text,
         buttonLabel: campaign.button_label,
+        buttons: buttonsList,
       });
 
       if (sendRes.success) {

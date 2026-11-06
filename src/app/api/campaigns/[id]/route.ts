@@ -64,6 +64,7 @@ export async function GET(req: Request, { params }: RouteContext) {
         mediaType: campaign.media_type,
         quickReplyText: campaign.quick_reply_text,
         buttonLabel: campaign.button_label,
+        buttons: safeJsonParse(campaign.buttons_json) || (campaign.button_label ? [{ label: campaign.button_label, quickReplyText: campaign.quick_reply_text }] : []),
         totalRecipients: campaign.total_recipients,
         sentCount: campaign.sent_count,
         deliveredCount: campaign.delivered_count,

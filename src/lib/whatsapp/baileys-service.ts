@@ -50,10 +50,14 @@ function cacheMessage(id?: string | null, msg?: any) {
   inMemoryMessageStore.set(id, msg);
 }
 
+export interface WhatsAppMediaButton {
+  label: string;
+  quickReplyText: string;
+}
+
 interface TrackedPoll {
   pollMsg: any;
-  quickReplyText: string;
-  displayLabel: string;
+  buttons: WhatsAppMediaButton[];
   customerJid: string;
   customerPhone: string;
 }
@@ -413,7 +417,10 @@ export async function startBaileysService(): Promise<void> {
                 if (v.voters && v.voters.length > 0) {
                   const selectedName = v.name;
                   console.log(`[Baileys In-Process] 🗳️ Customer clicked poll option: "${selectedName}"`);
-                  const textToProcess = selectedName === tracker.displayLabel ? tracker.quickReplyText : selectedName;
+                  const matched = (tracker.buttons || []).find(
+                    (b) => b.label.trim().toLowerCase() === selectedName.trim().toLowerCase()
+                  );
+                  const textToProcess = matched ? matched.quickReplyText : selectedName;
                   activePollTracker.delete(pollId); // Avoid duplicate executions
                   await handleCustomerInboundText({
                     normalizedJid: tracker.customerJid,
@@ -838,6 +845,7 @@ export interface WhatsAppMediaOptions {
   caption: string;
   buttonLabel?: string | null;
   quickReplyText?: string | null;
+  buttons?: WhatsAppMediaButton[];
 }
 
 /**
@@ -881,9 +889,24 @@ export async function sendWhatsAppDirectMedia(
       // Continue
     }
 
-    const hasButtons = Boolean(options.buttonLabel?.trim() || options.quickReplyText?.trim());
-    const displayLabel = options.buttonLabel?.trim() || 'Commander avec -30% 🛍️';
-    const quickReply = options.quickReplyText?.trim() || 'سلام بغيت نستافد من العرض';
+    const buttonsList: WhatsAppMediaButton[] = [];
+    if (Array.isArray(options.buttons) && options.buttons.length > 0) {
+      for (const b of options.buttons) {
+        if (b.label && b.label.trim()) {
+          buttonsList.push({
+            label: b.label.trim(),
+            quickReplyText: b.quickReplyText?.trim() || b.label.trim(),
+          });
+        }
+      }
+    } else if (options.buttonLabel?.trim() || options.quickReplyText?.trim()) {
+      buttonsList.push({
+        label: options.buttonLabel?.trim() || 'Commander avec -30% 🛍️',
+        quickReplyText: options.quickReplyText?.trim() || 'سلام بغيت نستافد من العرض',
+      });
+    }
+
+    const hasButtons = buttonsList.length > 0;
     const cleanCaption = options.caption.trim();
 
     // Prepare local media source if provided
@@ -909,7 +932,11 @@ export async function sendWhatsAppDirectMedia(
     // Format clean professional caption (NO ugly url-encoded links)
     let finalCaption = cleanCaption;
     if (hasButtons) {
-      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n🔘 *${displayLabel}*\n💬 للطلب أو الاستفادة، إختر من الزر التفاعلي أسفله 👇 أو رد بـ : *${quickReply}*`;
+      finalCaption += '\n\n━━━━━━━━━━━━━━━━━━━━';
+      for (const btn of buttonsList) {
+        finalCaption += `\n🔘 *${btn.label}*`;
+      }
+      finalCaption += '\n💬 إختر من الأزرار التفاعلية أسفله 👇 أو رد باختيارك مباشرة.';
     }
 
     let messageContent: any = { text: finalCaption };
@@ -940,13 +967,19 @@ export async function sendWhatsAppDirectMedia(
     if (hasButtons) {
       try {
         await new Promise((r) => setTimeout(r, 600));
+        const pollValues = buttonsList.map((b) => b.label);
+        if (pollValues.length === 1) {
+          pollValues.push('استفسار أو مساعدة 💬');
+        }
+
+        const pollTitle = buttonsList.length === 1
+          ? `🎯 ${buttonsList[0].label}`
+          : '👇 إختر خيارك للمتابعة / Choisissez :';
+
         const pollSent = await waHolder.sock.sendMessage(jid, {
           poll: {
-            name: `🎯 ${displayLabel}`,
-            values: [
-              displayLabel,
-              'استفسار أو مساعدة 💬',
-            ],
+            name: pollTitle,
+            values: pollValues,
             selectableCount: 1,
           },
         });
@@ -954,12 +987,11 @@ export async function sendWhatsAppDirectMedia(
           cacheMessage(pollSent.key.id, pollSent.message);
           activePollTracker.set(pollSent.key.id, {
             pollMsg: pollSent.message,
-            quickReplyText: quickReply,
-            displayLabel,
+            buttons: buttonsList,
             customerJid: jid,
             customerPhone: to.replace(/[^\d]/g, ''),
           });
-          console.log(`[Baileys In-Process] 🔘 1-Click Poll button sent to ${jid}, pollId: ${pollSent.key.id}`);
+          console.log(`[Baileys In-Process] 🔘 1-Click Poll (${pollValues.length} buttons) sent to ${jid}, pollId: ${pollSent.key.id}`);
         }
       } catch (pollErr: any) {
         console.warn(`[Baileys In-Process] ⚠️ Poll button send warning (non-fatal):`, pollErr?.message);
