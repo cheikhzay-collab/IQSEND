@@ -4,3 +4,4 @@ export async function register() {
     await bootstrapServer();
   }
 }
+

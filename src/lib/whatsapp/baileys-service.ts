@@ -1055,15 +1055,11 @@ export async function sendWhatsAppDirectMedia(
         const generatedMsg = generateWAMessageFromContent(
           jid,
           {
-            viewOnceMessage: {
-              message: {
-                messageContextInfo: {
-                  deviceListMetadata: {},
-                  deviceListMetadataVersion: 2,
-                },
-                interactiveMessage,
-              },
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2,
             },
+            interactiveMessage,
           },
           { userJid: senderUserJid }
         );
