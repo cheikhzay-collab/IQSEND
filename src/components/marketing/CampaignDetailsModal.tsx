@@ -106,6 +106,30 @@ export default function CampaignDetailsModal({
     }
   };
 
+  const handleResetDispatch = async () => {
+    if (!campaignId) return;
+    try {
+      setIsDispatching(true);
+      const res = await fetch(`/api/campaigns/${campaignId}/dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'RESET' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNotice({ type: 'success', message: 'Campagne réinitialisée. Vous pouvez relancer l\'envoi !' });
+        await fetchDetails();
+        onRefresh();
+      } else {
+        setNotice({ type: 'error', message: data.error || 'Erreur' });
+      }
+    } catch (err: any) {
+      setNotice({ type: 'error', message: err.message || 'Erreur' });
+    } finally {
+      setIsDispatching(false);
+    }
+  };
+
   if (!isOpen || !campaignId) return null;
 
   const total = campaign?.totalRecipients || recipients.length || 0;
@@ -242,10 +266,21 @@ export default function CampaignDetailsModal({
                 )}
 
                 {pending === 0 && total > 0 && (
-                  <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Campagne 100% Terminée</span>
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Terminée</span>
+                    </span>
+                    <button
+                      onClick={handleResetDispatch}
+                      disabled={isDispatching}
+                      className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-medium rounded-xl text-xs flex items-center gap-1 border border-slate-700 transition-colors cursor-pointer"
+                      title="Réinitialiser tous les destinataires pour renvoyer la campagne"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      <span>Réinitialiser & Relancer</span>
+                    </button>
+                  </div>
                 )}
               </div>
             </div>

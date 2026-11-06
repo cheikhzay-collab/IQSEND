@@ -38,6 +38,26 @@ const globalForWa = globalThis as unknown as {
   __waBridge?: GlobalWaHolder;
 };
 
+// Fast in-memory LRU-style cache for WhatsApp messages (enables poll decryption & deduplication)
+const inMemoryMessageStore = new Map<string, any>();
+function cacheMessage(id?: string | null, msg?: any) {
+  if (!id || !msg) return;
+  if (inMemoryMessageStore.size > 2000) {
+    const firstKey = inMemoryMessageStore.keys().next().value;
+    if (firstKey) inMemoryMessageStore.delete(firstKey);
+  }
+  inMemoryMessageStore.set(id, msg);
+}
+
+interface TrackedPoll {
+  pollMsg: any;
+  quickReplyText: string;
+  displayLabel: string;
+  customerJid: string;
+  customerPhone: string;
+}
+const activePollTracker = new Map<string, TrackedPoll>();
+
 const waHolder: GlobalWaHolder = globalForWa.__waBridge || {
   sock: null,
   reconnectTimer: null,
@@ -69,11 +89,208 @@ function cleanupSocket() {
       waHolder.sock.ev.removeAllListeners('connection.update');
       waHolder.sock.ev.removeAllListeners('creds.update');
       waHolder.sock.ev.removeAllListeners('messages.upsert');
+      waHolder.sock.ev.removeAllListeners('messages.update');
       waHolder.sock.end();
     } catch (e) {
       // ignore
     }
     waHolder.sock = null;
+  }
+}
+
+async function handleCustomerInboundText({
+  normalizedJid,
+  rawPhone,
+  realPhone,
+  pushName = '',
+  incomingText,
+}: {
+  normalizedJid: string;
+  rawPhone: string;
+  realPhone?: string;
+  pushName?: string;
+  incomingText: string;
+}) {
+  try {
+    const orders = getInboundOrders();
+    const cleanedPhone = cleanMoroccanPhone(rawPhone);
+    const order = orders.find(
+      (o) =>
+        cleanMoroccanPhone(o.customer?.phone) === cleanedPhone ||
+        o.customer?.phone?.includes(cleanedPhone) ||
+        cleanedPhone.includes(cleanMoroccanPhone(o.customer?.phone))
+    );
+
+    // 1. Record inbound message in Inbox Store
+    const { conversation, isAiActive } = recordInboundMessage({
+      phone: rawPhone,
+      realPhone,
+      pushName,
+      text: incomingText,
+      customerName: order?.customer?.name || pushName,
+      orderNumber: order?.orderNumber,
+      city: order?.customer?.city,
+      totalAmount: order?.payment?.amount,
+    });
+
+    // If merchant has paused AI for this conversation, do not auto-reply
+    if (!isAiActive) {
+      console.log(`[Baileys In-Process] 👤 AI Bot paused for +${rawPhone} (Human takeover active)`);
+      return;
+    }
+
+    // 1b. Fetch session state and DB history
+    const currentSession = await getWhatsAppSessionFromDb(cleanedPhone || rawPhone);
+    const dbHistory = await getRecentWhatsAppHistoryFromDb(cleanedPhone || rawPhone, 6);
+
+    // Build context including recent conversation history & session state
+    const historyToUse = dbHistory.length > 0 ? dbHistory : (conversation?.messages || [])
+      .slice(-7, -1)
+      .map((m) => ({
+        sender: m.sender,
+        body: m.text,
+        timestamp: new Date(),
+      }));
+
+    const orderContext: OrderContext = {
+      orderId: order?.id || 'lead_temp',
+      orderNumber: order?.orderNumber || '#MA-NEW',
+      customerName: order?.customer?.name || 'الزبون المحترم',
+      phoneNumber: rawPhone,
+      city: order?.customer?.city || 'المغرب',
+      address: order?.customer?.address || 'غير محدد',
+      totalAmount: order?.payment?.amount || currentSession?.price || 179,
+      items: (order?.items || []).map((it) => ({
+        name: it.name,
+        sku: it.sku,
+        quantity: it.quantity,
+        price: it.price,
+      })),
+      conversationHistory: historyToUse,
+      sessionState: currentSession ? {
+        lastOfferedProduct: currentSession.lastOfferedProduct,
+        price: currentSession.price,
+        step: currentSession.step,
+        metadata: currentSession.metadata,
+      } : undefined,
+    };
+
+    // Log customer message to DB
+    await logWhatsAppMessageToDb({
+      orderId: order?.id,
+      phone: rawPhone,
+      sender: 'CUSTOMER',
+      body: incomingText,
+    });
+
+    const aiResult = await processCustomerWhatsAppMessage(incomingText, orderContext, {
+      onConfirm: async () => {
+        if (order) {
+          order.aiVerification = {
+            status: 'CONFIRMED_BY_AI',
+            riskScore: 5,
+            notes: 'Confirmé avec succès par le bot IA via WhatsApp (Baileys)',
+          };
+        }
+      },
+      onUpdateDetails: async (args) => {
+        if (order && args.updatedPrice) {
+          order.payment.amount = args.updatedPrice;
+        }
+      },
+      onSaveGps: async (args) => {
+        if (order) {
+          order.gpsLocationUrl = args.googleMapsUrl;
+        }
+      },
+      onCancel: async () => {
+        if (order) {
+          order.aiVerification = {
+            status: 'NEEDS_REVIEW',
+            riskScore: 95,
+            notes: 'Annulation demandée par le client',
+          };
+        }
+      },
+      onHandover: async () => {
+        if (order) {
+          order.aiVerification = {
+            status: 'NEEDS_REVIEW',
+            riskScore: 50,
+            notes: 'Client transféré à un agent humain',
+          };
+        }
+      },
+    });
+
+    if (aiResult?.replyText) {
+      const cleanText = cleanGeminiReply(aiResult.replyText);
+
+      // Anti-Ban delay: wait 1.5s before answering to simulate natural human typing
+      await new Promise((r) => setTimeout(r, 1500));
+
+      // Deliver directly to customer's canonical WhatsApp JID
+      const directRes = await sendWhatsAppDirectMessage(normalizedJid, cleanText);
+
+      if (directRes.success) {
+        console.log(`[Baileys In-Process] ✅ AI response successfully delivered to customer ${normalizedJid}, msgId: ${directRes.msgId}`);
+        
+        await logWhatsAppMessageToDb({
+          orderId: order?.id,
+          phone: rawPhone,
+          sender: 'AI_BOT',
+          body: cleanText,
+        });
+
+        recordOutboundMessage({
+          phone: rawPhone,
+          text: cleanText,
+          sender: 'AI_BOT',
+        });
+
+        // Update session state
+        try {
+          let nextProduct = currentSession?.lastOfferedProduct;
+          let nextPrice = currentSession?.price;
+          let nextStep = currentSession?.step || 'INITIAL';
+
+          const lowerReply = cleanText.toLowerCase();
+          if (lowerReply.includes('خف جلد') || lowerReply.includes('خف') || lowerReply.includes('babouche')) {
+            nextProduct = 'خف جلد';
+            nextPrice = 179;
+            nextStep = 'AWAITING_SIZE_OR_DETAILS';
+          } else if (lowerReply.includes('smart watch') || lowerReply.includes('ساعة')) {
+            nextProduct = 'Smart Watch Ultra Pro S2';
+            nextPrice = 299;
+            nextStep = 'AWAITING_SIZE_OR_DETAILS';
+          }
+
+          if (aiResult.toolCalled === 'create_new_order') {
+            nextStep = 'ORDER_CREATED';
+          } else if (aiResult.toolCalled === 'confirm_order_and_address') {
+            nextStep = 'ORDER_CONFIRMED';
+          }
+
+          if (nextProduct) {
+            await saveWhatsAppSessionToDb({
+              phone: cleanedPhone || rawPhone,
+              orderId: order?.id,
+              lastOfferedProduct: nextProduct,
+              price: nextPrice,
+              step: nextStep,
+              metadata: {
+                lastBotReply: cleanText.slice(0, 100),
+                toolCalled: aiResult.toolCalled,
+              },
+            });
+          }
+        } catch (sessionErr) {}
+      } else {
+        console.error(`[Baileys In-Process] ❌ Failed to deliver AI message to ${normalizedJid}:`, directRes.error);
+      }
+    }
+  } catch (err: any) {
+    console.error('[Baileys In-Process] AI processing error:', err.message);
   }
 }
 
@@ -102,10 +319,54 @@ export async function startBaileysService(): Promise<void> {
       markOnlineOnConnect: true,
       connectTimeoutMs: 60000,
       defaultQueryTimeoutMs: 60000,
+      getMessage: async (key: any) => {
+        if (key?.id) {
+          return inMemoryMessageStore.get(key.id) || undefined;
+        }
+        return undefined;
+      },
     });
     waHolder.sock = currentSocket;
 
     currentSocket.ev.on('creds.update', saveCreds);
+
+    // Track poll vote answers & decrypt native 1-click button responses
+    currentSocket.ev.on('messages.update', async (updates: any[]) => {
+      if (waHolder.sock !== currentSocket || !Array.isArray(updates)) return;
+      for (const update of updates) {
+        if (update?.update?.pollUpdates) {
+          const pollId = update.key?.id;
+          const tracker = pollId ? activePollTracker.get(pollId) : null;
+          if (tracker) {
+            try {
+              const { getAggregateVotesInPollMessage } = await import('@whiskeysockets/baileys');
+              const votes = getAggregateVotesInPollMessage(
+                { message: tracker.pollMsg, pollUpdates: update.update.pollUpdates },
+                currentSocket.user?.id
+              );
+              for (const v of votes) {
+                if (v.voters && v.voters.length > 0) {
+                  const selectedName = v.name;
+                  console.log(`[Baileys In-Process] 🗳️ Customer clicked poll option: "${selectedName}"`);
+                  const textToProcess = selectedName === tracker.displayLabel ? tracker.quickReplyText : selectedName;
+                  activePollTracker.delete(pollId); // Avoid duplicate executions
+                  await handleCustomerInboundText({
+                    normalizedJid: tracker.customerJid,
+                    rawPhone: tracker.customerPhone,
+                    realPhone: tracker.customerPhone,
+                    pushName: '',
+                    incomingText: textToProcess,
+                  });
+                  break;
+                }
+              }
+            } catch (pollVoteErr: any) {
+              console.warn('[Baileys In-Process] Error handling poll vote:', pollVoteErr?.message);
+            }
+          }
+        }
+      }
+    });
 
     currentSocket.ev.on('connection.update', async (update: any) => {
       if (waHolder.sock !== currentSocket) return;
@@ -200,6 +461,7 @@ export async function startBaileysService(): Promise<void> {
 
       for (const msg of m.messages) {
         if (!msg.message || msg.key.fromMe) continue;
+        cacheMessage(msg.key?.id, msg.message);
 
         // Message Deduplication: never process the exact same message twice
         const msgKeyId = msg.key?.id;
@@ -343,187 +605,13 @@ export async function startBaileysService(): Promise<void> {
 
         console.log(`[Baileys In-Process] 💬 Inbound message from ${normalizedJid} (+${rawPhone}): "${incomingText}"`);
 
-        try {
-          const orders = getInboundOrders();
-          const cleanedPhone = cleanMoroccanPhone(rawPhone);
-          const order = orders.find(
-            (o) =>
-              cleanMoroccanPhone(o.customer?.phone) === cleanedPhone ||
-              o.customer?.phone?.includes(cleanedPhone) ||
-              cleanedPhone.includes(cleanMoroccanPhone(o.customer?.phone))
-          );
-
-          // 1. Record inbound message in Inbox Store
-          const { conversation, isAiActive } = recordInboundMessage({
-            phone: rawPhone,
-            realPhone,
-            pushName,
-            text: incomingText,
-            customerName: order?.customer?.name || pushName,
-            orderNumber: order?.orderNumber,
-            city: order?.customer?.city,
-            totalAmount: order?.payment?.amount,
-          });
-
-          // If merchant has paused AI for this conversation, do not auto-reply
-          if (!isAiActive) {
-            console.log(`[Baileys In-Process] 👤 AI Bot paused for +${rawPhone} (Human takeover active)`);
-            continue;
-          }
-
-          // 1b. Fetch session state and DB history
-          const currentSession = await getWhatsAppSessionFromDb(cleanedPhone || rawPhone);
-          const dbHistory = await getRecentWhatsAppHistoryFromDb(cleanedPhone || rawPhone, 6);
-
-          // Build context including recent conversation history & session state
-          const historyToUse = dbHistory.length > 0 ? dbHistory : (conversation?.messages || [])
-            .slice(-7, -1)
-            .map((m) => ({
-              sender: m.sender,
-              body: m.text,
-              timestamp: new Date(),
-            }));
-
-          const orderContext: OrderContext = {
-            orderId: order?.id || 'lead_temp',
-            orderNumber: order?.orderNumber || '#MA-NEW',
-            customerName: order?.customer?.name || 'الزبون المحترم',
-            phoneNumber: rawPhone,
-            city: order?.customer?.city || 'المغرب',
-            address: order?.customer?.address || 'غير محدد',
-            totalAmount: order?.payment?.amount || currentSession?.price || 179,
-            items: (order?.items || []).map((it) => ({
-              name: it.name,
-              sku: it.sku,
-              quantity: it.quantity,
-              price: it.price,
-            })),
-            conversationHistory: historyToUse,
-            sessionState: currentSession ? {
-              lastOfferedProduct: currentSession.lastOfferedProduct,
-              price: currentSession.price,
-              step: currentSession.step,
-              metadata: currentSession.metadata,
-            } : undefined,
-          };
-
-          // Log customer message to DB
-          await logWhatsAppMessageToDb({
-            orderId: order?.id,
-            phone: rawPhone,
-            sender: 'CUSTOMER',
-            body: incomingText,
-          });
-
-          const aiResult = await processCustomerWhatsAppMessage(incomingText, orderContext, {
-            onConfirm: async () => {
-              if (order) {
-                order.aiVerification = {
-                  status: 'CONFIRMED_BY_AI',
-                  riskScore: 5,
-                  notes: 'Confirmé avec succès par le bot IA via WhatsApp (Baileys)',
-                };
-              }
-            },
-            onUpdateDetails: async (args) => {
-              if (order && args.updatedPrice) {
-                order.payment.amount = args.updatedPrice;
-              }
-            },
-            onSaveGps: async (args) => {
-              if (order) {
-                order.gpsLocationUrl = args.googleMapsUrl;
-              }
-            },
-            onCancel: async () => {
-              if (order) {
-                order.aiVerification = {
-                  status: 'NEEDS_REVIEW',
-                  riskScore: 95,
-                  notes: 'Annulation demandée par le client',
-                };
-              }
-            },
-            onHandover: async () => {
-              if (order) {
-                order.aiVerification = {
-                  status: 'NEEDS_REVIEW',
-                  riskScore: 50,
-                  notes: 'Client transféré à un agent humain',
-                };
-              }
-            },
-          });
-
-          if (aiResult?.replyText) {
-            const cleanText = cleanGeminiReply(aiResult.replyText);
-
-            // Anti-Ban delay: wait 1.5s before answering to simulate natural human typing
-            await new Promise((r) => setTimeout(r, 1500));
-
-            // Deliver directly to customer's canonical WhatsApp JID
-            const directRes = await sendWhatsAppDirectMessage(normalizedJid, cleanText);
-
-            if (directRes.success) {
-              console.log(`[Baileys In-Process] ✅ AI response successfully delivered to customer ${normalizedJid}, msgId: ${directRes.msgId}`);
-              
-              await logWhatsAppMessageToDb({
-                orderId: order?.id,
-                phone: rawPhone,
-                sender: 'AI_BOT',
-                body: cleanText,
-              });
-
-              recordOutboundMessage({
-                phone: rawPhone,
-                text: cleanText,
-                sender: 'AI_BOT',
-              });
-
-              // Update session state
-              try {
-                let nextProduct = currentSession?.lastOfferedProduct;
-                let nextPrice = currentSession?.price;
-                let nextStep = currentSession?.step || 'INITIAL';
-
-                const lowerReply = cleanText.toLowerCase();
-                if (lowerReply.includes('خف جلد') || lowerReply.includes('خف') || lowerReply.includes('babouche')) {
-                  nextProduct = 'خف جلد';
-                  nextPrice = 179;
-                  nextStep = 'AWAITING_SIZE_OR_DETAILS';
-                } else if (lowerReply.includes('smart watch') || lowerReply.includes('ساعة')) {
-                  nextProduct = 'Smart Watch Ultra Pro S2';
-                  nextPrice = 299;
-                  nextStep = 'AWAITING_SIZE_OR_DETAILS';
-                }
-
-                if (aiResult.toolCalled === 'create_new_order') {
-                  nextStep = 'ORDER_CREATED';
-                } else if (aiResult.toolCalled === 'confirm_order_and_address') {
-                  nextStep = 'ORDER_CONFIRMED';
-                }
-
-                if (nextProduct) {
-                  await saveWhatsAppSessionToDb({
-                    phone: cleanedPhone || rawPhone,
-                    orderId: order?.id,
-                    lastOfferedProduct: nextProduct,
-                    price: nextPrice,
-                    step: nextStep,
-                    metadata: {
-                      lastBotReply: cleanText.slice(0, 100),
-                      toolCalled: aiResult.toolCalled,
-                    },
-                  });
-                }
-              } catch (sessionErr) {}
-            } else {
-              console.error(`[Baileys In-Process] ❌ Failed to deliver AI message to ${normalizedJid}:`, directRes.error);
-            }
-          }
-        } catch (err: any) {
-          console.error('[Baileys In-Process] AI processing error:', err.message);
-        }
+        await handleCustomerInboundText({
+          normalizedJid,
+          rawPhone,
+          realPhone,
+          pushName,
+          incomingText,
+        });
       }
     });
   } catch (err: any) {
@@ -666,6 +754,9 @@ export async function sendWhatsAppDirectMessage(
 
     console.log(`[Baileys In-Process] 📤 Sending live WhatsApp message to ${jid}: "${message.slice(0, 60)}..."`);
     const sent = await waHolder.sock.sendMessage(jid, { text: message });
+    if (sent?.key?.id && sent?.message) {
+      cacheMessage(sent.key.id, sent.message);
+    }
     console.log(`[Baileys In-Process] ✅ Message DELIVERED to WhatsApp servers for ${jid}, msgId: ${sent?.key?.id}`);
     return { success: true, recipient: jid, msgId: sent?.key?.id };
   } catch (err: any) {
@@ -696,7 +787,7 @@ export async function sendWhatsAppDirectMedia(
     return { success: false, error: 'WhatsApp not connected' };
   }
   try {
-    const { jidNormalizedUser, proto, generateWAMessageFromContent, prepareWAMessageMedia } = await import('@whiskeysockets/baileys');
+    const { jidNormalizedUser } = await import('@whiskeysockets/baileys');
     let jid = '';
 
     if (to.includes('@')) {
@@ -750,103 +841,10 @@ export async function sendWhatsAppDirectMedia(
       }
     }
 
-    // ─────────────────────────────────────────────────────────────
-    // STRATEGY 1: NATIVE WHATSAPP INTERACTIVE BUTTON (Real Button UI)
-    // ─────────────────────────────────────────────────────────────
-    if (hasButtons) {
-      try {
-        console.log(`[Baileys In-Process] 🚀 Building native interactive WhatsApp button for ${jid}...`);
-
-        let headerObj: any = {
-          hasMediaAttachment: false,
-        };
-
-        if (mediaSource && waHolder.sock.waUploadToServer) {
-          try {
-            const mediaPayload = options.mediaType === 'VIDEO' ? { video: mediaSource } : { image: mediaSource };
-            const uploadedMedia = await prepareWAMessageMedia(mediaPayload, {
-              upload: waHolder.sock.waUploadToServer,
-            });
-
-            if (options.mediaType === 'VIDEO' && uploadedMedia.videoMessage) {
-              headerObj = {
-                title: '',
-                hasMediaAttachment: true,
-                videoMessage: uploadedMedia.videoMessage,
-              };
-            } else if (uploadedMedia.imageMessage) {
-              headerObj = {
-                title: '',
-                hasMediaAttachment: true,
-                imageMessage: uploadedMedia.imageMessage,
-              };
-            }
-          } catch (uploadErr: any) {
-            console.warn('[Baileys In-Process] ⚠️ Upload media for interactive header note:', uploadErr?.message);
-          }
-        }
-
-        const nativeButtons: any[] = [
-          {
-            name: 'quick_reply',
-            buttonParamsJson: JSON.stringify({
-              display_text: displayLabel,
-              id: quickReply,
-            }),
-          },
-        ];
-
-        const interactiveMessage = proto.Message.InteractiveMessage.create({
-          body: proto.Message.InteractiveMessage.Body.create({
-            text: cleanCaption,
-          }),
-          footer: proto.Message.InteractiveMessage.Footer.create({
-            text: 'SENDIT COD • Service Client',
-          }),
-          header: proto.Message.InteractiveMessage.Header.create(headerObj),
-          nativeFlowMessage: proto.Message.InteractiveMessage.NativeFlowMessage.create({
-            buttons: nativeButtons,
-          }),
-        });
-
-        const generatedMsg = generateWAMessageFromContent(
-          jid,
-          {
-            viewOnceMessage: {
-              message: {
-                messageContextInfo: {
-                  deviceListMetadata: {},
-                  deviceListMetadataVersion: 2,
-                },
-                interactiveMessage,
-              },
-            },
-          },
-          { userJid: waHolder.sock.user?.id || undefined }
-        );
-
-        await waHolder.sock.relayMessage(jid, generatedMsg.message, {
-          messageId: generatedMsg.key.id,
-        });
-
-        console.log(`[Baileys In-Process] ✅ Native Interactive Button message DELIVERED to ${jid}, msgId: ${generatedMsg.key?.id}`);
-        return { success: true, recipient: jid, msgId: generatedMsg.key?.id || undefined };
-      } catch (interactiveErr: any) {
-        console.warn(`[Baileys In-Process] ⚠️ Native interactive message relay failed, using clean fallback:`, interactiveErr.message);
-      }
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    // STRATEGY 2: CLEAN STANDARD MESSAGE (Fallback or No-Button)
-    // ─────────────────────────────────────────────────────────────
+    // Format clean professional caption (NO ugly url-encoded links)
     let finalCaption = cleanCaption;
     if (hasButtons) {
-      const myPhoneRaw = waHolder.state.connectedPhone || '';
-      const myPhoneDigits = myPhoneRaw.replace(/[^\d]/g, '');
-      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n💬 *${displayLabel}*\n👉 Répondez directement : *${quickReply}*`;
-      if (myPhoneDigits) {
-        finalCaption += `\nou écrivez-nous : https://wa.me/${myPhoneDigits}`;
-      }
+      finalCaption += `\n\n━━━━━━━━━━━━━━━━━━━━\n🔘 *${displayLabel}*\n💬 للطلب أو الاستفادة، إختر من الزر التفاعلي أسفله 👇 أو رد بـ : *${quickReply}*`;
     }
 
     let messageContent: any = { text: finalCaption };
@@ -865,10 +863,45 @@ export async function sendWhatsAppDirectMedia(
       }
     }
 
-    console.log(`[Baileys In-Process] 📤 Sending standard message (${options.mediaType || 'TEXT'}) to ${jid}...`);
+    console.log(`[Baileys In-Process] 📤 Sending WhatsApp campaign message to ${jid}...`);
     const sent = await waHolder.sock.sendMessage(jid, messageContent);
-    console.log(`[Baileys In-Process] ✅ Media DELIVERED for ${jid}, msgId: ${sent?.key?.id}`);
-    return { success: true, recipient: jid, msgId: sent?.key?.id || undefined };
+    const msgId = sent?.key?.id;
+    if (msgId && sent?.message) {
+      cacheMessage(msgId, sent.message);
+    }
+    console.log(`[Baileys In-Process] ✅ WhatsApp message DELIVERED to ${jid}, msgId: ${msgId}`);
+
+    // If buttons/CTA requested: send native 1-click Poll button directly below
+    if (hasButtons) {
+      try {
+        await new Promise((r) => setTimeout(r, 600));
+        const pollSent = await waHolder.sock.sendMessage(jid, {
+          poll: {
+            name: `🎯 ${displayLabel}`,
+            values: [
+              displayLabel,
+              'استفسار أو مساعدة 💬',
+            ],
+            selectableCount: 1,
+          },
+        });
+        if (pollSent?.key?.id && pollSent?.message) {
+          cacheMessage(pollSent.key.id, pollSent.message);
+          activePollTracker.set(pollSent.key.id, {
+            pollMsg: pollSent.message,
+            quickReplyText: quickReply,
+            displayLabel,
+            customerJid: jid,
+            customerPhone: to.replace(/[^\d]/g, ''),
+          });
+          console.log(`[Baileys In-Process] 🔘 1-Click Poll button sent to ${jid}, pollId: ${pollSent.key.id}`);
+        }
+      } catch (pollErr: any) {
+        console.warn(`[Baileys In-Process] ⚠️ Poll button send warning (non-fatal):`, pollErr?.message);
+      }
+    }
+
+    return { success: true, recipient: jid, msgId: msgId || undefined };
   } catch (err: any) {
     console.error(`[Baileys In-Process] ❌ Exception in sendWhatsAppDirectMedia to ${to}:`, err);
     const msg = err.message || String(err);

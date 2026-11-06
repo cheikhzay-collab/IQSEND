@@ -56,6 +56,27 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
     }
 
+    // Handle Reset / Re-run
+    if (action === 'RESET') {
+      await pool.query(
+        `UPDATE whatsapp_campaign_recipients 
+         SET status = 'PENDING', error_message = NULL, sent_at = NULL, msg_id = NULL 
+         WHERE campaign_id = ?`,
+        [id]
+      );
+      await pool.query(
+        `UPDATE whatsapp_campaigns 
+         SET status = 'DRAFT', sent_count = 0, failed_count = 0, completed_at = NULL 
+         WHERE id = ?`,
+        [id]
+      );
+      return NextResponse.json({
+        success: true,
+        message: 'Campagne réinitialisée avec succès pour un nouvel envoi',
+        status: 'DRAFT',
+      });
+    }
+
     // Set status to RUNNING if starting
     await pool.query(
       `UPDATE whatsapp_campaigns 
