@@ -678,6 +678,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                       </Link>
                     )}
 
+                    <Link
+                      href="/dashboard/marketing"
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center justify-between px-2.5 py-2 rounded-xl font-semibold transition-all active:scale-95 ${
+                        pathname === '/dashboard/marketing' ? 'bg-emerald-50 text-emerald-900 font-bold border border-emerald-200' : 'text-slate-700 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <Megaphone className="w-4 h-4 text-emerald-600" />
+                        <span>Marketing & Broadcast</span>
+                      </div>
+                      <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full uppercase">
+                        WhatsApp
+                      </span>
+                    </Link>
+
                     {hasPermission('canAccessFinance') && (
                       <Link
                         href="/dashboard/finance"
@@ -942,6 +958,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <span>Clients & CRM</span>
               </Link>
             )}
+
+            <Link
+              href="/dashboard/marketing"
+              className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
+                pathname === '/dashboard/marketing'
+                  ? 'bg-emerald-50 text-emerald-950 font-bold border border-emerald-200/80 shadow-2xs'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Megaphone className={`w-4 h-4 ${pathname === '/dashboard/marketing' ? 'text-emerald-600' : 'text-slate-500'}`} />
+                <span>Marketing & Broadcast</span>
+              </div>
+              <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-full uppercase">
+                WhatsApp
+              </span>
+            </Link>
 
             {/* SECTION 5: FINANCES & AUTOMATISATIONS */}
             {(hasPermission('canAccessFinance') || hasPermission('canAccessAutomations') || hasPermission('canAccessIntegrations')) && (
