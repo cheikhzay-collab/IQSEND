@@ -156,6 +156,14 @@ export function getMysqlPool(): Pool {
       keepAliveInitialDelay: 10000,
     });
   }
+
+  // Eager background trigger of platform persistence & settings hydration
+  if (typeof window === 'undefined' && !(globalThis as any).__senditServerBootstrapped && !(globalThis as any).__senditBootstrapPromise) {
+    import('./server-boot')
+      .then((m) => m.bootstrapServer())
+      .catch((e) => console.warn('[Hostinger MySQL] Background server boot note:', e?.message));
+  }
+
   return global.__mysqlPool;
 }
 

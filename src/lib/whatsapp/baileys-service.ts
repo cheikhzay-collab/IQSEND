@@ -148,6 +148,72 @@ function resolvePersistentAuthDir(): string {
 
 const AUTH_DIR = resolvePersistentAuthDir();
 
+/**
+ * 📥 Restore WhatsApp authentication files from MySQL database into AUTH_DIR.
+ * Guarantees zero-logout persistence across Hostinger version deployments.
+ */
+export async function restoreWhatsAppAuthFromDb(targetDir: string): Promise<boolean> {
+  try {
+    const { getMysqlPool } = await import('@/lib/db');
+    const pool = getMysqlPool();
+    const [rows]: any = await pool.execute(`
+      SELECT file_name, file_content FROM whatsapp_auth_session WHERE session_id = 'default'
+    `);
+
+    if (Array.isArray(rows) && rows.length > 0) {
+      if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+      }
+      for (const r of rows) {
+        if (r.file_name && r.file_content) {
+          const filePath = path.join(targetDir, r.file_name);
+          fs.writeFileSync(filePath, r.file_content, 'utf8');
+        }
+      }
+      console.log(`[Baileys Auth] 📥 Restored ${rows.length} WhatsApp session credentials from MySQL!`);
+      return true;
+    }
+  } catch (err: any) {
+    console.warn('[Baileys Auth] DB session restore note:', err?.message);
+  }
+  return false;
+}
+
+let syncDbDebounce: NodeJS.Timeout | null = null;
+/**
+ * 💾 Sync WhatsApp authentication files from AUTH_DIR to MySQL database.
+ */
+export function saveWhatsAppAuthToDb(sourceDir: string): void {
+  if (syncDbDebounce) clearTimeout(syncDbDebounce);
+  syncDbDebounce = setTimeout(async () => {
+    syncDbDebounce = null;
+    try {
+      if (!fs.existsSync(sourceDir)) return;
+      const files = fs.readdirSync(sourceDir).filter((f) => f.endsWith('.json'));
+      if (files.length === 0) return;
+
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+
+      for (const file of files) {
+        try {
+          const filePath = path.join(sourceDir, file);
+          const content = fs.readFileSync(filePath, 'utf8');
+          await pool.execute(
+            `INSERT INTO whatsapp_auth_session (session_id, file_name, file_content, updated_at)
+             VALUES ('default', ?, ?, CURRENT_TIMESTAMP)
+             ON DUPLICATE KEY UPDATE file_content = VALUES(file_content), updated_at = CURRENT_TIMESTAMP`,
+            [file, content]
+          );
+        } catch {}
+      }
+      console.log(`[Baileys Auth] 💾 Synced ${files.length} WhatsApp auth files to MySQL.`);
+    } catch (err: any) {
+      console.warn('[Baileys Auth] DB session sync note:', err?.message);
+    }
+  }, 1200);
+}
+
 function cleanupSocket() {
   if (waHolder.reconnectTimer) {
     clearTimeout(waHolder.reconnectTimer);
@@ -374,6 +440,9 @@ export async function startBaileysService(): Promise<void> {
       fs.mkdirSync(AUTH_DIR, { recursive: true });
     }
 
+    // 1. Ensure existing WhatsApp credentials in MySQL are restored to disk before connecting
+    await restoreWhatsAppAuthFromDb(AUTH_DIR);
+
     // Dynamic import to support SSR/Node runtime in Next.js
     const { default: makeWASocket, DisconnectReason, useMultiFileAuthState } = await import('@whiskeysockets/baileys');
     const { default: pino } = await import('pino');
@@ -397,7 +466,10 @@ export async function startBaileysService(): Promise<void> {
     });
     waHolder.sock = currentSocket;
 
-    currentSocket.ev.on('creds.update', saveCreds);
+    currentSocket.ev.on('creds.update', async () => {
+      await saveCreds();
+      saveWhatsAppAuthToDb(AUTH_DIR);
+    });
 
     // Track poll vote answers & decrypt native 1-click button responses
     currentSocket.ev.on('messages.update', async (updates: any[]) => {
@@ -486,41 +558,30 @@ export async function startBaileysService(): Promise<void> {
           lastUpdated: Date.now(),
         };
         console.log(`[Baileys In-Process] 🟢 WhatsApp Connected successfully as +${phone} (${name})`);
+        saveWhatsAppAuthToDb(AUTH_DIR);
       }
 
       if (connection === 'close') {
         const statusCode = (lastDisconnect?.error as any)?.output?.statusCode;
         console.log(`[Baileys In-Process] Connection closed: statusCode=${statusCode}`);
 
-        if (statusCode === DisconnectReason.loggedOut) {
-          waHolder.state = {
-            status: 'DISCONNECTED',
-            qrCodeDataUrl: null,
-            rawQr: null,
-            connectedPhone: null,
-            connectedName: null,
-            error: null,
-            lastUpdated: Date.now(),
-          };
-          try {
-            if (fs.existsSync(AUTH_DIR)) {
-              fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-            }
-          } catch (e) {}
+        waHolder.state = {
+          status: 'DISCONNECTED',
+          qrCodeDataUrl: null,
+          rawQr: null,
+          connectedPhone: waHolder.state.connectedPhone,
+          connectedName: waHolder.state.connectedName,
+          error: null,
+          lastUpdated: Date.now(),
+        };
 
-          if (!waHolder.reconnectTimer) {
-            waHolder.reconnectTimer = setTimeout(() => {
-              waHolder.reconnectTimer = null;
-              startBaileysService();
-            }, 1500);
-          }
-        } else {
-          if (!waHolder.reconnectTimer) {
-            waHolder.reconnectTimer = setTimeout(() => {
-              waHolder.reconnectTimer = null;
-              startBaileysService();
-            }, 3000);
-          }
+        // Reconnect automatically without wiping credentials
+        const reconnectDelay = statusCode === DisconnectReason.loggedOut ? 4000 : 2000;
+        if (!waHolder.reconnectTimer) {
+          waHolder.reconnectTimer = setTimeout(() => {
+            waHolder.reconnectTimer = null;
+            startBaileysService();
+          }, reconnectDelay);
         }
       }
     });
@@ -714,6 +775,11 @@ export async function restartWhatsAppSession(): Promise<WhatsAppBridgeState> {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     }
   } catch (e) {}
+  try {
+    const { getMysqlPool } = await import('@/lib/db');
+    const pool = getMysqlPool();
+    await pool.execute(`DELETE FROM whatsapp_auth_session WHERE session_id = 'default'`);
+  } catch (e) {}
   waHolder.state = {
     status: 'INITIALIZING',
     qrCodeDataUrl: null,
@@ -738,6 +804,11 @@ export async function disconnectWhatsAppSession(): Promise<WhatsAppBridgeState> 
     if (fs.existsSync(AUTH_DIR)) {
       fs.rmSync(AUTH_DIR, { recursive: true, force: true });
     }
+  } catch (e) {}
+  try {
+    const { getMysqlPool } = await import('@/lib/db');
+    const pool = getMysqlPool();
+    await pool.execute(`DELETE FROM whatsapp_auth_session WHERE session_id = 'default'`);
   } catch (e) {}
   waHolder.state = {
     status: 'DISCONNECTED',

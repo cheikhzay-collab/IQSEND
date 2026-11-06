@@ -61,8 +61,38 @@ export async function POST(req: Request) {
     const filePath = path.join(uploadDir, safeFilename);
 
     await writeFile(filePath, buffer);
-
     const publicUrl = `/uploads/campaigns/${safeFilename}`;
+
+    // 1. Dual-write to persistent OS directory across Hostinger version deployments
+    try {
+      const os = await import('os');
+      const persistentDir = path.join(os.homedir(), '.sendit_persistent_uploads', 'campaigns');
+      if (!existsSync(persistentDir)) {
+        await mkdir(persistentDir, { recursive: true });
+      }
+      await writeFile(path.join(persistentDir, safeFilename), buffer);
+    } catch {}
+
+    // 2. Backup to MySQL media_uploads table
+    try {
+      const { getMysqlPool } = await import('@/lib/db');
+      const pool = getMysqlPool();
+      const fileData = isImage && buffer.length <= 6 * 1024 * 1024 ? buffer.toString('base64') : null;
+      await pool.execute(
+        `INSERT INTO media_uploads (id, filename, file_path, mime_type, media_type, file_data, size_bytes)
+         VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON DUPLICATE KEY UPDATE file_data = VALUES(file_data), size_bytes = VALUES(size_bytes)`,
+        [
+          `med_${timestamp}_${randomHex}`,
+          safeFilename,
+          publicUrl,
+          mimeType,
+          isVideo ? 'VIDEO' : 'IMAGE',
+          fileData,
+          file.size,
+        ]
+      );
+    } catch {}
 
     return NextResponse.json({
       success: true,
